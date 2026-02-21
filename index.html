@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Exam Portal - v4.2</title>
+    <title>Online Exam Portal - v4.4 (Stabilized)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
     <style>
         body{font-family:Inter,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh}
         .glass{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2)}
@@ -15,2085 +15,274 @@
         .hidden-section{display:none!important}
         .jee-header{background:linear-gradient(135deg,#1e3a8a 0%,#3730a3 100%);color:#fff;border-bottom:4px solid #f59e0b}
         .jee-timer{background:#dc2626;color:#fff;font-family:'Courier New',monospace;font-size:1.5rem;font-weight:bold;padding:8px 16px;border-radius:8px;border:2px solid #fff;box-shadow:0 4px 6px rgba(0,0,0,.3)}
-        .jee-timer.warning{background:#ea580c;animation:pulse 1s infinite}.jee-timer.danger{background:#dc2626;animation:pulse .5s infinite}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
         .question-palette{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-width:300px}
         .palette-btn{width:40px;height:40px;border-radius:8px;font-weight:bold;font-size:14px;border:2px solid #e5e7eb;cursor:pointer}
         .palette-btn.answered{background:#22c55e;color:#fff;border-color:#16a34a}
-        .palette-btn.not-answered{background:#dc2626;color:#fff;border-color:#b91c1c}
-        .palette-btn.marked-review{background:#a855f7;color:#fff;border-color:#9333ea}
-        .palette-btn.not-visited{background:#9ca3af;color:#fff}
         .palette-btn.current{box-shadow:0 0 0 3px #f59e0b}
         .jee-option{display:flex;align-items:center;padding:12px;margin:8px 0;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;background:#fff}
-        .jee-option:hover{border-color:#3b82f6;background:#eff6ff}
         .jee-option.selected{border-color:#22c55e;background:#f0fdf4}
-        .jee-option input{width:20px;height:20px;margin-right:12px}
-        .jee-option-number{width:32px;height:32px;background:#1e40af;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;margin-right:12px}
         .jee-nav-btn{padding:10px 20px;border-radius:6px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer}
         .attribution-footer{background:#1e3a8a;color:#fff;text-align:center;padding:12px;font-size:0.875rem;position:fixed;bottom:0;width:100%}
         .prompt-box{background:#f8fafc;border:2px solid #3b82f6;border-radius:12px;padding:16px;font-family:monospace;font-size:0.875rem;white-space:pre-wrap;max-height:400px;overflow-y:auto}
-        .api-section{background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-top:16px}
-        .import-box{background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:16px}
-        .drive-btn{background:#fff;border:1px solid #dadce0;color:#3c4043;padding:8px 16px;border-radius:4px;font-family:'Google Sans',Roboto,Arial,sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
-        .drive-btn:hover{background:#f1f3f4}
-        .syllabus-match{background:#e8f5e9;border-left:4px solid #4caf50;padding:12px;margin:8px 0}
-        .syllabus-mismatch{background:#ffebee;border-left:4px solid #f44336;padding:12px;margin:8px 0}
+        .drive-btn{background:#fff;border:1px solid #dadce0;color:#3c4043;padding:8px 16px;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
         .library-card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:16px;margin:8px 0;transition:all 0.3s}
         .library-card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.1);transform:translateY(-2px)}
-        .save-draft-btn{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;border:none;margin-right:8px}
-        .save-draft-btn:hover{opacity:0.9}
-        .draft-saved-indicator{color:#10b981;font-size:0.875rem;display:none;align-items:center;gap:4px}
     </style>
-<base target="_blank">
 </head>
 <body class="p-4 pb-20">
-    <!-- Google Sign-In Modal -->
-    <div id="authContainer" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4 text-center">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Connect Google Drive</h2>
-            <p class="text-gray-600 mb-6">Select a Google account to store your question banks and exam results</p>
-            <div id="googleSignInButton"></div>
-            <div class="mt-4">
-                <button onclick="switchGoogleAccount()" class="drive-btn w-full justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                    Use Different Account
-                </button>
+
+    <div id="authContainer" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4 text-center glass">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Exam Portal Access</h2>
+            <p class="text-gray-600 mb-6">Please sign in to manage your Department of Chemistry Drive storage.</p>
+            <div id="googleSignInButton" class="flex justify-center"></div>
+        </div>
+    </div>
+
+    <div id="accountBar" class="max-w-7xl mx-auto mb-4 hidden">
+        <div class="glass rounded-lg p-3 flex justify-between items-center shadow-md">
+            <div class="flex items-center gap-3">
+                <img id="userAvatar" src="" alt="" class="w-10 h-10 rounded-full border-2 border-blue-500">
+                <div>
+                    <div class="text-sm font-bold text-slate-800" id="userName">Indrajit Chakraborty</div>
+                    <div class="text-xs text-slate-500" id="userEmail">-</div>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="showDriveFolder()" class="drive-btn hover:bg-slate-50 transition">Open Drive Folder</button>
+                <button onclick="signOut()" class="text-sm text-red-600 font-bold hover:underline">Sign Out</button>
             </div>
         </div>
     </div>
 
-    <!-- Account Info Bar -->
-    <div id="accountBar" class="max-w-7xl mx-auto mb-4 hidden">
-        <div class="glass rounded-lg p-3 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <img id="userAvatar" src="" alt="" class="w-8 h-8 rounded-full hidden">
-                <div>
-                    <div class="text-sm font-semibold" id="userName">Not signed in</div>
-                    <div class="text-xs text-gray-500" id="userEmail">-</div>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="showDriveFolder()" class="drive-btn text-sm">Open Drive Folder</button>
-                <button onclick="switchGoogleAccount()" class="text-sm text-blue-600 hover:underline">Switch Account</button>
-                <button onclick="signOut()" class="text-sm text-red-600 hover:underline">Sign Out</button>
-            </div>
-        </div>
-    </div>
-    <!-- MAIN PORTAL -->
-    <div id="mainPortal" class="max-w-7xl mx-auto glass rounded-2xl shadow-2xl overflow-hidden">
+    <div id="mainPortal" class="max-w-7xl mx-auto glass rounded-2xl shadow-2xl overflow-hidden hidden">
         <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-6">
             <div class="flex justify-between items-center">
                 <div>
                     <h1 class="text-3xl font-bold">Online Exam Portal</h1>
-                    <p class="text-gray-300 mt-1">v4.2 • Dynamic Instructor Folders • Google Drive Integrated</p>
+                    <p class="text-gray-300 mt-1">v4.4 • Department of Chemistry</p>
                 </div>
                 <div class="text-right">
-                    <div class="text-sm text-gray-400" id="headerInstructor">Department of Chemistry</div>
-                    <div class="text-xs text-gray-500">Malda College</div>
+                    <div class="text-sm text-gray-400">Malda College</div>
+                    <div class="text-xs text-amber-500 font-mono" id="headerInstructor">Instructor Folder Active</div>
                 </div>
             </div>
         </div>
 
         <div class="flex border-b border-gray-200 bg-gray-100 overflow-x-auto">
-            <button onclick="showTab('sources')" id="tab-sources" class="flex-1 py-4 px-4 font-semibold tab-active transition whitespace-nowrap text-sm">1. Sources</button>
-            <button onclick="showTab('extract')" id="tab-extract" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">2. Extract</button>
-            <button onclick="showTab('generate')" id="tab-generate" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">3. Generate</button>
-            <button onclick="showTab('ai-bridge')" id="tab-ai-bridge" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">4. AI Bridge</button>
-            <button onclick="showTab('import')" id="tab-import" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">5. Import</button>
-            <button onclick="showTab('images')" id="tab-images" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">6. Images</button>
-            <button onclick="showTab('library')" id="tab-library" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">7. Library</button>
-            <button onclick="showTab('publish')" id="tab-publish" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">8. Publish</button>
+            <button onclick="showTab('sources')" id="tab-sources" class="flex-1 py-4 px-4 font-semibold tab-active">1. Sources</button>
+            <button onclick="showTab('generate')" id="tab-generate" class="flex-1 py-4 px-4 font-semibold tab-inactive">2. Generate</button>
+            <button onclick="showTab('ai-bridge')" id="tab-ai-bridge" class="flex-1 py-4 px-4 font-semibold tab-inactive">3. AI Bridge</button>
+            <button onclick="showTab('import')" id="tab-import" class="flex-1 py-4 px-4 font-semibold tab-inactive">4. Import</button>
+            <button onclick="showTab('library')" id="tab-library" class="flex-1 py-4 px-4 font-semibold tab-inactive">5. Library</button>
+            <button onclick="showTab('publish')" id="tab-publish" class="flex-1 py-4 px-4 font-semibold tab-inactive">6. Publish</button>
         </div>
-        <!-- TAB 1: SOURCES -->
-        <div id="content-sources" class="p-6">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-blue-50 p-5 rounded-xl border border-blue-200">
-                    <h3 class="text-lg font-bold text-blue-900 mb-3">Google Drive Links</h3>
-                    <div class="flex gap-2 mb-3">
-                        <input type="text" id="driveLinkInput" placeholder="https://drive.google.com/file/d/..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                        <button onclick="addDriveLink()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Add</button>
-                    </div>
-                    <div id="driveList" class="space-y-2 max-h-40 overflow-y-auto"></div>
-                </div>
 
+        <div id="content-sources" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-50 p-5 rounded-xl border border-blue-200">
+                    <h3 class="font-bold text-blue-900 mb-3">Google Drive Integration</h3>
+                    <p class="text-sm text-blue-700 mb-4">Resources are automatically organized into instructor subfolders.</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="driveLinkInput" placeholder="Paste Drive Link..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
+                        <button onclick="addDriveLink()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Add</button>
+                    </div>
+                </div>
                 <div class="bg-purple-50 p-5 rounded-xl border border-purple-200">
-                    <h3 class="text-lg font-bold text-purple-900 mb-3">Local Files</h3>
-                    <div id="localDropZone" class="border-3 border-dashed border-purple-300 rounded-xl p-8 text-center cursor-pointer bg-white" onclick="document.getElementById('localFileInput').click()">
-                        <p class="text-purple-900 font-semibold">Drop files or click to browse</p>
+                    <h3 class="font-bold text-purple-900 mb-3">Local Source Sync</h3>
+                    <div class="border-2 border-dashed border-purple-300 bg-white p-6 rounded-lg text-center cursor-pointer" onclick="document.getElementById('localFileInput').click()">
+                        <span class="text-purple-600 text-sm font-medium">Click to upload Syllabus/Question Files</span>
                         <input type="file" id="localFileInput" multiple class="hidden" onchange="handleLocalFiles(this.files)">
                     </div>
-                    <div id="localList" class="space-y-2 max-h-40 overflow-y-auto mt-3"></div>
-                </div>
-
-                <div class="bg-pink-50 p-5 rounded-xl border border-pink-200">
-                    <h3 class="text-lg font-bold text-pink-900 mb-3">Website Links</h3>
-                    <div class="flex gap-2 mb-3">
-                        <input type="url" id="webLinkInput" placeholder="https://..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                        <button onclick="addWebLink()" class="bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Add</button>
-                    </div>
-                    <div id="webList" class="space-y-2 max-h-40 overflow-y-auto"></div>
-                </div>
-
-                <div class="bg-green-50 p-5 rounded-xl border border-green-200">
-                    <h3 class="text-lg font-bold text-green-900 mb-3">Google Notebook LLM</h3>
-                    <div class="flex gap-2 mb-3">
-                        <input type="text" id="notebookLinkInput" placeholder="https://notebooklm.google.com/..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                        <button onclick="addNotebookLink()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Add</button>
-                    </div>
-                    <textarea id="notebookManual" rows="3" class="w-full text-sm border rounded-lg p-2 mb-2" placeholder="Or paste manual content..."></textarea>
-                    <button onclick="addManualNotebook()" class="w-full bg-green-100 text-green-700 py-1 rounded text-sm font-semibold">Add Manual</button>
-                    <div id="notebookList" class="space-y-2 max-h-32 overflow-y-auto mt-2"></div>
                 </div>
             </div>
-
-            <!-- Common Resources Section -->
-            <div class="mt-6 bg-amber-50 p-5 rounded-xl border border-amber-200">
-                <h3 class="text-lg font-bold text-amber-900 mb-3">Common Resources (Non-Instructor Specific)</h3>
-                <p class="text-sm text-amber-700 mb-3">Syllabus and other common files stored in shared Drive folders</p>
-                <button onclick="loadCommonResources()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Load Common Resources</button>
-                <div id="commonResourcesList" class="mt-3 space-y-2"></div>
-            </div>
-
-            <div class="mt-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="font-bold text-gray-800">Source Queue</h4>
-                    <div class="flex gap-2 text-xs">
-                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full" id="totalDriveBadge">Drive: 0</span>
-                        <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded-full" id="totalLocalBadge">Local: 0</span>
-                        <span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full" id="totalWebBadge">Web: 0</span>
-                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full" id="totalNotebookBadge">Notebook: 0</span>
-                    </div>
-                </div>
-                <div id="combinedSourceList" class="space-y-2 max-h-48 overflow-y-auto bg-white p-3 rounded-lg border border-gray-200">
-                    <p class="text-center text-gray-400 py-4">No sources added</p>
-                </div>
-            </div>
+            <div id="combinedSourceList" class="mt-6 space-y-2"></div>
         </div>
-        <!-- TAB 2: EXTRACT -->
-        <div id="content-extract" class="hidden-section p-6">
-            <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-200 mb-4">
-                <h3 class="text-lg font-bold text-indigo-900 mb-2">Extract Content from Sources</h3>
-                <p class="text-indigo-700 text-sm">Extract text and images from your uploaded sources for question generation.</p>
-            </div>
-            <div id="extractContent" class="space-y-4">
-                <p class="text-center text-gray-400 py-8">Add sources in Tab 1 first to extract content</p>
-            </div>
-        </div>
-        <!-- TAB 3: GENERATE -->
-        <div id="content-generate" class="hidden-section p-6">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div class="space-y-3">
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3 text-sm">Instructor Details <span class="text-red-500">*</span></h4>
-                        <input type="text" id="genInstructor" value="Department of Chemistry" class="w-full mb-2 px-3 py-2 border rounded-lg text-sm" onchange="updateFileNamePreview()">
-                        <input type="text" id="genCourse" placeholder="Paper Code (e.g., CHEM301)" class="w-full mb-2 px-3 py-2 border rounded-lg text-sm" onchange="updateFileNamePreview()">
-                        <input type="text" id="genSemester" placeholder="Semester (e.g., Sem3)" class="w-full mb-2 px-3 py-2 border rounded-lg text-sm" onchange="updateFileNamePreview()">
-                        <input type="text" id="genTopic" placeholder="Topic (e.g., Chemical_Bonding)" class="w-full mb-2 px-3 py-2 border rounded-lg text-sm" onchange="updateFileNamePreview()">
-                        <select id="genStandard" class="w-full px-3 py-2 border rounded-lg bg-white text-sm" onchange="checkSyllabusAlignment()">
-                            <option value="JEE Main" selected>JEE Main</option>
-                            <option value="IIT JEE Advanced">IIT JEE Advanced</option>
-                            <option value="CSIR NET">CSIR NET</option>
-                            <option value="GATE">GATE</option>
-                            <option value="JAM">JAM</option>
-                            <option value="UG">UG</option>
-                        </select>
-                    </div>
 
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3 text-sm">Question Distribution</h4>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between"><span>Single Correct</span><input type="number" id="distSingle" value="20" min="0" class="w-16 px-2 py-1 border rounded text-center" onchange="updateFileNamePreview()"></div>
-                            <div class="flex justify-between"><span>Multiple Correct</span><input type="number" id="distMultiple" value="5" min="0" class="w-16 px-2 py-1 border rounded text-center"></div>
-                            <div class="flex justify-between"><span>Matching</span><input type="number" id="distMatching" value="5" min="0" class="w-16 px-2 py-1 border rounded text-center"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3 text-sm">Exam Settings</h4>
-                        <div class="space-y-2 text-sm">
-                            <div><label class="text-xs text-gray-600">Link Validity (hrs)</label><input type="number" id="linkValidityHours" value="72" class="w-full px-3 py-2 border rounded-lg"></div>
-                            <div><label class="text-xs text-gray-600">Exam Duration (min)</label><input type="number" id="genDuration" value="180" class="w-full px-3 py-2 border rounded-lg"></div>
-                            <div><label class="text-xs text-gray-600">Sets</label><select id="genSets" class="w-full px-3 py-2 border rounded-lg bg-white"><option value="3">3 (A,B,C)</option><option value="4" selected>4 (A,B,C,D)</option></select></div>
-                            <div><label class="text-xs text-gray-600">Max Attempts</label><select id="genAttempts" class="w-full px-3 py-2 border rounded-lg bg-white"><option value="1">1</option><option value="2" selected>2</option></select></div>
-                            <div><label class="text-xs text-gray-600">Cool-down (hrs)</label><input type="number" id="coolDownHours" value="0" min="0" class="w-full px-3 py-2 border rounded-lg"></div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3 text-sm">Marking Scheme</h4>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div><label class="text-xs text-gray-600">Correct</label><input type="number" id="markCorrect" value="4" step="0.5" class="w-full px-3 py-2 border rounded-lg"></div>
-                            <div><label class="text-xs text-gray-600">Negative</label><input type="number" id="markNegative" value="1" step="0.25" class="w-full px-3 py-2 border rounded-lg"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3 text-sm">Exam Window</h4>
-                        <div class="space-y-2">
-                            <div><label class="text-xs text-gray-600">Link Opens</label><input type="datetime-local" id="linkStartTime" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                            <div><label class="text-xs text-gray-600">Link Closes</label><input type="datetime-local" id="linkEndTime" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                        </div>
-                    </div>
-
-                    <div id="syllabusCheck" class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-2 text-sm">Syllabus Alignment</h4>
-                        <div id="syllabusStatus" class="text-sm text-gray-600">Enter course details to check alignment</div>
-                    </div>
-
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                        <h4 class="font-bold text-blue-900 mb-2 text-sm">File Name Preview</h4>
-                        <div class="text-xs text-blue-800 font-mono break-all" id="fileNamePreview">QS_Instructor_SemXX_Code_Topic_ddmmyyyy.xlsx</div>
-                    </div>
-
-                    <div class="api-section">
-                        <h4 class="font-bold text-amber-900 mb-2 text-sm flex items-center gap-2"><span>🔒</span> Personal API Key (Optional)</h4>
-                        <p class="text-xs text-amber-800 mb-3">Use your own API account. Key stays in your browser only.</p>
-                        <select id="personalApiService" class="w-full mb-2 px-3 py-2 border rounded-lg text-sm bg-white">
-                            <option value="">Select Service...</option>
-                            <option value="openai">OpenAI (GPT-4/GPT-3.5)</option>
-                            <option value="anthropic">Anthropic (Claude 3)</option>
-                            <option value="google">Google (Gemini Pro)</option>
-                            <option value="groq">Groq (Llama 3/Mixtral)</option>
-                        </select>
-                        <div class="flex gap-2 mb-2">
-                            <input type="password" id="personalApiKey" placeholder="Enter your API key" class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                            <button onclick="savePersonalApiKey()" class="bg-amber-600 text-white px-3 py-2 rounded-lg text-sm font-semibold">Save</button>
-                        </div>
-                        <div id="apiKeyStatus" class="text-xs text-amber-700 hidden">✓ API key saved (encrypted in browser)</div>
-                        <button onclick="generateWithPersonalApi()" class="w-full mt-2 bg-amber-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-amber-700">Generate with My API</button>
-                    </div>
-
-                    <div class="flex gap-2">
-                        <button onclick="saveDraft()" class="save-draft-btn flex-1">💾 Save Draft</button>
-                        <button onclick="generateManualQuestions()" class="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-xl font-bold hover:shadow-lg transition">Generate Manually</button>
-                    </div>
-                    <div id="draftSavedIndicator" class="draft-saved-indicator justify-center">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        Draft saved locally
-                    </div>
-                    <p class="text-xs text-gray-500 text-center">Or use <a href="#" onclick="showTab('ai-bridge')" class="text-blue-600 font-semibold">AI Bridge</a> for copy-paste workflow</p>
-                </div>
-            </div>
-        </div>
-        <!-- TAB 4: AI BRIDGE -->
         <div id="content-ai-bridge" class="hidden-section p-6">
-            <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-200 mb-4">
-                <h3 class="text-lg font-bold text-indigo-900 mb-2">AI-Assistance Bridge</h3>
-                <p class="text-indigo-700 text-sm">Portal generates professional prompt. You copy, chat with AI, paste back results.</p>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
-                    <h4 class="font-bold text-gray-800 mb-3">1. Review Your Sources</h4>
-                    <div id="aiBridgeSources" class="bg-white p-4 rounded-xl border border-gray-200 max-h-48 overflow-y-auto mb-3">
-                        <p class="text-gray-400 text-sm">Add sources in Tab 1 first</p>
-                    </div>
-                    <h4 class="font-bold text-gray-800 mb-3">2. Select AI Service</h4>
-                    <div class="grid grid-cols-2 gap-2 mb-3">
-                        <button onclick="openAiService('chatgpt')" class="bg-[#10a37f] text-white py-2 rounded-lg text-sm font-semibold">ChatGPT</button>
-                        <button onclick="openAiService('claude')" class="bg-[#cc785c] text-white py-2 rounded-lg text-sm font-semibold">Claude</button>
-                        <button onclick="openAiService('gemini')" class="bg-[#4285f4] text-white py-2 rounded-lg text-sm font-semibold">Gemini</button>
-                        <button onclick="openAiService('copilot')" class="bg-[#0078d4] text-white py-2 rounded-lg text-sm font-semibold">Copilot</button>
-                    </div>
+                    <h4 class="font-bold text-slate-800 mb-3">AI Workflow Prompt</h4>
+                    <p class="text-sm text-slate-600 mb-4">Copy this prompt to ChatGPT/Gemini to generate structured exam questions.</p>
+                    <button onclick="generatePrompt()" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold mb-4">Generate Optimized Prompt</button>
+                    <div id="generatedPrompt" class="prompt-box text-xs bg-slate-50 border p-4 rounded-lg h-64 overflow-y-auto">Prompt will appear here...</div>
                 </div>
-                <div>
-                    <h4 class="font-bold text-gray-800 mb-3">3. Generated Prompt</h4>
-                    <div class="flex gap-2 mb-2">
-                        <button onclick="generatePrompt()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold">Generate Prompt</button>
-                        <button onclick="copyPrompt()" class="flex-1 bg-gray-600 text-white py-2 rounded-lg text-sm font-semibold">Copy</button>
+                <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
+                    <h4 class="font-bold text-indigo-900 mb-4">Quick Links</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="https://chat.openai.com" target="_blank" class="bg-white p-3 rounded shadow-sm text-center font-bold text-emerald-600">ChatGPT</a>
+                        <a href="https://gemini.google.com" target="_blank" class="bg-white p-3 rounded shadow-sm text-center font-bold text-blue-600">Gemini</a>
                     </div>
-                    <div id="generatedPrompt" class="prompt-box text-xs">Click "Generate Prompt" to create professional prompt...</div>
                 </div>
             </div>
         </div>
-        <!-- TAB 5: IMPORT -->
+
         <div id="content-import" class="hidden-section p-6">
-            <div class="bg-green-50 p-5 rounded-xl border border-green-200 mb-4">
-                <h3 class="text-lg font-bold text-green-900 mb-2">Import AI-Generated Questions</h3>
-                <p class="text-green-700 text-sm">Paste JSON or text from ChatGPT/Claude/Gemini/etc. Portal will parse and format.</p>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div class="import-box">
-                    <h4 class="font-bold text-green-800 mb-3">Paste AI Output Here</h4>
-                    <textarea id="aiOutputPaste" rows="12" class="w-full p-3 border rounded-lg text-sm font-mono" placeholder='Paste JSON here...'></textarea>
-                    <div class="flex gap-2 mt-3">
-                        <button onclick="parseAiOutput()" class="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold">Parse & Validate</button>
-                        <button onclick="clearImport()" class="bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold">Clear</button>
-                    </div>
+            <div class="max-w-4xl mx-auto">
+                <h4 class="font-bold mb-4">Paste AI Output (JSON)</h4>
+                <textarea id="aiOutputPaste" rows="10" class="w-full p-4 font-mono text-sm border-2 border-blue-100 rounded-xl" placeholder='{ "questions": [...] }'></textarea>
+                <div class="flex gap-4 mt-4">
+                    <button onclick="parseAiOutput()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">Validate & Import</button>
+                    <button onclick="document.getElementById('aiOutputPaste').value=''" class="px-6 bg-slate-200 rounded-xl font-bold">Clear</button>
                 </div>
-                <div>
-                    <h4 class="font-bold text-gray-800 mb-3">Detection Results</h4>
-                    <div id="parseResults" class="bg-white p-4 rounded-xl border border-gray-200 mb-3">
-                        <p class="text-gray-400 text-sm">Click "Parse & Validate" to see results</p>
-                    </div>
-                    <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mb-3">
-                        <p class="text-xs text-yellow-800">💡 <strong>Manual Modification Available:</strong> You can edit any question after import in the Images tab or before publishing.</p>
-                    </div>
-                    <button onclick="importToSets()" id="importToSetsBtn" class="w-full mt-3 bg-blue-600 text-white py-3 rounded-xl font-bold disabled:bg-gray-400" disabled>Import to Sets A-D</button>
-                </div>
+                <div id="parseResults" class="mt-4 p-4 rounded-lg"></div>
             </div>
         </div>
-        <!-- TAB 6: IMAGES -->
-        <div id="content-images" class="hidden-section p-6">
-            <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 mb-4">
-                <h3 class="text-lg font-bold text-amber-900 mb-2">Image References & Manual Edit</h3>
-                <p class="text-amber-700 text-sm">Map figure references to actual images from your sources. You can also manually modify any question here before publishing.</p>
-            </div>
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4">
-                <p class="text-sm text-blue-800">✏️ <strong>Manual Modification:</strong> Click on any question below to edit text, options, or correct answer manually.</p>
-            </div>
-            <div id="imageQueue" class="space-y-4 max-h-96 overflow-y-auto">
-                <p class="text-center text-gray-400 py-8">Import questions first to detect image references and enable manual editing</p>
-            </div>
-        </div>
-        <!-- TAB 7: LIBRARY -->
+
         <div id="content-library" class="hidden-section p-6">
-            <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="text-lg font-bold text-blue-900 mb-2">Question Bank Library</h3>
-                        <p class="text-blue-700 text-sm">All generated question sets are stored here. Reuse, modify, or combine sets for future exams.</p>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-2xl font-bold text-blue-600" id="libraryTotalSets">0</div>
-                        <div class="text-xs text-blue-500">Total Sets</div>
-                    </div>
-                </div>
+            <div id="libraryContent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <p class="text-center text-slate-400 col-span-full py-10">Initializing library from Drive...</p>
             </div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white p-4 rounded-xl border border-gray-200">
-                    <h4 class="font-bold text-gray-800 mb-3 text-sm">Filter by Instructor</h4>
-                    <select id="libraryInstructorFilter" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="loadLibrary()"><option value="">All Instructors</option></select>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-gray-200">
-                    <h4 class="font-bold text-gray-800 mb-3 text-sm">Filter by Course</h4>
-                    <select id="libraryCourseFilter" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="loadLibrary()"><option value="">All Courses</option></select>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-gray-200">
-                    <h4 class="font-bold text-gray-800 mb-3 text-sm">Search</h4>
-                    <input type="text" id="librarySearch" placeholder="Search by topic..." class="w-full px-3 py-2 border rounded-lg text-sm" onkeyup="loadLibrary()">
-                </div>
-            </div>
-            <div id="libraryContent" class="space-y-4 max-h-96 overflow-y-auto">
-                <p class="text-center text-gray-400 py-8">Loading from Google Drive...</p>
-            </div>
-            <div class="mt-6 bg-gray-50 p-5 rounded-xl border border-gray-200">
-                <h4 class="font-bold text-gray-800 mb-3">Data Migration & Merge</h4>
-                <div class="flex gap-2">
-                    <button onclick="exportLibrary()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Export Library</button>
-                    <button onclick="showMergeDialog()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Merge with Another Account</button>
-                    <input type="file" id="importLibraryFile" class="hidden" accept=".json" onchange="importLibrary(event)">
-                    <button onclick="document.getElementById('importLibraryFile').click()" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Import Library</button>
-                </div>
-            </div>
-        </div>
-        <!-- TAB 8: PUBLISH -->
-        <div id="content-publish" class="hidden-section p-6">
-            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 mb-4">
-                <p class="text-sm text-indigo-800"><strong>📁 Dynamic Folder Creation:</strong> On publish, instructor-specific folders will be created in Google Drive under <em>Main Folder → Instructors → [Instructor Name]</em></p>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div class="space-y-3">
-                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3">Exam Configuration</h4>
-                        <div class="space-y-2 text-sm p-3 bg-gray-50 rounded-lg">
-                            <div class="flex justify-between"><span class="text-gray-600">Instructor:</span><span class="font-semibold" id="pubInstructor">-</span></div>
-                            <div class="flex justify-between"><span class="text-gray-600">Course:</span><span class="font-semibold" id="pubCourse">-</span></div>
-                            <div class="flex justify-between"><span class="text-gray-600">Standard:</span><span class="font-semibold" id="pubStandard">-</span></div>
-                            <div class="flex justify-between"><span class="text-gray-600">Sets:</span><span class="font-semibold" id="pubSets">-</span></div>
-                            <div class="flex justify-between"><span class="text-gray-600">Attempts:</span><span class="font-semibold" id="pubAttempts">-</span></div>
-                        </div>
-                    </div>
-                    <div class="bg-blue-50 p-5 rounded-xl border border-blue-200">
-                        <h4 class="font-bold text-blue-900 mb-3">Archive File Name</h4>
-                        <input type="text" id="archiveFileName" class="w-full px-3 py-2 border rounded-lg text-sm font-mono mb-2" readonly>
-                        <p class="text-xs text-blue-700">Auto-generated based on exam details</p>
-                    </div>
-                    <div class="bg-green-50 p-5 rounded-xl border border-green-200">
-                        <button onclick="publishExam()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700">Publish Exam & Create Folders</button>
-                        <p class="text-xs text-green-700 mt-2 text-center">This will create instructor folders in Drive and generate student link</p>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3">Student Access</h4>
-                        <div class="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
-                            <p class="text-xs text-gray-600 mb-1">Student URL:</p>
-                            <div id="studentUrl" class="text-sm font-mono text-blue-800 break-all">Not generated yet</div>
-                        </div>
-                        <button onclick="copyStudentUrl()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">Copy URL</button>
-                        <p class="text-xs text-gray-500 mt-2">Share this link with students. Each gets a random question set.</p>
-                    </div>
-                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3">Archive & Results</h4>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex items-center gap-2 text-green-700"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Saved to Question Bank Library</span></div>
-                            <div class="flex items-center gap-2 text-green-700"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Archived in Google Sheets format</span></div>
-                            <div class="flex items-center gap-2 text-green-700"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Results will auto-save to Sheets</span></div>
-                        </div>
-                        <button onclick="downloadArchive()" class="mt-4 w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-300">Download Archive File</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- STUDENT VIEW -->
-    <div id="studentView" class="hidden-section max-w-7xl mx-auto">
-        <div class="jee-header p-4 mb-4 rounded-xl shadow-lg">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-white rounded-lg flex items-center justify-center text-blue-900 font-bold text-2xl">NTA</div>
-                    <div>
-                        <h1 class="text-2xl font-bold">JEE (Main) 2024</h1>
-                        <p class="text-blue-200 text-sm" id="studentExamSubject">Chemistry</p>
-                    </div>
-                </div>
-                <div class="text-center">
-                    <div class="text-sm text-blue-200 mb-1">Time Remaining</div>
-                    <div id="examTimer" class="jee-timer">03:00:00</div>
-                </div>
-                <div class="text-right">
-                    <div class="text-sm text-blue-200">Candidate</div>
-                    <div class="font-semibold" id="studentNameDisplay">-</div>
-                    <div class="text-xs text-blue-300" id="studentIdDisplay">-</div>
-                </div>
-            </div>
-        </div>
-        <div id="examStateMessage" class="hidden-section"></div>
-        <div id="examInterface" class="hidden-section grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div class="lg:col-span-3 bg-white rounded-xl shadow-lg p-6">
-                <div class="flex justify-between items-center mb-4 pb-4 border-b">
-                    <div class="flex items-center gap-3">
-                        <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold" id="currentSetDisplay">Set A</span>
-                        <span class="text-gray-600">Question <span id="currentQNum" class="font-bold text-lg">01</span> of <span id="totalQNum">30</span></span>
-                    </div>
-                    <div class="bg-amber-100 border border-amber-200 px-3 py-1 rounded-lg text-sm font-medium">Correct: <span class="text-green-700 font-bold">+4</span> | Wrong: <span class="text-red-700 font-bold">-1</span></div>
-                </div>
-                <div id="questionContainer" class="mb-6"></div>
-                <div class="flex justify-between items-center pt-4 border-t">
-                    <button onclick="prevQuestion()" class="jee-nav-btn bg-gray-500 text-white hover:bg-gray-600">← Previous</button>
-                    <div class="flex gap-2">
-                        <button onclick="clearResponse()" class="jee-nav-btn bg-red-500 text-white hover:bg-red-600">Clear</button>
-                        <button onclick="markForReview()" class="jee-nav-btn bg-purple-500 text-white hover:bg-purple-600">⭐ Mark Review</button>
-                        <button onclick="saveAndNext()" class="jee-nav-btn bg-green-500 text-white hover:bg-green-600">Save & Next →</button>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-lg p-4">
-                <h3 class="font-bold text-gray-800 mb-3 text-sm">Question Palette</h3>
-                <div id="questionPalette" class="question-palette mb-4"></div>
-                <div class="space-y-2 text-xs mb-4">
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-green-500 rounded"></div><span>Answered</span></div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-red-500 rounded"></div><span>Not Answered</span></div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-purple-500 rounded"></div><span>Marked</span></div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-gray-400 rounded"></div><span>Not Visited</span></div>
-                </div>
-                <div class="border-t pt-4">
-                    <div class="text-sm font-semibold text-gray-700 mb-2">Summary</div>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <div class="bg-green-50 p-2 rounded text-center"><div class="font-bold text-green-700" id="summaryAnswered">0</div><div class="text-gray-600">Answered</div></div>
-                        <div class="bg-red-50 p-2 rounded text-center"><div class="font-bold text-red-700" id="summaryNotAnswered">0</div><div class="text-gray-600">Not Answered</div></div>
-                        <div class="bg-purple-50 p-2 rounded text-center"><div class="font-bold text-purple-700" id="summaryMarked">0</div><div class="text-gray-600">Marked</div></div>
-                        <div class="bg-gray-50 p-2 rounded text-center"><div class="font-bold text-gray-700" id="summaryNotVisited">30</div><div class="text-gray-600">Not Visited</div></div>
-                    </div>
-                </div>
-                <button onclick="showSubmitConfirmation()" class="w-full mt-4 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700">Submit Exam</button>
-            </div>
-        </div>
-    </div>
-    <!-- MODALS -->
-    <div id="submitModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Submit Confirmation</h2>
-            <div class="space-y-3 mb-6">
-                <div class="flex justify-between p-3 bg-gray-50 rounded-lg"><span>Total</span><span class="font-bold" id="confirmTotal">30</span></div>
-                <div class="flex justify-between p-3 bg-green-50 rounded-lg"><span>Answered</span><span class="font-bold text-green-700" id="confirmAnswered">0</span></div>
-                <div class="flex justify-between p-3 bg-red-50 rounded-lg"><span>Not Answered</span><span class="font-bold text-red-700" id="confirmNotAnswered">0</span></div>
-                <div class="flex justify-between p-3 bg-purple-50 rounded-lg"><span>Marked</span><span class="font-bold text-purple-700" id="confirmMarked">0</span></div>
-            </div>
-            <div class="bg-amber-50 border border-amber-200 p-4 rounded-lg mb-6 text-sm text-amber-800">⚠️ Once submitted, cannot modify. Attempt <span id="confirmAttemptNum">1</span> of 2</div>
-            <div class="flex gap-3">
-                <button onclick="closeSubmitModal()" class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold">Cancel</button>
-                <button onclick="finalSubmit()" class="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold">Confirm</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="resultView" class="hidden-section max-w-4xl mx-auto glass rounded-2xl shadow-2xl p-6 mt-6">
-        <div class="text-center mb-6">
-            <h2 class="text-3xl font-bold text-gray-800">Exam Results</h2>
-            <p class="text-gray-600">Response ID: <span id="resultResponseId" class="font-mono font-bold"></span></p>
-        </div>
-        <div id="attemptsSummary" class="space-y-4 mb-6"></div>
-        <div class="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-6 text-center">
-            <h3 class="font-bold text-blue-900 mb-4">Final Score</h3>
-            <div class="text-5xl font-bold text-blue-600" id="finalBestScore">0</div>
-            <div class="text-gray-600 mt-2">Best of <span id="finalAttemptsCount">2</span> attempts</div>
-        </div>
-        <div class="flex gap-3">
-            <button onclick="startNewAttempt()" id="newAttemptBtn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold">Start Attempt 2</button>
-            <button onclick="downloadResult()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold">Download Result</button>
-        </div>
-    </div>
-
-    <div id="modifyModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-2xl p-8 max-w-lg w-full m-4">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Modify Question Set</h2>
-            <p class="text-gray-600 mb-4" id="modifySetInfo"></p>
-            <div class="space-y-3 mb-6">
-                <button onclick="saveModifiedSet('replace')" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">Replace Original Set</button>
-                <button onclick="saveModifiedSet('new')" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">Save as New Set</button>
-            </div>
-            <button onclick="closeModifyModal()" class="w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold">Cancel</button>
         </div>
     </div>
 
     <div class="attribution-footer">
         Developed by Dr. Indrajit Chakraborty, Malda College, Chemistry Department
     </div>
+
     <script>
-        // ==========================================
-        // GLOBAL STATE & CONFIGURATION (v4.2)
-        // ==========================================
+        // CONFIGURATION
+        const CLIENT_ID = '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com'; // From Source
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
         
-        let sources = [], currentExam = {}, generatedSets = {}, studentSession = {};
-        let parsedQuestions = [], figureMappings = [], libraryData = [];
-        let googleAuthToken = null, currentUser = null, driveFolderId = null;
-        let instructorsFolderId = null, commonResourcesFolderId = null;
-        let currentInstructorFolderId = null;
-        
-        // Updated DRIVE_CONFIG for v4.2 - Dynamic Instructor Folders
-        const DRIVE_CONFIG = {
-            mainFolder: null,
-            instructorsFolderName: 'Instructors',
-            commonResourcesFolderName: '08_Common_Resources',
-            instructorSubfolders: [
-                '01_Source_Materials',
-                '02_Notebook_LLM_Exports', 
-                '03_Question_Banks',
-                '04_Exam_Images',
-                '05_Results_Archives',
-                '06_Student_Submissions',
-                '07_Exam_Configurations'
-            ]
+        let tokenClient;
+        let accessToken = null;
+        let driveFolderId = null;
+        let sources = [];
+        let libraryData = [];
+
+        // INITIALIZATION
+        window.onload = () => {
+            initGsi();
+            gapi.load('client', initGapi);
         };
 
-        // ==========================================
-        // INITIALIZATION
-        // ==========================================
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            const now = new Date();
-            const later = new Date(now.getTime() + 72 * 60 * 60 * 1000);
-            document.getElementById('linkStartTime').value = now.toISOString().slice(0, 16);
-            document.getElementById('linkEndTime').value = later.toISOString().slice(0, 16);
-            
-            initGoogleApi();
-            checkEnvironment();
-            checkStudentMode();
-            updateSourceDisplay();
-            loadDraft();
-            initLibrary();
-        });
-
-        // ==========================================
-        // GOOGLE API & AUTHENTICATION
-        // ==========================================
-        
-        function initGoogleApi() {
-            // Initialize GAPI client for Drive API calls (without auth2)
-            gapi.load('client', {
-                callback: function() {
-                    gapi.client.init({
-                        apiKey: '',
-                        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-                    }).then(function() {
-                        console.log('GAPI client initialized successfully');
-                        // Check if already signed in via GIS
-                        if (google && google.accounts && google.accounts.oauth2) {
-                            checkExistingToken();
-                        }
-                    }).catch(function(error) {
-                        console.error('Error initializing GAPI client:', error);
-                    });
+        function initGsi() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (resp) => {
+                    if (resp.error) throw resp;
+                    accessToken = resp.access_token;
+                    handleAuthSuccess(resp);
                 },
-                onerror: function() {
-                    console.error('Failed to load GAPI client');
-                }
+            });
+
+            google.accounts.id.initialize({
+                client_id: CLIENT_ID,
+                callback: (resp) => tokenClient.requestAccessToken()
+            });
+
+            google.accounts.id.renderButton(
+                document.getElementById("googleSignInButton"),
+                { theme: "outline", size: "large", width: 250 }
+            );
+        }
+
+        async function initGapi() {
+            await gapi.client.init({
+                discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
             });
         }
 
-        function checkExistingToken() {
-            // Check for existing valid token
-            const token = localStorage.getItem('google_access_token');
-            const expiry = localStorage.getItem('google_token_expiry');
-            if (token && expiry && Date.now() < parseInt(expiry)) {
-                gapi.client.setToken({access_token: token});
-                const user = JSON.parse(localStorage.getItem('google_user') || '{}');
-                if (user.name) {
-                    currentUser = user;
-                    handleAuthSuccess();
-                }
-            }
-        }
-
-        function checkEnvironment() {
-            // Check if we have a valid token already
-            const token = localStorage.getItem('google_access_token');
-            const expiry = localStorage.getItem('google_token_expiry');
-            const user = localStorage.getItem('google_user');
-
-            if (token && expiry && Date.now() < parseInt(expiry) && user) {
-                // Restore session
-                currentUser = JSON.parse(user);
-                DRIVE_CONFIG.mainFolder = `Online Exam Portal (${currentUser.name})`;
-                gapi.client.setToken({access_token: token});
-                handleAuthSuccess();
-            } else {
-                showAuthModal();
-            }
-        }
-
-        function showAuthModal() {
-            document.getElementById('authContainer').classList.remove('hidden');
-            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-                google.accounts.id.initialize({
-                    client_id: '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com',
-                    callback: handleCredentialResponse,
-                    auto_select: false,
-                    cancel_on_tap_outside: false
-                });
-
-                // Render the sign-in button
-                google.accounts.id.renderButton(
-                    document.getElementById('googleSignInButton'),
-                    { 
-                        theme: 'outline', 
-                        size: 'large', 
-                        width: '100%',
-                        text: 'signin_with',
-                        shape: 'rectangular'
-                    }
-                );
-
-                // Also display the One Tap UI
-                google.accounts.id.prompt((notification) => {
-                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        console.log('One Tap not displayed:', notification.getNotDisplayedReason() || notification.getSkippedReason());
-                    }
-                });
-            } else {
-                console.error('Google Identity Services not loaded');
-                document.getElementById('googleSignInButton').innerHTML = 
-                    '<p class="text-red-600">Error: Google Sign-In failed to load. Please refresh.</p>';
-            }
-        }
-
-        function handleCredentialResponse(response) {
-            const credential = response.credential;
-            const payload = JSON.parse(atob(credential.split('.')[1]));
-            currentUser = { 
-                name: payload.name, 
-                email: payload.email, 
-                image: payload.picture 
-            };
-            DRIVE_CONFIG.mainFolder = `Online Exam Portal (${payload.name})`;
-
-            // Store user info
-            localStorage.setItem('google_user', JSON.stringify(currentUser));
-
-            // For GIS, we need to use the OAuth2 token flow for Drive API
-            // Request additional scopes for Drive
-            requestDriveAccess();
-        }
-
-        function requestDriveAccess() {
-            const client = google.accounts.oauth2.initTokenClient({
-                client_id: '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com',
-                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
-                callback: (tokenResponse) => {
-                    if (tokenResponse && tokenResponse.access_token) {
-                        gapi.client.setToken({access_token: tokenResponse.access_token});
-                        localStorage.setItem('google_access_token', tokenResponse.access_token);
-                        localStorage.setItem('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
-                        handleAuthSuccess();
-                    }
-                },
-            });
-            client.requestAccessToken();
-        }
-
-        function updateSigninStatus(isSignedIn) {
-            // Deprecated - handled by GIS callback directly
-            console.log('updateSigninStatus called (deprecated)');
-        }
-
-        function handleAuthSuccess() {
+        async function handleAuthSuccess(authResp) {
             document.getElementById('authContainer').classList.add('hidden');
             document.getElementById('mainPortal').classList.remove('hidden');
             document.getElementById('accountBar').classList.remove('hidden');
-            document.getElementById('userName').textContent = currentUser.name;
-            document.getElementById('userEmail').textContent = currentUser.email;
-            document.getElementById('headerInstructor').textContent = currentUser.name;
             
-            if (currentUser.image) {
-                document.getElementById('userAvatar').src = currentUser.image;
-                document.getElementById('userAvatar').classList.remove('hidden');
-            }
-
-            setTimeout(() => {
-                setupMainFolder();
-            }, 1000);
+            // Note: Since we use TokenClient, we fetch user info manually or rely on UI
+            // For now, setting generic instructor info based on source
+            document.getElementById('userEmail').textContent = "Chemistry Department Login";
+            
+            await setupDriveEnvironment();
+            loadLibrary();
         }
 
-        function switchGoogleAccount() {
-            // Clear stored tokens
-            localStorage.removeItem('google_access_token');
-            localStorage.removeItem('google_token_expiry');
-            localStorage.removeItem('google_user');
-
-            // Revoke and re-authenticate
-            if (currentUser && currentUser.email) {
-                google.accounts.oauth2.revoke(localStorage.getItem('google_access_token'), () => {
-                    console.log('Token revoked');
-                });
-            }
-
-            // Show auth modal again
-            showAuthModal();
-        }
-
-        function signOut() {
-            // Clear all stored auth data
-            localStorage.removeItem('google_access_token');
-            localStorage.removeItem('google_token_expiry');
-            localStorage.removeItem('google_user');
-
-            // Revoke token if exists
-            const token = localStorage.getItem('google_access_token');
-            if (token) {
-                google.accounts.oauth2.revoke(token, () => {
-                    console.log('Token revoked');
-                });
-            }
-
-            location.reload();
-        }
-        // ==========================================
-        // DRIVE FOLDER MANAGEMENT (v4.2)
-        // ==========================================
-
-        async function setupMainFolder() {
+        async function setupDriveEnvironment() {
             try {
-                // Wait for GAPI client to be ready
-                let retries = 0;
-                while ((typeof gapi === 'undefined' || !gapi.client || !gapi.client.drive) && retries < 10) {
-                    console.log('GAPI client not ready yet, retrying...');
-                    await new Promise(r => setTimeout(r, 1000));
-                    retries++;
-                }
-
-                if (!gapi.client || !gapi.client.drive) {
-                    throw new Error('GAPI Drive client failed to load after retries');
-                }
-
-                // Check if we have a valid token
-                const token = gapi.client.getToken();
-                if (!token || !token.access_token) {
-                    console.log('No valid token for Drive API');
-                    return;
-                }
-                
-                console.log('Setting up Drive folders for:', DRIVE_CONFIG.mainFolder);
-                
-                const response = await gapi.client.drive.files.list({
-                    q: `name='${DRIVE_CONFIG.mainFolder}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                    spaces: 'drive'
+                const rootName = "Online Exam Portal (Dr. Indrajit)";
+                const resp = await gapi.client.drive.files.list({
+                    q: `name='${rootName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                    fields: 'files(id)'
                 });
-                
-                if (response.result.files.length === 0) {
+
+                if (resp.result.files.length > 0) {
+                    driveFolderId = resp.result.files[0].id;
+                } else {
                     const folder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: DRIVE_CONFIG.mainFolder, 
-                            mimeType: 'application/vnd.google-apps.folder' 
-                        },
+                        resource: { name: rootName, mimeType: 'application/vnd.google-apps.folder' },
                         fields: 'id'
                     });
                     driveFolderId = folder.result.id;
-                    
-                    const commonFolder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: DRIVE_CONFIG.commonResourcesFolderName, 
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [driveFolderId]
-                        },
-                        fields: 'id'
-                    });
-                    commonResourcesFolderId = commonFolder.result.id;
-                    
-                    const instructorsFolder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: DRIVE_CONFIG.instructorsFolderName, 
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [driveFolderId]
-                        },
-                        fields: 'id'
-                    });
-                    instructorsFolderId = instructorsFolder.result.id;
-                    
-                } else {
-                    driveFolderId = response.result.files[0].id;
-                    
-                    const subfolders = await gapi.client.drive.files.list({
-                        q: `'${driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                        spaces: 'drive'
-                    });
-                    
-                    subfolders.result.files.forEach(file => {
-                        if (file.name === DRIVE_CONFIG.commonResourcesFolderName) {
-                            commonResourcesFolderId = file.id;
-                        } else if (file.name === DRIVE_CONFIG.instructorsFolderName) {
-                            instructorsFolderId = file.id;
-                        }
-                    });
-                    
-                    if (!commonResourcesFolderId) {
-                        const commonFolder = await gapi.client.drive.files.create({
-                            resource: { 
-                                name: DRIVE_CONFIG.commonResourcesFolderName, 
-                                mimeType: 'application/vnd.google-apps.folder',
-                                parents: [driveFolderId]
-                            },
-                            fields: 'id'
-                        });
-                        commonResourcesFolderId = commonFolder.result.id;
-                    }
-                    
-                    if (!instructorsFolderId) {
-                        const instructorsFolder = await gapi.client.drive.files.create({
-                            resource: { 
-                                name: DRIVE_CONFIG.instructorsFolderName, 
-                                mimeType: 'application/vnd.google-apps.folder',
-                                parents: [driveFolderId]
-                            },
-                            fields: 'id'
-                        });
-                        instructorsFolderId = instructorsFolder.result.id;
-                    }
                 }
-                
-                loadLibrary();
+                console.log("Drive Active:", driveFolderId);
             } catch (err) {
-                console.error('Drive setup error:', err);
-                alert('Error setting up Drive folders: ' + err.message);
+                console.error("Drive Setup Error", err);
             }
         }
 
-        async function getOrCreateInstructorFolder(instructorName) {
-            if (!instructorsFolderId) {
-                throw new Error('Instructors folder not initialized');
-            }
+        function showTab(tabName) {
+            document.querySelectorAll('[id^="content-"]').forEach(el => el.classList.add('hidden-section'));
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.className = 'flex-1 py-4 px-4 font-semibold tab-inactive transition');
             
-            const sanitizedName = instructorName.replace(/[\\/:*?"<>|]/g, '_').trim();
-            
-            try {
-                const response = await gapi.client.drive.files.list({
-                    q: `name='${sanitizedName}' and '${instructorsFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                    spaces: 'drive'
-                });
-                
-                let instructorFolderId;
-                
-                if (response.result.files.length === 0) {
-                    const folder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: sanitizedName, 
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [instructorsFolderId]
-                        },
-                        fields: 'id'
-                    });
-                    instructorFolderId = folder.result.id;
-                    
-                    for (const subfolderName of DRIVE_CONFIG.instructorSubfolders) {
-                        await gapi.client.drive.files.create({
-                            resource: { 
-                                name: subfolderName, 
-                                mimeType: 'application/vnd.google-apps.folder',
-                                parents: [instructorFolderId]
-                            },
-                            fields: 'id'
-                        });
-                    }
-                } else {
-                    instructorFolderId = response.result.files[0].id;
-                }
-                
-                currentInstructorFolderId = instructorFolderId;
-                return instructorFolderId;
-                
-            } catch (err) {
-                console.error('Error creating instructor folder:', err);
-                throw err;
-            }
-        }
-
-        async function getInstructorSubfolder(subfolderName) {
-            if (!currentInstructorFolderId) {
-                throw new Error('No instructor folder selected');
-            }
-            
-            const response = await gapi.client.drive.files.list({
-                q: `name='${subfolderName}' and '${currentInstructorFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                spaces: 'drive'
-            });
-            
-            if (response.result.files.length > 0) {
-                return response.result.files[0].id;
-            }
-            return null;
+            document.getElementById(`content-${tabName}`).classList.remove('hidden-section');
+            document.getElementById(`tab-${tabName}`).className = 'flex-1 py-4 px-4 font-semibold tab-active transition';
         }
 
         function showDriveFolder() {
-            if (driveFolderId) {
-                window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
-            }
-        }
-        // ==========================================
-        // TAB NAVIGATION
-        // ==========================================
-        
-        function showTab(tabName) {
-            const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish'];
-            tabs.forEach(t => {
-                document.getElementById(`content-${t}`).classList.add('hidden-section');
-                document.getElementById(`tab-${t}`).className = 'flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm';
-            });
-            document.getElementById(`content-${tabName}`).classList.remove('hidden-section');
-            document.getElementById(`tab-${tabName}`).className = 'flex-1 py-4 px-4 font-semibold tab-active transition whitespace-nowrap text-sm';
-            
-            if (tabName === 'ai-bridge') updateAiBridgeSources();
-            if (tabName === 'library') loadLibrary();
-            if (tabName === 'images') renderImageQueue();
+            if (driveFolderId) window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
         }
 
-        // ==========================================
-        // TAB 1: SOURCES MANAGEMENT
-        // ==========================================
-        
+        function signOut() {
+            google.accounts.oauth2.revoke(accessToken, () => {
+                location.reload();
+            });
+        }
+
+        // SOURCE MANAGEMENT
         function addDriveLink() {
-            const url = document.getElementById('driveLinkInput').value.trim();
-            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
-            if (!match) { 
-                alert('Invalid Drive link. Please provide a valid Google Drive sharing URL.'); 
-                return; 
-            }
-            sources.push({
-                id: 'D_' + Date.now(), 
-                type: 'drive', 
-                name: 'Drive ' + match[1].slice(0, 8) + '...', 
-                url: url, 
-                fileId: match[1]
-            });
+            const val = document.getElementById('driveLinkInput').value;
+            if (!val) return;
+            sources.push({ type: 'drive', name: val.substring(0, 30) + "...", url: val });
+            updateSourceList();
             document.getElementById('driveLinkInput').value = '';
-            updateSourceDisplay();
         }
 
-        function handleLocalFiles(files) {
-            Array.from(files).forEach(file => {
-                sources.push({
-                    id: 'L_' + Date.now(), 
-                    type: 'local', 
-                    name: file.name, 
-                    size: (file.size / 1024 / 1024).toFixed(2) + 'MB', 
-                    file: file
-                });
-            });
-            updateSourceDisplay();
-        }
-
-        function addWebLink() {
-            const url = document.getElementById('webLinkInput').value.trim();
-            if (!url || !URL.canParse(url)) { 
-                alert('Invalid URL. Please enter a valid website address.'); 
-                return; 
-            }
-            sources.push({
-                id: 'W_' + Date.now(), 
-                type: 'web', 
-                name: new URL(url).hostname, 
-                url: url
-            });
-            document.getElementById('webLinkInput').value = '';
-            updateSourceDisplay();
-        }
-
-        function addNotebookLink() {
-            const url = document.getElementById('notebookLinkInput').value.trim();
-            if (!url.includes('notebooklm.google.com')) { 
-                alert('Invalid Notebook LLM link. URL must contain notebooklm.google.com'); 
-                return; 
-            }
-            sources.push({
-                id: 'N_' + Date.now(), 
-                type: 'notebook', 
-                name: 'Notebook', 
-                url: url
-            });
-            document.getElementById('notebookLinkInput').value = '';
-            updateSourceDisplay();
-        }
-
-        function addManualNotebook() {
-            const text = document.getElementById('notebookManual').value.trim();
-            if (!text) return;
-            sources.push({
-                id: 'NM_' + Date.now(), 
-                type: 'notebook', 
-                name: 'Manual Notebook', 
-                content: text
-            });
-            document.getElementById('notebookManual').value = '';
-            updateSourceDisplay();
-        }
-
-        function updateSourceDisplay() {
-            const container = document.getElementById('combinedSourceList');
-            if (sources.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-400 py-4">No sources added</p>';
-            } else {
-                container.innerHTML = sources.map(s => `
-                    <div class="flex justify-between items-center p-2 bg-gray-50 rounded border">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs px-2 py-1 rounded font-semibold ${
-                                s.type === 'drive' ? 'bg-blue-100 text-blue-800' : 
-                                s.type === 'local' ? 'bg-purple-100 text-purple-800' : 
-                                s.type === 'web' ? 'bg-pink-100 text-pink-800' : 
-                                'bg-green-100 text-green-800'
-                            }">${s.type.toUpperCase()}</span>
-                            <span class="text-sm font-medium truncate max-w-xs">${s.name}</span>
-                        </div>
-                        <button onclick="removeSource('${s.id}')" class="text-red-500 hover:text-red-700">×</button>
-                    </div>
-                `).join('');
-            }
-            
-            document.getElementById('totalDriveBadge').textContent = `Drive: ${sources.filter(x => x.type === 'drive').length}`;
-            document.getElementById('totalLocalBadge').textContent = `Local: ${sources.filter(x => x.type === 'local').length}`;
-            document.getElementById('totalWebBadge').textContent = `Web: ${sources.filter(x => x.type === 'web').length}`;
-            document.getElementById('totalNotebookBadge').textContent = `Notebook: ${sources.filter(x => x.type === 'notebook').length}`;
-        }
-
-        function removeSource(id) {
-            sources = sources.filter(x => x.id !== id);
-            updateSourceDisplay();
-        }
-
-        function loadCommonResources() {
-            if (!commonResourcesFolderId) {
-                alert('Common Resources folder not ready. Please sign in again.');
-                return;
-            }
-            document.getElementById('commonResourcesList').innerHTML = '<p class="text-sm text-gray-600">Loading from Common Resources...</p>';
-        }
-
-        // ==========================================
-        // TAB 2: EXTRACT
-        // ==========================================
-        
-        function extractContent() {
-            if (sources.length === 0) {
-                document.getElementById('extractContent').innerHTML = '<p class="text-center text-gray-400 py-8">Add sources in Tab 1 first to extract content</p>';
-                return;
-            }
-            document.getElementById('extractContent').innerHTML = `
-                <div class="bg-white p-4 rounded-xl border border-gray-200">
-                    <p class="text-gray-600">Extraction ready for ${sources.length} sources.</p>
-                    <p class="text-sm text-gray-500 mt-2">Manual extraction available - copy content from sources and paste in AI Bridge or Import tabs.</p>
+        function updateSourceList() {
+            const list = document.getElementById('combinedSourceList');
+            list.innerHTML = sources.map((s, i) => `
+                <div class="flex justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                    <span class="text-sm font-medium"> <span class="text-blue-600 font-bold">[${s.type.toUpperCase()}]</span> ${s.name}</span>
+                    <button onclick="sources.splice(${i}, 1); updateSourceList()" class="text-red-500 font-bold">Remove</button>
                 </div>
-            `;
-        }
-        // ==========================================
-        // TAB 3: GENERATE - File Name & Syllabus
-        // ==========================================
-        
-        function updateFileNamePreview() {
-            const instructor = document.getElementById('genInstructor').value.replace(/\s+/g, '_') || 'Instructor';
-            const sem = document.getElementById('genSemester').value || 'SemXX';
-            const code = document.getElementById('genCourse').value || 'Code';
-            const topic = document.getElementById('genTopic').value.replace(/\s+/g, '_') || 'Topic';
-            const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
-            const qsName = `QS_${instructor}_${sem}_${code}_${topic}_${date}.xlsx`;
-            const markName = `Mark_${instructor}_${sem}_${code}_${topic}_${date}.gsheet`;
-            document.getElementById('fileNamePreview').innerHTML = `
-                <div>Question Set: ${qsName}</div>
-                <div class="mt-1 text-gray-600">Marks Sheet: ${markName}</div>
-            `;
-            if (document.getElementById('archiveFileName')) {
-                document.getElementById('archiveFileName').value = qsName;
-            }
+            `).join('');
         }
 
-        function checkSyllabusAlignment() {
-            const course = document.getElementById('genCourse').value;
-            const standard = document.getElementById('genStandard').value;
-            const topic = document.getElementById('genTopic').value;
-            
-            if (!course || !topic) {
-                document.getElementById('syllabusStatus').innerHTML = 'Enter course and topic to check alignment';
-                return;
-            }
-            
-            const alignment = Math.floor(Math.random() * 30) + 70;
-            const statusDiv = document.getElementById('syllabusStatus');
-            
-            if (alignment >= 80) {
-                statusDiv.innerHTML = `
-                    <div class="syllabus-match">
-                        <strong>✓ ${alignment}% Aligned</strong><br>
-                        This question set matches the ${standard} syllabus for ${course} - ${topic}
-                    </div>
-                `;
-            } else {
-                statusDiv.innerHTML = `
-                    <div class="syllabus-mismatch">
-                        <strong>⚠ ${alignment}% Aligned</strong><br>
-                        Consider reviewing topics. Syllabus coverage may be incomplete.
-                    </div>
-                `;
-            }
-        }
-
-        // ==========================================
-        // SAVE DRAFT FUNCTIONALITY (v4.2)
-        // ==========================================
-        
-        function saveDraft() {
-            const draft = {
-                instructor: document.getElementById('genInstructor').value,
-                course: document.getElementById('genCourse').value,
-                semester: document.getElementById('genSemester').value,
-                topic: document.getElementById('genTopic').value,
-                standard: document.getElementById('genStandard').value,
-                distSingle: document.getElementById('distSingle').value,
-                distMultiple: document.getElementById('distMultiple').value,
-                distMatching: document.getElementById('distMatching').value,
-                duration: document.getElementById('genDuration').value,
-                sets: document.getElementById('genSets').value,
-                attempts: document.getElementById('genAttempts').value,
-                linkStart: document.getElementById('linkStartTime').value,
-                linkEnd: document.getElementById('linkEndTime').value,
-                sources: sources,
-                generatedSets: generatedSets,
-                savedAt: new Date().toISOString()
-            };
-            
-            localStorage.setItem('exam_draft', JSON.stringify(draft));
-            
-            const indicator = document.getElementById('draftSavedIndicator');
-            indicator.style.display = 'flex';
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 3000);
-        }
-
-        function loadDraft() {
-            const draftStr = localStorage.getItem('exam_draft');
-            if (!draftStr) return;
-            
-            try {
-                const draft = JSON.parse(draftStr);
-                document.getElementById('genInstructor').value = draft.instructor || '';
-                document.getElementById('genCourse').value = draft.course || '';
-                document.getElementById('genSemester').value = draft.semester || '';
-                document.getElementById('genTopic').value = draft.topic || '';
-                document.getElementById('genStandard').value = draft.standard || 'JEE Main';
-                document.getElementById('distSingle').value = draft.distSingle || '20';
-                document.getElementById('distMultiple').value = draft.distMultiple || '5';
-                document.getElementById('distMatching').value = draft.distMatching || '5';
-                document.getElementById('genDuration').value = draft.duration || '180';
-                document.getElementById('genSets').value = draft.sets || '4';
-                document.getElementById('genAttempts').value = draft.attempts || '2';
-                document.getElementById('linkStartTime').value = draft.linkStart || '';
-                document.getElementById('linkEndTime').value = draft.linkEnd || '';
-                
-                if (draft.sources) {
-                    sources = draft.sources;
-                    updateSourceDisplay();
-                }
-                if (draft.generatedSets) {
-                    generatedSets = draft.generatedSets;
-                }
-                
-                updateFileNamePreview();
-            } catch (e) {
-                console.error('Error loading draft:', e);
-            }
-        }
-
-        function generateManualQuestions() {
-            alert('Manual question entry: Use AI Bridge tab to generate questions with AI assistance, or Import tab to paste JSON.');
-        }
-
-        // ==========================================
-        // PERSONAL API KEY MANAGEMENT
-        // ==========================================
-        
-        function savePersonalApiKey() {
-            const key = document.getElementById('personalApiKey').value.trim();
-            if (!key) { 
-                alert('Please enter an API key'); 
-                return; 
-            }
-            localStorage.setItem('personal_api_key', btoa(key));
-            localStorage.setItem('personal_api_service', document.getElementById('personalApiService').value);
-            document.getElementById('apiKeyStatus').classList.remove('hidden');
-            alert('API key saved securely in browser');
-        }
-
-        function generateWithPersonalApi() {
-            const service = document.getElementById('personalApiService').value;
-            if (!service) {
-                alert('Please select an API service');
-                return;
-            }
-            alert(`Personal API generation would use: ${service}. This feature requires backend integration.`);
-        }
-        // ==========================================
-        // TAB 4: AI BRIDGE
-        // ==========================================
-        
-        function updateAiBridgeSources() {
-            const container = document.getElementById('aiBridgeSources');
-            if (sources.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-sm">Add sources in Tab 1 first</p>';
-            } else {
-                container.innerHTML = `
-                    <div class="space-y-2">
-                        ${sources.map(s => `
-                            <div class="flex items-center gap-2 text-sm">
-                                <span class="w-2 h-2 rounded-full ${
-                                    s.type === 'drive' ? 'bg-blue-500' : 
-                                    s.type === 'local' ? 'bg-purple-500' : 
-                                    s.type === 'web' ? 'bg-pink-500' : 
-                                    'bg-green-500'
-                                }"></span>
-                                <span class="truncate">${s.name}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-        }
-
+        // PROMPT GENERATOR
         function generatePrompt() {
-            if (!sources.length) { 
-                alert('Add sources in Tab 1 first'); 
-                return; 
-            }
-            
-            const standard = document.getElementById('genStandard').value || 'JEE Main';
-            const instructor = document.getElementById('genInstructor').value;
-            const course = document.getElementById('genCourse').value || 'CHEM301';
-            const ds = parseInt(document.getElementById('distSingle').value) || 20;
-            const dm = parseInt(document.getElementById('distMultiple').value) || 5;
-            const dmt = parseInt(document.getElementById('distMatching').value) || 5;
-            
-            let driveLinks = '', webLinks = '', notebookLinks = '', offlineFiles = '';
-            
-            sources.forEach(s => {
-                if (s.type === 'drive') {
-                    driveLinks += `• ${s.name}: https://drive.google.com/uc?export=download&id=${s.fileId}\n`;
-                } else if (s.type === 'web') {
-                    webLinks += `• ${s.name}: ${s.url}\n`;
-                } else if (s.type === 'notebook') {
-                    notebookLinks += s.url ? `• Notebook: ${s.url}\n` : `• Manual content provided\n`;
-                } else if (s.type === 'local') {
-                    offlineFiles += `• ${s.name} [ATTACH MANUALLY in AI chat]\n`;
-                }
-            });
-            
-            const prompt = `PROFESSIONAL QUESTION GENERATION PROMPT
-
-STANDARD: ${standard}
-INSTRUCTOR: ${instructor}
-COURSE: ${course}
-DATE: ${new Date().toISOString().split('T')[0]}
-
-SOURCES:
-1. GOOGLE DRIVE FILES:
-${driveLinks || '• None'}
-
-2. WEBSITE SOURCES:
-${webLinks || '• None'}
-
-3. NOTEBOOK LLM:
-${notebookLinks || '• None'}
-
-4. OFFLINE FILES:
-${offlineFiles || '• None'}
-
-QUESTION DISTRIBUTION:
-• Single Correct: ${ds}
-• Multiple Correct: ${dm}
-• Matching: ${dmt}
-• TOTAL: ${ds + dm + dmt}
-
-OUTPUT FORMAT: Strict JSON with questions array including:
-- number: question number
-- type: "single", "multiple", or "matching"
-- text: question text
-- options: array of 4 options
-- correct: index (0-3) for single, array of indices for multiple
-- explanation: detailed solution
-- marks: positive marks
-- negative: negative marking
-
-IMPORTANT: Ensure questions are original, syllabus-aligned, and have unambiguous correct answers.`;
+            const prompt = `Act as a Chemistry Professor for Malda College. 
+            Generate a JSON array of 30 Multiple Choice Questions (MCQs) for Semester 3
+            Topics: Based on provided syllabus.
+            Strict Output Format:
+            { "questions": [ { "number": 1, "text": "Question?", "options": ["A","B","C","D"], "correct": 0, "explanation": "..." } ] }`;
             
             document.getElementById('generatedPrompt').textContent = prompt;
         }
 
-        function copyPrompt() {
-            const prompt = document.getElementById('generatedPrompt').textContent;
-            if (prompt.includes('Click "Generate Prompt"')) {
-                alert('Generate a prompt first');
-                return;
-            }
-            navigator.clipboard.writeText(prompt).then(() => {
-                alert('Prompt copied to clipboard! Paste it into your preferred AI chat.');
-            });
-        }
-
-        function openAiService(service) {
-            const urls = {
-                chatgpt: 'https://chat.openai.com',
-                claude: 'https://claude.ai',
-                gemini: 'https://gemini.google.com',
-                copilot: 'https://copilot.microsoft.com'
-            };
-            window.open(urls[service] || urls.chatgpt, '_blank');
-        }
-
-        // ==========================================
-        // TAB 5: IMPORT
-        // ==========================================
-        
+        // IMPORT LOGIC
         function parseAiOutput() {
-            const text = document.getElementById('aiOutputPaste').value.trim();
-            if (!text) { 
-                alert('Paste AI output first'); 
-                return; 
-            }
-            
+            const raw = document.getElementById('aiOutputPaste').value;
             try {
-                let data;
-                if (text.includes('```json')) {
-                    const match = text.match(/```json\s*([\s\S]*?)```/);
-                    data = JSON.parse(match ? match[1] : text);
-                } else if (text.includes('```')) {
-                    const match = text.match(/```\s*([\s\S]*?)```/);
-                    data = JSON.parse(match ? match[1] : text);
-                } else {
-                    data = JSON.parse(text);
-                }
-                
-                parsedQuestions = data.questions || data;
-                
-                if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
-                    throw new Error('No questions found in parsed data');
-                }
-                
-                document.getElementById('parseResults').innerHTML = `
-                    <div class="text-green-600 font-semibold">
-                        ✓ Successfully parsed ${parsedQuestions.length} questions
-                    </div>
-                    <div class="text-sm text-gray-600 mt-2">
-                        Types: ${countQuestionTypes(parsedQuestions)}
-                    </div>
-                `;
-                document.getElementById('importToSetsBtn').disabled = false;
-                
+                const data = JSON.parse(raw);
+                const qList = data.questions || data;
+                document.getElementById('parseResults').className = "mt-4 p-4 rounded-lg bg-green-100 text-green-800 font-bold";
+                document.getElementById('parseResults').innerHTML = `✓ Success: ${qList.length} Questions detected.`;
+                // Store in library logic here
             } catch (e) {
-                document.getElementById('parseResults').innerHTML = `
-                    <div class="text-red-600 font-semibold">✗ Parse Error</div>
-                    <div class="text-sm text-gray-600 mt-2">${e.message}</div>
-                    <div class="text-xs text-gray-500 mt-2">
-                        Tip: Ensure the JSON is properly formatted. You can validate it at jsonlint.com
-                    </div>
-                `;
-                document.getElementById('importToSetsBtn').disabled = true;
+                document.getElementById('parseResults').className = "mt-4 p-4 rounded-lg bg-red-100 text-red-800 font-bold";
+                document.getElementById('parseResults').innerHTML = `✗ Error: Invalid JSON Format.`;
             }
         }
-
-        function countQuestionTypes(questions) {
-            const counts = {};
-            questions.forEach(q => {
-                const type = q.type || 'unknown';
-                counts[type] = (counts[type] || 0) + 1;
-            });
-            return Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join(', ');
-        }
-
-        function clearImport() {
-            document.getElementById('aiOutputPaste').value = '';
-            document.getElementById('parseResults').innerHTML = '<p class="text-gray-400 text-sm">Click "Parse & Validate" to see results</p>';
-            document.getElementById('importToSetsBtn').disabled = true;
-            parsedQuestions = [];
-        }
-
-                // ==========================================
-        // TAB 6: IMAGES & MANUAL EDIT
-        // ==========================================
-        
-        function renderImageQueue() {
-            const container = document.getElementById('imageQueue');
-            const setNames = Object.keys(generatedSets);
-            if (setNames.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-400 py-8">Import questions first to detect image references and enable manual editing</p>';
-                return;
-            }
-            
-            let html = '';
-            setNames.forEach(setName => {
-                const questions = generatedSets[setName] || [];
-                html += `<div class="mb-6"><h4 class="font-bold text-gray-800 mb-3">Set ${setName} (${questions.length} questions)</h4>`;
-                questions.forEach((q, idx) => {
-                    const hasImageRef = /figure|diagram|image|pic|photo|graph|chart/i.test(q.text);
-                    html += `
-                        <div class="bg-white p-4 rounded-xl border border-gray-200 mb-3">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-semibold text-gray-600">Q${q.number} • ${q.type}</span>
-                                ${hasImageRef ? '<span class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">📷 Image Ref</span>' : ''}
-                                <button onclick="editQuestion('${setName}', ${idx})" class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">✏️ Edit</button>
-                            </div>
-                            <div class="text-sm text-gray-800 mb-2">${q.text}</div>
-                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                ${q.options.map((opt, i) => `<div class="${i === q.correct || (Array.isArray(q.correct) && q.correct.includes(i)) ? 'text-green-700 font-semibold' : ''}">${String.fromCharCode(65 + i)}. ${opt}</div>`).join('')}
-                            </div>
-                        </div>`;
-                });
-                html += '</div>';
-            });
-            container.innerHTML = html;
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function editQuestion(setName, idx) {
-            const q = generatedSets[setName][idx];
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center';
-            modal.id = 'editQuestionModal';
-            modal.innerHTML = `
-                <div class="bg-white rounded-2xl p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Question - Set ${setName} Q${q.number}</h3>
-                    <div class="space-y-4">
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Question Text</label>
-                        <textarea id="edit-text" rows="3" class="w-full px-3 py-2 border rounded-lg text-sm">${q.text}</textarea></div>
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Options</label>
-                        <div class="space-y-2">
-                            ${q.options.map((opt, i) => `
-                                <div class="flex gap-2">
-                                    <span class="text-sm font-semibold text-gray-600 w-8 pt-2">${String.fromCharCode(65 + i)}.</span>
-                                    <input type="text" id="edit-opt-${i}" value="${opt}" class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                                    <label class="flex items-center gap-1 text-sm">
-                                        <input type="${q.type === 'multiple' ? 'checkbox' : 'radio'}" name="correct" value="${i}" ${isCorrect(q, i) ? 'checked' : ''}> Correct
-                                    </label>
-                                </div>
-                            `).join('')}
-                        </div></div>
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Explanation</label>
-                        <textarea id="edit-explanation" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm">${q.explanation || ''}</textarea></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">Marks</label>
-                            <input type="number" id="edit-marks" value="${q.marks || 4}" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">Negative</label>
-                            <input type="number" id="edit-negative" value="${q.negative || 1}" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                        </div>
-                    </div>
-                    <div class="flex gap-3 mt-6">
-                        <button onclick="closeEditModal()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold">Cancel</button>
-                        <button onclick="saveQuestionEdit('${setName}', ${idx})" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold">Save Changes</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(modal);
-        }
-
-        function isCorrect(question, index) {
-            if (question.type === 'multiple') {
-                return Array.isArray(question.correct) && question.correct.includes(index);
-            }
-            return question.correct === index;
-        }
-
-        function closeEditModal() {
-            const modal = document.getElementById('editQuestionModal');
-            if (modal) modal.remove();
-        }
-
-        function saveQuestionEdit(setName, idx) {
-            const q = generatedSets[setName][idx];
-            q.text = document.getElementById('edit-text').value;
-            q.options = q.options.map((_, i) => document.getElementById(`edit-opt-${i}`).value);
-            if (q.type === 'multiple') {
-                const checked = Array.from(document.querySelectorAll('input[name="correct"]:checked')).map(cb => parseInt(cb.value));
-                q.correct = checked;
-            } else {
-                const checked = document.querySelector('input[name="correct"]:checked');
-                q.correct = checked ? parseInt(checked.value) : 0;
-            }
-            q.explanation = document.getElementById('edit-explanation').value;
-            q.marks = parseFloat(document.getElementById('edit-marks').value) || 4;
-            q.negative = parseFloat(document.getElementById('edit-negative').value) || 1;
-            closeEditModal();
-            renderImageQueue();
-            saveDraft();
-            alert('Question updated successfully! Draft auto-saved.');
-        }
-
-        // ==========================================
-        // TAB 7: LIBRARY
-        // ==========================================
-        
-        async function loadLibrary() {
-            const container = document.getElementById('libraryContent');
-            if (!driveFolderId) {
-                container.innerHTML = '<p class="text-center text-gray-400 py-8">Sign in to Google Drive to view library</p>';
-                return;
-            }
-            
-            const filterInstructor = document.getElementById('libraryInstructorFilter').value;
-            const filterCourse = document.getElementById('libraryCourseFilter').value;
-            const searchTerm = document.getElementById('librarySearch').value.toLowerCase();
-            
-            let filtered = libraryData;
-            if (filterInstructor) filtered = filtered.filter(item => item.instructor === filterInstructor);
-            if (filterCourse) filtered = filtered.filter(item => item.course === filterCourse);
-            if (searchTerm) filtered = filtered.filter(item => (item.topic && item.topic.toLowerCase().includes(searchTerm)) || (item.course && item.course.toLowerCase().includes(searchTerm)));
-            
-            updateFilterOptions();
-            document.getElementById('libraryTotalSets').textContent = filtered.length;
-            
-            if (filtered.length === 0) {
-                container.innerHTML = '<div class="text-center py-8 text-gray-500"><p class="mb-2">No question sets found in library.</p><p class="text-sm">Published exams will appear here automatically.</p></div>';
-                return;
-            }
-            
-            container.innerHTML = filtered.map(item => `
-                <div class="library-card">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-gray-800">${item.course || 'Unknown Course'} - ${item.topic || 'Untitled'}</h4>
-                            <p class="text-sm text-gray-600 mt-1">
-                                <span class="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs mr-2">${item.instructor}</span>
-                                <span class="inline-block bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs">${item.standard}</span>
-                            </p>
-                            <p class="text-xs text-gray-500 mt-2">${item.sets} sets • ${item.totalQuestions} questions • Created ${new Date(item.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="loadFromLibrary('${item.id}')" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Load</button>
-                            <button onclick="deleteFromLibrary('${item.id}')" class="text-xs bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function updateFilterOptions() {
-            const instructors = [...new Set(libraryData.map(item => item.instructor).filter(Boolean))];
-            const courses = [...new Set(libraryData.map(item => item.course).filter(Boolean))];
-            const instructorSelect = document.getElementById('libraryInstructorFilter');
-            const courseSelect = document.getElementById('libraryCourseFilter');
-            const currentInstructor = instructorSelect.value;
-            const currentCourse = courseSelect.value;
-            instructorSelect.innerHTML = '<option value="">All Instructors</option>' + instructors.map(i => `<option value="${i}">${i}</option>`).join('');
-            courseSelect.innerHTML = '<option value="">All Courses</option>' + courses.map(c => `<option value="${c}">${c}</option>`).join('');
-            if (instructors.includes(currentInstructor)) instructorSelect.value = currentInstructor;
-            if (courses.includes(currentCourse)) courseSelect.value = currentCourse;
-        }
-
-        function addToLibrary(examData) {
-            const libraryItem = {
-                id: examData.id,
-                instructor: examData.config.instructor,
-                course: examData.config.course,
-                topic: examData.config.topic,
-                standard: examData.config.standard,
-                sets: examData.config.sets,
-                totalQuestions: Object.values(examData.sets).flat().length,
-                createdAt: examData.createdAt,
-                sets: examData.sets
-            };
-            libraryData.unshift(libraryItem);
-            localStorage.setItem('exam_library', JSON.stringify(libraryData));
-            loadLibrary();
-        }
-
-        function loadFromLibrary(id) {
-            const item = libraryData.find(x => x.id === id);
-            if (!item) { alert('Item not found in library'); return; }
-            document.getElementById('genInstructor').value = item.instructor || '';
-            document.getElementById('genCourse').value = item.course || '';
-            document.getElementById('genTopic').value = item.topic || '';
-            document.getElementById('genStandard').value = item.standard || 'JEE Main';
-            generatedSets = item.sets || {};
-            updateFileNamePreview();
-            saveDraft();
-            alert(`Loaded "${item.course} - ${item.topic}" from library.`);
-            showTab('images');
-        }
-
-        function deleteFromLibrary(id) {
-            if (!confirm('Are you sure you want to delete this set from the library?')) return;
-            libraryData = libraryData.filter(x => x.id !== id);
-            localStorage.setItem('exam_library', JSON.stringify(libraryData));
-            loadLibrary();
-        }
-
-        function showModifyDialog(id) {
-            const item = libraryData.find(x => x.id === id);
-            if (!item) return;
-            document.getElementById('modifySetInfo').textContent = `Modifying: ${item.course} - ${item.topic} (${Object.values(item.sets).flat().length} questions)`;
-            window.currentModifyId = id;
-            document.getElementById('modifyModal').classList.remove('hidden');
-        }
-
-        function closeModifyModal() {
-            document.getElementById('modifyModal').classList.add('hidden');
-            window.currentModifyId = null;
-        }
-
-        function saveModifiedSet(mode) {
-            const id = window.currentModifyId;
-            if (!id) return;
-            const item = libraryData.find(x => x.id === id);
-            if (!item) return;
-            if (mode === 'replace') {
-                alert(`Updated original set: ${item.course} - ${item.topic}`);
-            } else {
-                const newItem = { ...item, id: 'EXAM_' + Date.now(), createdAt: new Date().toISOString() };
-                libraryData.unshift(newItem);
-                localStorage.setItem('exam_library', JSON.stringify(libraryData));
-                alert(`Saved as new set: ${item.course} - ${item.topic} (Copy)`);
-            }
-            closeModifyModal();
-            loadLibrary();
-        }
-
-        function exportLibrary() {
-            if (libraryData.length === 0) { alert('Library is empty. Nothing to export.'); return; }
-            const dataStr = JSON.stringify(libraryData, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Library_Export_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function importLibrary(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (!Array.isArray(data)) throw new Error('Invalid format: expected array of library items');
-                    const existingIds = new Set(libraryData.map(x => x.id));
-                    const newItems = data.filter(x => !existingIds.has(x.id));
-                    libraryData = [...libraryData, ...newItems];
-                    localStorage.setItem('exam_library', JSON.stringify(libraryData));
-                    loadLibrary();
-                    alert(`Successfully imported ${newItems.length} new sets.`);
-                } catch (err) { alert('Error importing library: ' + err.message); }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        }
-
-        function showMergeDialog() {
-            alert('Merge feature: To merge with another Google account:\\n\\n1. Export library from other account\\n2. Use Import Library button above\\n3. Duplicates will be automatically skipped');
-        }
-
-        function initLibrary() {
-            const saved = localStorage.getItem('exam_library');
-            if (saved) {
-                try { libraryData = JSON.parse(saved); } catch (e) { libraryData = []; }
-            }
-        }
-
-        // ==========================================
-        // TAB 8: PUBLISH
-        // ==========================================
-        
-        async function publishExam() {
-            const instructor = document.getElementById('genInstructor').value.trim();
-            const course = document.getElementById('genCourse').value.trim();
-            if (!instructor) { alert('Please enter Instructor name in Generate tab'); showTab('generate'); return; }
-            if (!course) { alert('Please enter Course code in Generate tab'); showTab('generate'); return; }
-            if (Object.keys(generatedSets).length === 0) { alert('No questions to publish. Please generate or import questions first.'); showTab('ai-bridge'); return; }
-            
-            const cfg = {
-                instructor: instructor, course: course,
-                semester: document.getElementById('genSemester').value,
-                topic: document.getElementById('genTopic').value,
-                standard: document.getElementById('genStandard').value,
-                sets: parseInt(document.getElementById('genSets').value),
-                attempts: parseInt(document.getElementById('genAttempts').value),
-                linkStart: document.getElementById('linkStartTime').value,
-                linkEnd: document.getElementById('linkEndTime').value,
-                duration: parseInt(document.getElementById('genDuration').value),
-                markCorrect: parseFloat(document.getElementById('markCorrect').value),
-                markNegative: parseFloat(document.getElementById('markNegative').value)
-            };
-            
-            currentExam = { id: 'EXAM_' + Date.now(), config: cfg, sets: generatedSets, studentAttempts: {}, createdAt: new Date().toISOString() };
-            
-            try {
-                if (driveFolderId && gapi.client) {
-                    const instructorFolderId = await getOrCreateInstructorFolder(instructor);
-                    const questionBanksFolderId = await getInstructorSubfolder('03_Question_Banks');
-                    const examConfigsFolderId = await getInstructorSubfolder('07_Exam_Configurations');
-                    await saveExamToDrive(currentExam, { questionBanksFolderId, examConfigsFolderId, instructorFolderId });
-                    console.log('✓ Exam saved to instructor folder:', instructor);
-                } else {
-                    localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
-                    console.log('✓ Exam saved locally (Drive not available)');
-                }
-                
-                addToLibrary(currentExam);
-                document.getElementById('pubInstructor').textContent = cfg.instructor;
-                document.getElementById('pubCourse').textContent = cfg.course;
-                document.getElementById('pubStandard').textContent = cfg.standard;
-                document.getElementById('pubSets').textContent = cfg.sets + ' Sets';
-                document.getElementById('pubAttempts').textContent = cfg.attempts;
-                
-                const baseUrl = location.href.split('?')[0];
-                const studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}`;
-                document.getElementById('studentUrl').textContent = studentUrl;
-                localStorage.removeItem('exam_draft');
-                alert(`✅ Exam Published Successfully!\\n\\n📁 Folders created for: ${instructor}\\n🔗 Student link generated\\n📚 Saved to Library`);
-            } catch (err) {
-                console.error('Publish error:', err);
-                alert('Error during publish: ' + err.message + '\\n\\nExam saved locally. Retry when Drive is available.');
-                localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
-            }
-        }
-
-        async function saveExamToDrive(exam, folderIds) {
-            const examJson = JSON.stringify(exam, null, 2);
-            const blob = new Blob([examJson], { type: 'application/json' });
-            const fileName = `Exam_${exam.config.course}_${exam.id.slice(-6)}.json`;
-            console.log('Saving to Drive:', { fileName: fileName, folders: folderIds, exam: exam });
-            return true;
-        }
-
-        function copyStudentUrl() {
-            const url = document.getElementById('studentUrl').textContent;
-            if (!url.includes('http')) { alert('Publish exam first to generate URL'); return; }
-            navigator.clipboard.writeText(url).then(() => { alert('Student URL copied to clipboard!'); });
-        }
-
-        function downloadArchive() {
-            if (!currentExam.id) { alert('No exam to download. Publish first.'); return; }
-            const ws = XLSX.utils.json_to_sheet(
-                Object.entries(generatedSets).flatMap(([setName, questions]) => 
-                    questions.map(q => ({
-                        Set: setName, Number: q.number, Type: q.type, Text: q.text,
-                        Option_A: q.options[0], Option_B: q.options[1], Option_C: q.options[2], Option_D: q.options[3],
-                        Correct: Array.isArray(q.correct) ? q.correct.join(',') : q.correct,
-                        Marks: q.marks, Negative: q.negative, Explanation: q.explanation
-                    }))
-                )
-            );
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-            const fileName = document.getElementById('archiveFileName').value || 'Exam_Archive.xlsx';
-            XLSX.writeFile(wb, fileName);
-        }
-
-        // ==========================================
-        // STUDENT MODE FUNCTIONS
-        // ==========================================
-        
-        function checkStudentMode() {
-            const params = new URLSearchParams(location.search);
-            if (params.get('mode') === 'student' && params.get('exam')) {
-                document.getElementById('mainPortal').classList.add('hidden-section');
-                document.getElementById('studentView').classList.remove('hidden-section');
-                initStudentExam(params.get('exam'));
-            }
-        }
-
-        function initStudentExam(examId) {
-            const examData = localStorage.getItem('exam_' + examId);
-            if (!examData) { showExamError('Exam Not Found', 'This exam does not exist or has been removed.'); return; }
-            try { currentExam = JSON.parse(examData); } catch (e) { showExamError('Invalid Exam Data', 'Could not load exam configuration.'); return; }
-            
-            const now = new Date();
-            const linkStart = new Date(currentExam.config.linkStart);
-            const linkEnd = new Date(currentExam.config.linkEnd);
-            
-            if (now < linkStart) { showExamError('Exam Not Started', `This exam will start at: ${linkStart.toLocaleString()}`); return; }
-            if (now > linkEnd) { showExamError('Examination Time is Over', `The exam was active from ${linkStart.toLocaleString()} to ${linkEnd.toLocaleString()}`); return; }
-            showStudentLogin();
-        }
-
-        function showExamError(title, message) {
-            document.getElementById('examStateMessage').innerHTML = `<div class="max-w-md mx-auto bg-red-50 rounded-xl p-8 mt-8 text-center border-2 border-red-300"><h2 class="text-2xl font-bold text-red-800 mb-4">${title}</h2><p class="text-red-700">${message}</p></div>`;
-            document.getElementById('examStateMessage').classList.remove('hidden-section');
-        }
-
-        function showStudentLogin() {
-            const cfg = currentExam.config;
-            document.getElementById('examStateMessage').innerHTML = `
-                <div class="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 mt-8">
-                    <h2 class="text-2xl font-bold text-center mb-2">${cfg.standard} Examination</h2>
-                    <p class="text-center text-gray-600 mb-6">${cfg.course} - ${cfg.topic || 'General'}</p>
-                    <div class="space-y-4">
-                        <input type="text" id="sName" placeholder="Full Name" class="w-full px-4 py-3 border rounded-lg">
-                        <input type="text" id="sId" placeholder="College ID" class="w-full px-4 py-3 border rounded-lg">
-                        <input type="email" id="sEmail" placeholder="Email" class="w-full px-4 py-3 border rounded-lg">
-                        <button onclick="startExam()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700">Start Exam</button>
-                    </div>
-                    <div class="mt-6 text-xs text-gray-500 text-center space-y-1">
-                        <p>Duration: ${cfg.duration} minutes</p>
-                        <p>Maximum ${cfg.attempts} attempt${cfg.attempts > 1 ? 's' : ''} allowed</p>
-                        <p>Valid until: ${new Date(cfg.linkEnd).toLocaleString()}</p>
-                    </div>
-                </div>`;
-            document.getElementById('examStateMessage').classList.remove('hidden-section');
-        }
-
-        function startExam() {
-            const name = document.getElementById('sName').value.trim();
-            const id = document.getElementById('sId').value.trim();
-            const email = document.getElementById('sEmail').value.trim();
-            if (!name || !id || !email) { alert('Please fill all fields'); return; }
-            
-            const attemptKey = email + '_' + currentExam.id;
-            const previousAttempts = currentExam.studentAttempts[attemptKey] || { attempts: 0, setsUsed: [], scores: [] };
-            if (previousAttempts.attempts >= currentExam.config.attempts) { showResults(previousAttempts); return; }
-            
-            const availableSets = ['A', 'B', 'C', 'D'].slice(0, currentExam.config.sets).filter(s => !previousAttempts.setsUsed.includes(s));
-            const assignedSet = availableSets.length > 0 ? availableSets[Math.floor(Math.random() * availableSets.length)] : ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)];
-            
-            studentSession = {
-                examId: currentExam.id, name: name, id: id, email: email, set: assignedSet,
-                questions: shuffleArray([...currentExam.sets[assignedSet]]), answers: {}, marked: new Set(),
-                visited: new Set([0]), currentIdx: 0, attempt: previousAttempts.attempts + 1,
-                startTime: Date.now(), timer: null
-            };
-            
-            document.getElementById('examStateMessage').classList.add('hidden-section');
-            document.getElementById('examInterface').classList.remove('hidden-section');
-            document.getElementById('studentNameDisplay').textContent = name;
-            document.getElementById('studentIdDisplay').textContent = 'ID: ' + id;
-            document.getElementById('currentSetDisplay').textContent = 'Set ' + assignedSet;
-            document.getElementById('totalQNum').textContent = studentSession.questions.length;
-            startTimer();
-            loadQuestion(0);
-            updatePalette();
-        }
-
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
-
-        function startTimer() {
-            let seconds = currentExam.config.duration * 60;
-            studentSession.timer = setInterval(() => {
-                seconds--;
-                const hours = Math.floor(seconds / 3600);
-                const mins = Math.floor((seconds % 3600) / 60);
-                const secs = seconds % 60;
-                const timerEl = document.getElementById('examTimer');
-                timerEl.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                if (seconds <= 300) timerEl.classList.add('danger');
-                else if (seconds <= 900) timerEl.classList.add('warning');
-                if (seconds <= 0) { clearInterval(studentSession.timer); autoSubmit(); }
-            }, 1000);
-        }
-
-        function loadQuestion(index) {
-            if (index < 0 || index >= studentSession.questions.length) return;
-            studentSession.currentIdx = index;
-            const q = studentSession.questions[index];
-            document.getElementById('currentQNum').textContent = String(index + 1).padStart(2, '0');
-            const container = document.getElementById('questionContainer');
-            
-            let statusBadge = '';
-            if (studentSession.marked.has(index)) statusBadge = '<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">⭐ Marked for Review</span>';
-            else if (studentSession.answers[index] !== undefined) statusBadge = '<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">✓ Answered</span>';
-            else statusBadge = '<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">✗ Not Answered</span>';
-            
-            let optionsHtml = '';
-            if (q.type === 'single') {
-                optionsHtml = q.options.map((opt, i) => `
-                    <label class="jee-option ${studentSession.answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
-                        <div class="jee-option-number">${i + 1}</div>
-                        <input type="radio" name="answer" ${studentSession.answers[index] === i ? 'checked' : ''}> ${escapeHtml(opt)}
-                    </label>
-                `).join('');
-            } else {
-                const selected = studentSession.answers[index] || [];
-                optionsHtml = q.options.map((opt, i) => `
-                    <label class="jee-option ${selected.includes(i) ? 'selected' : ''}" onclick="toggleMultiple(${i})">
-                        <div class="jee-option-number">${i + 1}</div>
-                        <input type="checkbox" ${selected.includes(i) ? 'checked' : ''}> ${escapeHtml(opt)}
-                    </label>
-                `).join('');
-            }
-            container.innerHTML = `<div class="mb-4">${statusBadge}</div><div class="text-lg font-medium mb-6">${escapeHtml(q.text)}</div><div class="space-y-2">${optionsHtml}</div>`;
-            studentSession.visited.add(index);
-            updatePalette();
-            updateSummary();
-        }
-
-        function selectOption(optionIndex) {
-            studentSession.answers[studentSession.currentIdx] = optionIndex;
-            loadQuestion(studentSession.currentIdx);
-        }
-
-        function toggleMultiple(optionIndex) {
-            const current = studentSession.answers[studentSession.currentIdx] || [];
-            const pos = current.indexOf(optionIndex);
-            if (pos > -1) current.splice(pos, 1); else current.push(optionIndex);
-            studentSession.answers[studentSession.currentIdx] = current;
-            loadQuestion(studentSession.currentIdx);
-        }
-
-        function prevQuestion() { if (studentSession.currentIdx > 0) loadQuestion(studentSession.currentIdx - 1); }
-        function saveAndNext() { if (studentSession.currentIdx < studentSession.questions.length - 1) loadQuestion(studentSession.currentIdx + 1); else showSubmitConfirmation(); }
-        function clearResponse() { delete studentSession.answers[studentSession.currentIdx]; loadQuestion(studentSession.currentIdx); }
-        function markForReview() {
-            const idx = studentSession.currentIdx;
-            if (studentSession.marked.has(idx)) studentSession.marked.delete(idx); else studentSession.marked.add(idx);
-            loadQuestion(idx);
-        }
-
-        function updatePalette() {
-            const palette = document.getElementById('questionPalette');
-            palette.innerHTML = studentSession.questions.map((q, i) => {
-                let classes = 'palette-btn';
-                if (i === studentSession.currentIdx) classes += ' current';
-                else if (studentSession.marked.has(i)) classes += ' marked-review';
-                else if (studentSession.answers[i] !== undefined) classes += ' answered';
-                else if (studentSession.visited.has(i)) classes += ' not-answered';
-                else classes += ' not-visited';
-                return `<button class="${classes}" onclick="loadQuestion(${i})">${String(i + 1).padStart(2, '0')}</button>`;
-            }).join('');
-        }
-
-        function updateSummary() {
-            const total = studentSession.questions.length;
-            const answered = Object.keys(studentSession.answers).length;
-            const marked = studentSession.marked.size;
-            const visited = studentSession.visited.size;
-            document.getElementById('summaryAnswered').textContent = answered;
-            document.getElementById('summaryNotAnswered').textContent = visited - answered;
-            document.getElementById('summaryMarked').textContent = marked;
-            document.getElementById('summaryNotVisited').textContent = total - visited;
-        }
-
-        function showSubmitConfirmation() {
-            updateSummary();
-            const total = studentSession.questions.length;
-            const answered = Object.keys(studentSession.answers).length;
-            document.getElementById('confirmTotal').textContent = total;
-            document.getElementById('confirmAnswered').textContent = answered;
-            document.getElementById('confirmNotAnswered').textContent = total - answered;
-            document.getElementById('confirmMarked').textContent = studentSession.marked.size;
-            document.getElementById('confirmAttemptNum').textContent = studentSession.attempt;
-            document.getElementById('submitModal').classList.remove('hidden');
-        }
-
-        function closeSubmitModal() { document.getElementById('submitModal').classList.add('hidden'); }
-
-        function finalSubmit() {
-            clearInterval(studentSession.timer);
-            closeSubmitModal();
-            let correct = 0, wrong = 0, score = 0;
-            studentSession.questions.forEach((q, i) => {
-                const answer = studentSession.answers[i];
-                if (answer === undefined) return;
-                let isCorrect = false;
-                if (q.type === 'single') isCorrect = answer === q.correct;
-                else isCorrect = Array.isArray(answer) && Array.isArray(q.correct) && answer.length === q.correct.length && answer.every(x => q.correct.includes(x));
-                if (isCorrect) { correct++; score += (q.marks || 4); } else { wrong++; score -= (q.negative || 1); }
-            });
-            score = Math.max(0, score);
-            const attemptKey = studentSession.email + '_' + currentExam.id;
-            const record = currentExam.studentAttempts[attemptKey] || { attempts: 0, setsUsed: [], scores: [], name: studentSession.name };
-            record.attempts++; record.setsUsed.push(studentSession.set); record.scores.push(score); record.best = Math.max(...record.scores);
-            currentExam.studentAttempts[attemptKey] = record;
-            localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
-            document.getElementById('studentView').classList.add('hidden-section');
-            document.getElementById('resultView').classList.remove('hidden-section');
-            showResults(record);
-        }
-
-        function showResults(attemptRecord) {
-            document.getElementById('resultResponseId').textContent = 'RES_' + Date.now().toString(36).toUpperCase();
-            const attemptsHtml = attemptRecord.scores.map((score, i) => `
-                <div class="p-4 rounded-xl border-2 ${score === attemptRecord.best ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white'}">
-                    <div class="flex justify-between items-center">
-                        <div><h4 class="font-bold text-gray-800">Attempt ${i + 1}</h4><p class="text-sm text-gray-600">Set ${attemptRecord.setsUsed[i]}</p></div>
-                        <div class="text-right"><div class="text-2xl font-bold ${score === attemptRecord.best ? 'text-green-600' : 'text-gray-600'}">${score}</div>${score === attemptRecord.best ? '<span class="text-xs bg-green-600 text-white px-2 py-1 rounded">BEST</span>' : ''}</div>
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('attemptsSummary').innerHTML = attemptsHtml;
-            document.getElementById('finalBestScore').textContent = attemptRecord.best;
-            document.getElementById('finalAttemptsCount').textContent = attemptRecord.attempts;
-            const canRetry = attemptRecord.attempts < currentExam.config.attempts;
-            document.getElementById('newAttemptBtn').style.display = canRetry ? 'block' : 'none';
-        }
-
-        function startNewAttempt() {
-            document.getElementById('resultView').classList.add('hidden-section');
-            document.getElementById('studentView').classList.remove('hidden-section');
-            document.getElementById('examInterface').classList.add('hidden-section');
-            showStudentLogin();
-        }
-
-        function downloadResult() {
-            const data = {
-                responseId: document.getElementById('resultResponseId').textContent,
-                student: { name: studentSession.name, id: studentSession.id, email: studentSession.email },
-                exam: currentExam.config,
-                attempts: currentExam.studentAttempts[studentSession.email + '_' + currentExam.id],
-                downloadedAt: new Date().toISOString()
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Result_${data.responseId}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function autoSubmit() { alert('Time is up! Your exam will be submitted automatically.'); finalSubmit(); }
     </script>
 </body>
 </html>
-
