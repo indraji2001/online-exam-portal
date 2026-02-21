@@ -614,18 +614,23 @@
         // ==========================================
         
         function initGoogleApi() {
-            gapi.load('client:auth2', () => {
-                gapi.client.init({
-                    apiKey: 'AIzaSyDdUDx1O499R5H2Ikai2Hl-rDq_wYKcyC0',
-                    clientId:'670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com',
-                    discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-                    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets'
-                }).then(() => {
-                    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-                });
-            });
-        }
-
+    gapi.load('client:auth2', () => {
+        gapi.client.init({
+            apiKey: 'AIzaSyDdUDx1O499R5H2Ikai2Hl-rDq_wYKcyC0',
+            clientId: '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com',
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+            scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets'
+        }).then(() => {
+            // Explicitly load Drive API before using it
+            return gapi.client.load('drive', 'v3');
+        }).then(() => {
+            console.log('Drive API loaded successfully');
+            gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+        }).catch((error) => {
+            console.error('Error loading Google API:', error);
+        });
+    });
+}
         function checkEnvironment() {
             const isGoogleSites = window.location.href.includes('google.com') || window.parent !== window;
             if (isGoogleSites) {
@@ -2477,4 +2482,5 @@ IMPORTANT: Ensure questions are original, syllabus-aligned, and have unambiguous
     </script>
 </body>
 </html>
+
 
