@@ -698,9 +698,10 @@
                 document.getElementById('userAvatar').classList.remove('hidden');
             }
             
-            // Initialize main folder structure (without instructor subfolders yet)
-            setupMainFolder();
-        }
+            // Initialize main folder structure after slight delay to ensure API is ready
+setTimeout(() => {
+    setupMainFolder();
+}, 1000);
 
         function switchGoogleAccount() {
             if (gapi.auth2) {
@@ -2484,6 +2485,7 @@ IMPORTANT: Ensure questions are original, syllabus-aligned, and have unambiguous
     </script>
 </body>
 </html>
+
 
 
 
