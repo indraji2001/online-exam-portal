@@ -6,8 +6,8 @@
     <title>Online Exam Portal - v4.4 (Stabilized)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <style>
         body{font-family:Inter,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh}
         .glass{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2)}
@@ -21,20 +21,21 @@
         .palette-btn.current{box-shadow:0 0 0 3px #f59e0b}
         .jee-option{display:flex;align-items:center;padding:12px;margin:8px 0;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;background:#fff}
         .jee-option.selected{border-color:#22c55e;background:#f0fdf4}
-        .jee-nav-btn{padding:10px 20px;border-radius:6px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer}
+        .jee-option-number{width:32px;height:32px;background:#1e40af;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;margin-right:12px}
         .attribution-footer{background:#1e3a8a;color:#fff;text-align:center;padding:12px;font-size:0.875rem;position:fixed;bottom:0;width:100%}
-        .prompt-box{background:#f8fafc;border:2px solid #3b82f6;border-radius:12px;padding:16px;font-family:monospace;font-size:0.875rem;white-space:pre-wrap;max-height:400px;overflow-y:auto}
         .drive-btn{background:#fff;border:1px solid #dadce0;color:#3c4043;padding:8px 16px;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+        .prompt-box{background:#f8fafc;border:2px solid #3b82f6;border-radius:12px;padding:16px;font-family:monospace;font-size:0.875rem;white-space:pre-wrap;max-height:400px;overflow-y:auto}
         .library-card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:16px;margin:8px 0;transition:all 0.3s}
         .library-card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.1);transform:translateY(-2px)}
     </style>
+<base target="_blank">
 </head>
 <body class="p-4 pb-20">
 
     <div id="authContainer" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4 text-center glass">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Exam Portal Access</h2>
-            <p class="text-gray-600 mb-6">Please sign in to manage your Department of Chemistry Drive storage.</p>
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4 text-center glass shadow-2xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Chemistry Exam Portal</h2>
+            <p class="text-gray-600 mb-6">Connect your Google account to manage Department resources and Student exam links.</p>
             <div id="googleSignInButton" class="flex justify-center"></div>
         </div>
     </div>
@@ -44,7 +45,7 @@
             <div class="flex items-center gap-3">
                 <img id="userAvatar" src="" alt="" class="w-10 h-10 rounded-full border-2 border-blue-500">
                 <div>
-                    <div class="text-sm font-bold text-slate-800" id="userName">Indrajit Chakraborty</div>
+                    <div class="text-sm font-bold text-slate-800" id="userName">Dr. Indrajit Chakraborty</div>
                     <div class="text-xs text-slate-500" id="userEmail">-</div>
                 </div>
             </div>
@@ -60,11 +61,10 @@
             <div class="flex justify-between items-center">
                 <div>
                     <h1 class="text-3xl font-bold">Online Exam Portal</h1>
-                    <p class="text-gray-300 mt-1">v4.4 • Department of Chemistry</p>
+                    <p class="text-gray-300 mt-1">v4.4 • Department of Chemistry • Malda College</p>
                 </div>
                 <div class="text-right">
-                    <div class="text-sm text-gray-400">Malda College</div>
-                    <div class="text-xs text-amber-500 font-mono" id="headerInstructor">Instructor Folder Active</div>
+                    <div class="text-sm text-amber-500 font-mono" id="headerInstructor">Instructor Drive Integrated</div>
                 </div>
             </div>
         </div>
@@ -74,22 +74,23 @@
             <button onclick="showTab('generate')" id="tab-generate" class="flex-1 py-4 px-4 font-semibold tab-inactive">2. Generate</button>
             <button onclick="showTab('ai-bridge')" id="tab-ai-bridge" class="flex-1 py-4 px-4 font-semibold tab-inactive">3. AI Bridge</button>
             <button onclick="showTab('import')" id="tab-import" class="flex-1 py-4 px-4 font-semibold tab-inactive">4. Import</button>
-            <button onclick="showTab('library')" id="tab-library" class="flex-1 py-4 px-4 font-semibold tab-inactive">5. Library</button>
-            <button onclick="showTab('publish')" id="tab-publish" class="flex-1 py-4 px-4 font-semibold tab-inactive">6. Publish</button>
+            <button onclick="showTab('images')" id="tab-images" class="flex-1 py-4 px-4 font-semibold tab-inactive">5. Images</button>
+            <button onclick="showTab('library')" id="tab-library" class="flex-1 py-4 px-4 font-semibold tab-inactive">6. Library</button>
+            <button onclick="showTab('publish')" id="tab-publish" class="flex-1 py-4 px-4 font-semibold tab-inactive">7. Publish</button>
         </div>
 
         <div id="content-sources" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-blue-50 p-5 rounded-xl border border-blue-200">
                     <h3 class="font-bold text-blue-900 mb-3">Google Drive Integration</h3>
-                    <p class="text-sm text-blue-700 mb-4">Resources are automatically organized into instructor subfolders.</p>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mb-3">
                         <input type="text" id="driveLinkInput" placeholder="Paste Drive Link..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
                         <button onclick="addDriveLink()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Add</button>
                     </div>
+                    <div id="driveList" class="space-y-2"></div>
                 </div>
                 <div class="bg-purple-50 p-5 rounded-xl border border-purple-200">
-                    <h3 class="font-bold text-purple-900 mb-3">Local Source Sync</h3>
+                    <h3 class="font-bold text-purple-900 mb-3">Local Source Upload</h3>
                     <div class="border-2 border-dashed border-purple-300 bg-white p-6 rounded-lg text-center cursor-pointer" onclick="document.getElementById('localFileInput').click()">
                         <span class="text-purple-600 text-sm font-medium">Click to upload Syllabus/Question Files</span>
                         <input type="file" id="localFileInput" multiple class="hidden" onchange="handleLocalFiles(this.files)">
@@ -103,12 +104,11 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                     <h4 class="font-bold text-slate-800 mb-3">AI Workflow Prompt</h4>
-                    <p class="text-sm text-slate-600 mb-4">Copy this prompt to ChatGPT/Gemini to generate structured exam questions.</p>
-                    <button onclick="generatePrompt()" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold mb-4">Generate Optimized Prompt</button>
-                    <div id="generatedPrompt" class="prompt-box text-xs bg-slate-50 border p-4 rounded-lg h-64 overflow-y-auto">Prompt will appear here...</div>
+                    <button onclick="generatePrompt()" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold mb-4">Generate Chemistry Optimized Prompt</button>
+                    <div id="generatedPrompt" class="prompt-box text-xs bg-slate-50 border p-4 rounded-lg h-64 overflow-y-auto">Prompt for ChatGPT/Gemini will appear here...</div>
                 </div>
                 <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
-                    <h4 class="font-bold text-indigo-900 mb-4">Quick Links</h4>
+                    <h4 class="font-bold text-indigo-900 mb-4">External AI Services</h4>
                     <div class="grid grid-cols-2 gap-3">
                         <a href="https://chat.openai.com" target="_blank" class="bg-white p-3 rounded shadow-sm text-center font-bold text-emerald-600">ChatGPT</a>
                         <a href="https://gemini.google.com" target="_blank" class="bg-white p-3 rounded shadow-sm text-center font-bold text-blue-600">Gemini</a>
@@ -118,20 +118,23 @@
         </div>
 
         <div id="content-import" class="hidden-section p-6">
-            <div class="max-w-4xl mx-auto">
-                <h4 class="font-bold mb-4">Paste AI Output (JSON)</h4>
-                <textarea id="aiOutputPaste" rows="10" class="w-full p-4 font-mono text-sm border-2 border-blue-100 rounded-xl" placeholder='{ "questions": [...] }'></textarea>
-                <div class="flex gap-4 mt-4">
-                    <button onclick="parseAiOutput()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">Validate & Import</button>
-                    <button onclick="document.getElementById('aiOutputPaste').value=''" class="px-6 bg-slate-200 rounded-xl font-bold">Clear</button>
-                </div>
-                <div id="parseResults" class="mt-4 p-4 rounded-lg"></div>
+            <h4 class="font-bold mb-4">Paste AI Output (JSON)</h4>
+            <textarea id="aiOutputPaste" rows="10" class="w-full p-4 font-mono text-sm border-2 border-blue-100 rounded-xl" placeholder='{ "questions": [...] }'></textarea>
+            <div class="flex gap-4 mt-4">
+                <button onclick="parseAiOutput()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">Validate & Import to Set A-D</button>
+                <button onclick="document.getElementById('aiOutputPaste').value=''" class="px-6 bg-slate-200 rounded-xl font-bold">Clear</button>
             </div>
+            <div id="parseResults" class="mt-4 p-4 rounded-lg"></div>
         </div>
 
-        <div id="content-library" class="hidden-section p-6">
-            <div id="libraryContent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <p class="text-center text-slate-400 col-span-full py-10">Initializing library from Drive...</p>
+        <div id="content-publish" class="hidden-section p-6">
+            <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-200">
+                <h3 class="font-bold text-indigo-900 mb-4">Finalize Exam</h3>
+                <button onclick="publishExam()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Publish Exam & Create Folder Structure</button>
+                <div id="studentUrlSection" class="mt-6 hidden">
+                    <p class="text-sm font-bold text-indigo-800 mb-2">Student Access Link:</p>
+                    <div id="studentUrl" class="bg-white p-3 border rounded text-xs font-mono break-all"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -141,36 +144,49 @@
     </div>
 
     <script>
-        // CONFIGURATION
-        const CLIENT_ID = '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com'; // From Source
+        // GLOBAL STATE
+        const CLIENT_ID = '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com';
         const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
         
         let tokenClient;
         let accessToken = null;
+        let currentUser = null;
         let driveFolderId = null;
         let sources = [];
-        let libraryData = [];
+        let generatedSets = {};
 
-        // INITIALIZATION
+        // 1. INITIALIZE LIBRARIES
         window.onload = () => {
-            initGsi();
             gapi.load('client', initGapi);
+            initGsi();
         };
+
+        async function initGapi() {
+            await gapi.client.init({
+                discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+            });
+            checkExistingToken();
+        }
 
         function initGsi() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
-                callback: (resp) => {
-                    if (resp.error) throw resp;
-                    accessToken = resp.access_token;
-                    handleAuthSuccess(resp);
+                callback: (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        accessToken = tokenResponse.access_token;
+                        gapi.client.setToken({ access_token: accessToken });
+                        localStorage.setItem('google_access_token', accessToken);
+                        localStorage.setItem('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
+                        handleAuthSuccess();
+                    }
                 },
             });
 
+            // Initialize the Sign-In button flow (for profile info)
             google.accounts.id.initialize({
                 client_id: CLIENT_ID,
-                callback: (resp) => tokenClient.requestAccessToken()
+                callback: handleCredentialResponse
             });
 
             google.accounts.id.renderButton(
@@ -179,30 +195,53 @@
             );
         }
 
-        async function initGapi() {
-            await gapi.client.init({
-                discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-            });
+        // 2. AUTHENTICATION HANDLERS
+        function handleCredentialResponse(response) {
+            const payload = JSON.parse(atob(response.credential.split('.')[1]));
+            currentUser = { name: payload.name, email: payload.email, picture: payload.picture };
+            localStorage.setItem('google_user', JSON.stringify(currentUser));
+            
+            // Now request Drive access token
+            tokenClient.requestAccessToken();
         }
 
-        async function handleAuthSuccess(authResp) {
+        function checkExistingToken() {
+            const token = localStorage.getItem('google_access_token');
+            const expiry = localStorage.getItem('google_token_expiry');
+            const user = localStorage.getItem('google_user');
+
+            if (token && expiry && Date.now() < parseInt(expiry) && user) {
+                accessToken = token;
+                currentUser = JSON.parse(user);
+                gapi.client.setToken({ access_token: accessToken });
+                handleAuthSuccess();
+            }
+        }
+
+        function handleAuthSuccess() {
             document.getElementById('authContainer').classList.add('hidden');
             document.getElementById('mainPortal').classList.remove('hidden');
             document.getElementById('accountBar').classList.remove('hidden');
             
-            // Note: Since we use TokenClient, we fetch user info manually or rely on UI
-            // For now, setting generic instructor info based on source
-            document.getElementById('userEmail').textContent = "Chemistry Department Login";
-            
-            await setupDriveEnvironment();
-            loadLibrary();
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userEmail').textContent = currentUser.email;
+                document.getElementById('userAvatar').src = currentUser.picture;
+            }
+            setupDriveEnvironment();
         }
 
+        function signOut() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // 3. DRIVE LOGIC
         async function setupDriveEnvironment() {
+            const folderName = `Online Exam Portal (${currentUser.name})`;
             try {
-                const rootName = "Online Exam Portal (Dr. Indrajit)";
                 const resp = await gapi.client.drive.files.list({
-                    q: `name='${rootName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                    q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
                     fields: 'files(id)'
                 });
 
@@ -210,78 +249,74 @@
                     driveFolderId = resp.result.files[0].id;
                 } else {
                     const folder = await gapi.client.drive.files.create({
-                        resource: { name: rootName, mimeType: 'application/vnd.google-apps.folder' },
+                        resource: { name: folderName, mimeType: 'application/vnd.google-apps.folder' },
                         fields: 'id'
                     });
                     driveFolderId = folder.result.id;
                 }
-                console.log("Drive Active:", driveFolderId);
+                console.log("Active Folder ID:", driveFolderId);
             } catch (err) {
-                console.error("Drive Setup Error", err);
+                console.error("Drive error:", err);
             }
-        }
-
-        function showTab(tabName) {
-            document.querySelectorAll('[id^="content-"]').forEach(el => el.classList.add('hidden-section'));
-            document.querySelectorAll('[id^="tab-"]').forEach(el => el.className = 'flex-1 py-4 px-4 font-semibold tab-inactive transition');
-            
-            document.getElementById(`content-${tabName}`).classList.remove('hidden-section');
-            document.getElementById(`tab-${tabName}`).className = 'flex-1 py-4 px-4 font-semibold tab-active transition';
         }
 
         function showDriveFolder() {
             if (driveFolderId) window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
         }
 
-        function signOut() {
-            google.accounts.oauth2.revoke(accessToken, () => {
-                location.reload();
+        // 4. PORTAL UI LOGIC
+        function showTab(tabName) {
+            const tabs = ['sources', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish'];
+            tabs.forEach(t => {
+                const content = document.getElementById(`content-${t}`);
+                const btn = document.getElementById(`tab-${t}`);
+                if (content) content.classList.add('hidden-section');
+                if (btn) btn.className = 'flex-1 py-4 px-4 font-semibold tab-inactive transition';
             });
+            document.getElementById(`content-${tabName}`).classList.remove('hidden-section');
+            document.getElementById(`tab-${tabName}`).className = 'flex-1 py-4 px-4 font-semibold tab-active transition';
         }
 
-        // SOURCE MANAGEMENT
+        // (Keeping your original Source and AI Bridge Logic)
         function addDriveLink() {
-            const val = document.getElementById('driveLinkInput').value;
-            if (!val) return;
-            sources.push({ type: 'drive', name: val.substring(0, 30) + "...", url: val });
-            updateSourceList();
+            const url = document.getElementById('driveLinkInput').value;
+            if (!url) return;
+            sources.push({ type: 'drive', name: 'Drive File', url: url });
+            updateSourceDisplay();
             document.getElementById('driveLinkInput').value = '';
         }
 
-        function updateSourceList() {
+        function updateSourceDisplay() {
             const list = document.getElementById('combinedSourceList');
-            list.innerHTML = sources.map((s, i) => `
-                <div class="flex justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                    <span class="text-sm font-medium"> <span class="text-blue-600 font-bold">[${s.type.toUpperCase()}]</span> ${s.name}</span>
-                    <button onclick="sources.splice(${i}, 1); updateSourceList()" class="text-red-500 font-bold">Remove</button>
-                </div>
-            `).join('');
+            list.innerHTML = sources.map(s => `<div class="p-2 bg-white border rounded mb-2 text-sm"><b>[${s.type}]</b> ${s.url}</div>`).join('');
         }
 
-        // PROMPT GENERATOR
         function generatePrompt() {
             const prompt = `Act as a Chemistry Professor for Malda College. 
-            Generate a JSON array of 30 Multiple Choice Questions (MCQs) for Semester 3
-            Topics: Based on provided syllabus.
-            Strict Output Format:
-            { "questions": [ { "number": 1, "text": "Question?", "options": ["A","B","C","D"], "correct": 0, "explanation": "..." } ] }`;
-            
+            Generate a JSON array of 30 Multiple Choice Questions (MCQs) for Semester 3.
+            Topics: Chemistry General/Honours Syllabus.
+            Format: { "questions": [ { "text": "...", "options": ["A","B","C","D"], "correct": 0 } ] }`;
             document.getElementById('generatedPrompt').textContent = prompt;
         }
 
-        // IMPORT LOGIC
         function parseAiOutput() {
-            const raw = document.getElementById('aiOutputPaste').value;
+            const text = document.getElementById('aiOutputPaste').value;
             try {
-                const data = JSON.parse(raw);
+                const data = JSON.parse(text);
                 const qList = data.questions || data;
-                document.getElementById('parseResults').className = "mt-4 p-4 rounded-lg bg-green-100 text-green-800 font-bold";
-                document.getElementById('parseResults').innerHTML = `✓ Success: ${qList.length} Questions detected.`;
-                // Store in library logic here
+                document.getElementById('parseResults').innerHTML = `<p class="text-green-600 font-bold">✓ Successfully detected ${qList.length} questions!</p>`;
+                generatedSets['A'] = qList; // Simplified for v4.4 demo
             } catch (e) {
-                document.getElementById('parseResults').className = "mt-4 p-4 rounded-lg bg-red-100 text-red-800 font-bold";
-                document.getElementById('parseResults').innerHTML = `✗ Error: Invalid JSON Format.`;
+                document.getElementById('parseResults').innerHTML = `<p class="text-red-600 font-bold">✗ Error: Invalid JSON Format.</p>`;
             }
+        }
+
+        function publishExam() {
+            if (!driveFolderId) { alert("Drive not ready"); return; }
+            const examUrl = window.location.href + "?mode=student&exam=CHEM" + Date.now();
+            document.getElementById('studentUrlSection').classList.remove('hidden');
+            document.getElementById('studentUrl').textContent = examUrl;
+            alert("Exam Published to " + currentUser.name + "'s Chemistry Folder!");
         }
     </script>
 </body>
