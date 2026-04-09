@@ -3,51 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Exam Portal - v4.2</title>
+    <title>Online Exam Portal - v4.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // GLOBAL FONT SCALER: Upsizes the entire portal's typography proportionately
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontSize: {
+                        'xs': ['0.875rem', { lineHeight: '1.25rem' }],     /* Was 12px, now 14px */
+                        'sm': ['1rem', { lineHeight: '1.5rem' }],          /* Was 14px, now 16px */
+                        'base': ['1.125rem', { lineHeight: '1.75rem' }],   /* Was 16px, now 18px */
+                        'lg': ['1.25rem', { lineHeight: '1.75rem' }],      /* Was 18px, now 20px */
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
     <style>
-        body{font-family:Inter,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh}
-        .glass{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2)}
-        .tab-active{background:#3b82f6;color:#fff}.tab-inactive{background:#475569;color:#cbd5e1}
+        body{font-family:Inter,sans-serif;background:linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);min-height:100vh;color:#334155}
+        .glass{background:rgba(255,255,255,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.4);box-shadow:0 8px 32px 0 rgba(31,38,135,.07)}
+        .tab-active{background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);color:#fff;box-shadow:0 4px 10px rgba(59,130,246,.3)}
+        .tab-inactive{background:transparent;color:#475569;transition:all 0.3s ease}
+        .tab-inactive:hover{background:#f1f5f9}
         .hidden-section{display:none!important}
-        .jee-header{background:linear-gradient(135deg,#1e3a8a 0%,#3730a3 100%);color:#fff;border-bottom:4px solid #f59e0b}
-        .jee-timer{background:#dc2626;color:#fff;font-family:'Courier New',monospace;font-size:1.5rem;font-weight:bold;padding:8px 16px;border-radius:8px;border:2px solid #fff;box-shadow:0 4px 6px rgba(0,0,0,.3)}
+        .jee-header{background:linear-gradient(135deg,#1e3a8a 0%,#312e81 100%);color:#fff;border-bottom:4px solid #f59e0b;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+        .jee-timer{background:linear-gradient(to right,#dc2626,#b91c1c);color:#fff;font-family:'Courier New',monospace;font-size:1.5rem;font-weight:bold;padding:8px 16px;border-radius:8px;border:2px solid #fff;box-shadow:0 4px 10px rgba(220,38,38,.4)}
         .jee-timer.warning{background:#ea580c;animation:pulse 1s infinite}.jee-timer.danger{background:#dc2626;animation:pulse .5s infinite}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
         .question-palette{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-width:300px}
-        .palette-btn{width:40px;height:40px;border-radius:8px;font-weight:bold;font-size:14px;border:2px solid #e5e7eb;cursor:pointer}
-        .palette-btn.answered{background:#22c55e;color:#fff;border-color:#16a34a}
-        .palette-btn.not-answered{background:#dc2626;color:#fff;border-color:#b91c1c}
-        .palette-btn.marked-review{background:#a855f7;color:#fff;border-color:#9333ea}
-        .palette-btn.not-visited{background:#9ca3af;color:#fff}
-        .palette-btn.current{box-shadow:0 0 0 3px #f59e0b}
-        .jee-option{display:flex;align-items:center;padding:12px;margin:8px 0;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;background:#fff}
-        .jee-option:hover{border-color:#3b82f6;background:#eff6ff}
-        .jee-option.selected{border-color:#22c55e;background:#f0fdf4}
-        .jee-option input{width:20px;height:20px;margin-right:12px}
-        .jee-option-number{width:32px;height:32px;background:#1e40af;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;margin-right:12px}
-        .jee-nav-btn{padding:10px 20px;border-radius:6px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer}
-        .attribution-footer{background:#1e3a8a;color:#fff;text-align:center;padding:12px;font-size:0.875rem;position:fixed;bottom:0;width:100%}
-        .prompt-box{background:#f8fafc;border:2px solid #3b82f6;border-radius:12px;padding:16px;font-family:monospace;font-size:0.875rem;white-space:pre-wrap;max-height:400px;overflow-y:auto}
+        .palette-btn{width:40px;height:40px;border-radius:8px;font-weight:bold;font-size:14px;border:2px solid #e5e7eb;cursor:pointer;transition:all 0.2s}
+        .palette-btn:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgba(0,0,0,.05)}
+        .palette-btn.answered{background:linear-gradient(to bottom,#22c55e,#16a34a);color:#fff;border-color:#15803d}
+        .palette-btn.not-answered{background:linear-gradient(to bottom,#ef4444,#dc2626);color:#fff;border-color:#b91c1c}
+        .palette-btn.marked-review{background:linear-gradient(to bottom,#a855f7,#9333ea);color:#fff;border-color:#7e22ce}
+        .palette-btn.not-visited{background:#f3f4f6;color:#6b7280;border-color:#d1d5db}
+        .palette-btn.current{box-shadow:0 0 0 3px #f59e0b;border-color:#f59e0b}
+        .jee-option{display:flex;align-items:center;padding:12px;margin:8px 0;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;background:#fff;transition:all 0.2s ease}
+        .jee-option:hover{border-color:#3b82f6;background:#f8fafc;transform:translateX(4px)}
+        .jee-option.selected{border-color:#22c55e;background:#f0fdf4;box-shadow:0 2px 10px rgba(34,197,94,.1)}
+        .jee-option input{width:20px;height:20px;margin-right:12px;cursor:pointer}
+        .jee-option-number{width:32px;height:32px;background:linear-gradient(135deg,#1e40af,#1e3a8a);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;margin-right:12px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+        .jee-nav-btn{padding:10px 20px;border-radius:6px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+        .jee-nav-btn:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,.1)}
+        .attribution-footer{background:#0f172a;color:#94a3b8;text-align:center;padding:12px;font-size:0.875rem;position:fixed;bottom:0;width:100%;backdrop-filter:blur(10px)}
+        .prompt-box{background:#f8fafc;border:2px solid #cbd5e1;border-radius:12px;padding:16px;font-family:monospace;font-size:1.1rem;white-space:pre-wrap;max-height:400px;overflow-y:auto;line-height:1.6;box-shadow:inset 0 2px 4px rgba(0,0,0,.02)}
         .api-section{background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-top:16px}
-        .import-box{background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:16px}
-        .drive-btn{background:#fff;border:1px solid #dadce0;color:#3c4043;padding:8px 16px;border-radius:4px;font-family:'Google Sans',Roboto,Arial,sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
-        .drive-btn:hover{background:#f1f3f4}
-        .syllabus-match{background:#e8f5e9;border-left:4px solid #4caf50;padding:12px;margin:8px 0}
-        .syllabus-mismatch{background:#ffebee;border-left:4px solid #f44336;padding:12px;margin:8px 0}
-        .library-card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:16px;margin:8px 0;transition:all 0.3s}
-        .library-card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.1);transform:translateY(-2px)}
-        .save-draft-btn{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;border:none;margin-right:8px}
-        .save-draft-btn:hover{opacity:0.9}
+        .import-box{background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:16px}
+        .drive-btn{background:#fff;border:1px solid #dadce0;color:#3c4043;padding:8px 16px;border-radius:6px;font-family:'Google Sans',Roboto,Arial,sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s ease}
+        .drive-btn:hover{background:#f8fafc;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+        .syllabus-match{background:#ecfdf5;border-left:4px solid #10b981;padding:12px;margin:8px 0}
+        .syllabus-mismatch{background:#fef2f2;border-left:4px solid #ef4444;padding:12px;margin:8px 0}
+        .library-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:8px 0;transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
+        .library-card:hover{box-shadow:0 10px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);transform:translateY(-3px);border-color:#cbd5e1}
+        .save-draft-btn{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;border:none;margin-right:8px;transition:all 0.2s}
+        .save-draft-btn:hover{opacity:0.9;box-shadow:0 4px 12px rgba(99,102,241,.3)}
         .draft-saved-indicator{color:#10b981;font-size:0.875rem;display:none;align-items:center;gap:4px}
+		/* NEW: Image Auto-Fitting & Resizing */
+        #imageQueue img { max-width: 100%; height: auto; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+        #editQText img, #editQExplanation img { max-width: 100%; height: auto; border: 2px dashed #3b82f6; border-radius: 4px; padding: 2px; }
     </style>
 <base target="_blank">
 </head>
 <body class="p-4 pb-20">
-    <!-- Google Sign-In Modal -->
     <div id="authContainer" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
         <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4 text-center">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Connect Google Drive</h2>
@@ -62,7 +83,6 @@
         </div>
     </div>
 
-    <!-- Account Info Bar -->
     <div id="accountBar" class="max-w-7xl mx-auto mb-4 hidden">
         <div class="glass rounded-lg p-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
@@ -79,13 +99,13 @@
             </div>
         </div>
     </div>
-    <!-- MAIN PORTAL -->
+    
     <div id="mainPortal" class="max-w-7xl mx-auto glass rounded-2xl shadow-2xl overflow-hidden">
         <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-6">
             <div class="flex justify-between items-center">
                 <div>
                     <h1 class="text-3xl font-bold">Online Exam Portal</h1>
-                    <p class="text-gray-300 mt-1">v4.2 • Dynamic Instructor Folders • Google Drive Integrated</p>
+                    <p class="text-gray-300 mt-1">v4.5 • Dynamic Instructor Folders • Google Drive Integrated</p>
                 </div>
                 <div class="text-right">
                     <div class="text-sm text-gray-400" id="headerInstructor">Department of Chemistry</div>
@@ -104,7 +124,7 @@
             <button onclick="showTab('library')" id="tab-library" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">7. Library</button>
             <button onclick="showTab('publish')" id="tab-publish" class="flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm">8. Publish</button>
         </div>
-        <!-- TAB 1: SOURCES -->
+        
         <div id="content-sources" class="p-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-blue-50 p-5 rounded-xl border border-blue-200">
@@ -146,7 +166,6 @@
                 </div>
             </div>
 
-            <!-- Common Resources Section -->
             <div class="mt-6 bg-amber-50 p-5 rounded-xl border border-amber-200">
                 <h3 class="text-lg font-bold text-amber-900 mb-3">Common Resources (Non-Instructor Specific)</h3>
                 <p class="text-sm text-amber-700 mb-3">Syllabus and other common files stored in shared Drive folders</p>
@@ -169,7 +188,7 @@
                 </div>
             </div>
         </div>
-        <!-- TAB 2: EXTRACT -->
+        
         <div id="content-extract" class="hidden-section p-6">
             <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-200 mb-4">
                 <h3 class="text-lg font-bold text-indigo-900 mb-2">Extract Content from Sources</h3>
@@ -179,7 +198,7 @@
                 <p class="text-center text-gray-400 py-8">Add sources in Tab 1 first to extract content</p>
             </div>
         </div>
-        <!-- TAB 3: GENERATE -->
+        
         <div id="content-generate" class="hidden-section p-6">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div class="space-y-3">
@@ -200,11 +219,55 @@
                     </div>
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                        <h4 class="font-bold text-gray-800 mb-3 text-sm">Question Distribution</h4>
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-gray-800 text-sm">Question Distribution</h4>
+                            <label class="flex items-center gap-1 text-xs font-bold text-blue-700 cursor-pointer bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                                <input type="checkbox" id="enablePool" onchange="togglePoolSlider()"> Use Pool
+                            </label>
+                        </div>
+                        
+                        <div id="poolSliderContainer" class="hidden-section mb-3 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <div class="flex justify-between text-xs font-bold text-blue-900 mb-1">
+                                <span>Extra Cushion:</span>
+                                <span id="poolValDisplay">50%</span>
+                            </div>
+                            <input type="range" id="poolSlider" min="50" max="100" step="10" value="50" class="w-full accent-blue-600" oninput="updatePoolDisplay()">
+                        </div>
+
                         <div class="space-y-2 text-sm">
-                            <div class="flex justify-between"><span>Single Correct</span><input type="number" id="distSingle" value="20" min="0" class="w-16 px-2 py-1 border rounded text-center" onchange="updateFileNamePreview()"></div>
-                            <div class="flex justify-between"><span>Multiple Correct</span><input type="number" id="distMultiple" value="5" min="0" class="w-16 px-2 py-1 border rounded text-center"></div>
-                            <div class="flex justify-between"><span>Matching</span><input type="number" id="distMatching" value="5" min="0" class="w-16 px-2 py-1 border rounded text-center"></div>
+                            <div class="flex justify-between"><span>Single Correct</span><input type="number" id="distSingle" value="10" min="0" class="w-16 px-2 py-1 border rounded text-center" onchange="updateFileNamePreview()"></div>
+                            <div class="flex justify-between"><span>Multiple Correct</span><input type="number" id="distMultiple" value="3" min="0" class="w-16 px-2 py-1 border rounded text-center"></div>
+                            <div class="flex justify-between"><span>Matching</span><input type="number" id="distMatching" value="2" min="0" class="w-16 px-2 py-1 border rounded text-center"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mt-3">
+                        <h4 class="font-bold text-gray-800 mb-3 text-sm">Difficulty & Cognitive Level</h4>
+                        <div class="space-y-4 text-sm">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-gray-600 font-semibold" title="Lower Order Thinking Skills (Knowledge/Recall)">Easy (LOTS)</span>
+                                    <span id="valEasy" class="font-bold text-green-600">30%</span>
+                                </div>
+                                <input type="range" id="scaleEasy" min="0" max="100" value="30" class="w-full accent-green-600" oninput="document.getElementById('valEasy').textContent = this.value + '%'">
+                                <p class="text-xs text-gray-400 mt-1">Focuses on basic recall of facts and definitions.</p>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-gray-600 font-semibold" title="Understanding/Application">Moderate</span>
+                                    <span id="valModerate" class="font-bold text-blue-600">50%</span>
+                                </div>
+                                <input type="range" id="scaleModerate" min="0" max="100" value="50" class="w-full accent-blue-600" oninput="document.getElementById('valModerate').textContent = this.value + '%'">
+                                <p class="text-xs text-gray-400 mt-1">Requires applying knowledge to interpret data/concepts.</p>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-gray-600 font-semibold" title="Higher Order Thinking Skills (Analysis/Evaluation/Creation)">Difficult (HOTS)</span>
+                                    <span id="valDifficult" class="font-bold text-red-600">20%</span>
+                                </div>
+                                <input type="range" id="scaleDifficult" min="0" max="100" value="20" class="w-full accent-red-600" oninput="document.getElementById('valDifficult').textContent = this.value + '%'">
+                                <p class="text-xs text-gray-400 mt-1">High-order thinking, analyzing complex data, or evaluating.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -249,24 +312,6 @@
                         <div class="text-xs text-blue-800 font-mono break-all" id="fileNamePreview">QS_Instructor_SemXX_Code_Topic_ddmmyyyy.xlsx</div>
                     </div>
 
-                    <div class="api-section">
-                        <h4 class="font-bold text-amber-900 mb-2 text-sm flex items-center gap-2"><span>🔒</span> Personal API Key (Optional)</h4>
-                        <p class="text-xs text-amber-800 mb-3">Use your own API account. Key stays in your browser only.</p>
-                        <select id="personalApiService" class="w-full mb-2 px-3 py-2 border rounded-lg text-sm bg-white">
-                            <option value="">Select Service...</option>
-                            <option value="openai">OpenAI (GPT-4/GPT-3.5)</option>
-                            <option value="anthropic">Anthropic (Claude 3)</option>
-                            <option value="google">Google (Gemini Pro)</option>
-                            <option value="groq">Groq (Llama 3/Mixtral)</option>
-                        </select>
-                        <div class="flex gap-2 mb-2">
-                            <input type="password" id="personalApiKey" placeholder="Enter your API key" class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                            <button onclick="savePersonalApiKey()" class="bg-amber-600 text-white px-3 py-2 rounded-lg text-sm font-semibold">Save</button>
-                        </div>
-                        <div id="apiKeyStatus" class="text-xs text-amber-700 hidden">✓ API key saved (encrypted in browser)</div>
-                        <button onclick="generateWithPersonalApi()" class="w-full mt-2 bg-amber-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-amber-700">Generate with My API</button>
-                    </div>
-
                     <div class="flex gap-2">
                         <button onclick="saveDraft()" class="save-draft-btn flex-1">💾 Save Draft</button>
                         <button onclick="generateManualQuestions()" class="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-xl font-bold hover:shadow-lg transition">Generate Manually</button>
@@ -279,7 +324,7 @@
                 </div>
             </div>
         </div>
-        <!-- TAB 4: AI BRIDGE -->
+        
         <div id="content-ai-bridge" class="hidden-section p-6">
             <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-200 mb-4">
                 <h3 class="text-lg font-bold text-indigo-900 mb-2">AI-Assistance Bridge</h3>
@@ -292,11 +337,14 @@
                         <p class="text-gray-400 text-sm">Add sources in Tab 1 first</p>
                     </div>
                     <h4 class="font-bold text-gray-800 mb-3">2. Select AI Service</h4>
-                    <div class="grid grid-cols-2 gap-2 mb-3">
-                        <button onclick="openAiService('chatgpt')" class="bg-[#10a37f] text-white py-2 rounded-lg text-sm font-semibold">ChatGPT</button>
-                        <button onclick="openAiService('claude')" class="bg-[#cc785c] text-white py-2 rounded-lg text-sm font-semibold">Claude</button>
-                        <button onclick="openAiService('gemini')" class="bg-[#4285f4] text-white py-2 rounded-lg text-sm font-semibold">Gemini</button>
-                        <button onclick="openAiService('copilot')" class="bg-[#0078d4] text-white py-2 rounded-lg text-sm font-semibold">Copilot</button>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
+                        <button onclick="openAiService('chatgpt')" class="bg-[#10a37f] text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">ChatGPT</button>
+                        <button onclick="openAiService('claude')" class="bg-[#d97757] text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">Claude</button>
+                        <button onclick="openAiService('gemini')" class="bg-[#4285f4] text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">Gemini</button>
+                        <button onclick="openAiService('copilot')" class="bg-[#0078d4] text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">Copilot</button>
+                        <button onclick="openAiService('perplexity')" class="bg-[#21bca5] text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">Perplexity</button>
+                        <button onclick="openAiService('deepseek')" class="bg-[#1d4ed8] text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">DeepSeek</button>
+                        <button onclick="openAiService('grok')" class="bg-[#000000] text-white border border-gray-600 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition">Grok</button>
                     </div>
                 </div>
                 <div>
@@ -309,7 +357,7 @@
                 </div>
             </div>
         </div>
-        <!-- TAB 5: IMPORT -->
+        
         <div id="content-import" class="hidden-section p-6">
             <div class="bg-green-50 p-5 rounded-xl border border-green-200 mb-4">
                 <h3 class="text-lg font-bold text-green-900 mb-2">Import AI-Generated Questions</h3>
@@ -325,31 +373,98 @@
                     </div>
                 </div>
                 <div>
-                    <h4 class="font-bold text-gray-800 mb-3">Detection Results</h4>
-                    <div id="parseResults" class="bg-white p-4 rounded-xl border border-gray-200 mb-3">
-                        <p class="text-gray-400 text-sm">Click "Parse & Validate" to see results</p>
+                    <h4 class="font-bold text-gray-800 mb-3">Accumulation Dashboard</h4>
+                    
+                    <div id="poolStatusBoard" class="bg-white p-4 rounded-xl border border-gray-200 mb-3 shadow-sm">
+                        <div class="flex justify-between items-center border-b pb-2 mb-3">
+                            <span class="text-sm font-bold text-gray-700">Master Pool Status</span>
+                            <span id="poolStatusBadge" class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded font-bold">Awaiting Import</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-4 gap-2 text-center mb-4">
+                            <div class="bg-gray-50 border border-gray-200 p-2 rounded-lg">
+                                <div class="text-[10px] font-bold text-gray-500 uppercase">TOTAL</div>
+                                <div class="font-bold text-lg text-gray-800" id="statTotal">0 / 0</div>
+                            </div>
+                            <div class="bg-gray-50 border border-gray-200 p-2 rounded-lg">
+                                <div class="text-[10px] font-bold text-gray-500 uppercase">SINGLE</div>
+                                <div class="font-bold text-lg text-blue-600" id="statSingle">0 / 0</div>
+                            </div>
+                            <div class="bg-gray-50 border border-gray-200 p-2 rounded-lg">
+                                <div class="text-[10px] font-bold text-gray-500 uppercase">MULTIPLE</div>
+                                <div class="font-bold text-lg text-purple-600" id="statMultiple">0 / 0</div>
+                            </div>
+                            <div class="bg-gray-50 border border-gray-200 p-2 rounded-lg">
+                                <div class="text-[10px] font-bold text-gray-500 uppercase">MATCHING</div>
+                                <div class="font-bold text-lg text-orange-600" id="statMatching">0 / 0</div>
+                            </div>
+                        </div>
+
+                        <div id="continuationBox" class="hidden-section bg-red-50 border border-red-200 p-3 rounded-lg">
+                            <p class="text-xs text-red-700 font-bold mb-2">⚠️ Goal not met! Paste this command into AI to continue:</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="continuationPrompt" class="flex-1 text-xs border border-red-300 rounded p-2 bg-white text-red-900 font-mono" readonly>
+                                <button onclick="copyContinuation()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold transition shadow-sm">Copy</button>
+                            </div>
+                        </div>
+
+                        <div id="successBox" class="hidden-section bg-green-100 border border-green-300 p-3 rounded-lg text-green-800 text-center font-bold text-sm shadow-sm">
+                            🎉 Congrats! You have completed questions of the required distribution.
+                        </div>
+						<div id="errorBox" class="hidden-section bg-orange-50 border border-orange-300 p-3 rounded-lg mt-3 shadow-sm">
+                            <p class="text-xs text-orange-800 font-bold mb-2">⚠️ JSON Format Error Detected! Paste this command to AI to fix it:</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="repairPrompt" class="flex-1 text-xs border border-orange-300 rounded p-2 bg-white text-orange-900 font-mono" value="Your JSON is invalid because you included physical line breaks inside string values. Rewrite the exact same JSON, but replace ALL physical line breaks inside strings with the <br> tag. Output ONLY raw, valid JSON." readonly>
+                                <button onclick="copyRepair()" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-bold transition shadow-sm">Copy</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mb-3">
-                        <p class="text-xs text-yellow-800">💡 <strong>Manual Modification Available:</strong> You can edit any question after import in the Images tab or before publishing.</p>
+
+                    <div class="mt-4 space-y-3 border-t border-gray-200 pt-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-800 mb-1">Distribution Strategy:</label>
+                            <select id="importMode" class="w-full px-3 py-2 border border-gray-400 rounded-lg text-sm bg-white focus:border-blue-500 focus:outline-none shadow-sm">
+                                <option value="shuffle" selected>Copy & Shuffle: Same questions, different random order per Set</option>
+                                <option value="pool" id="poolOption" disabled>Pool & Random Pick: Extracts targets from larger pool</option>
+                                <option value="split">Split: Divide bulk questions into entirely unique Sets</option>
+                            </select>
+                        </div>
+                        <button onclick="importToSets()" id="importToSetsBtn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 disabled:bg-gray-400 transition shadow-md" disabled>Import to Sets</button>
                     </div>
-                    <button onclick="importToSets()" id="importToSetsBtn" class="w-full mt-3 bg-blue-600 text-white py-3 rounded-xl font-bold disabled:bg-gray-400" disabled>Import to Sets A-D</button>
                 </div>
             </div>
         </div>
-        <!-- TAB 6: IMAGES -->
+        
         <div id="content-images" class="hidden-section p-6">
-            <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 mb-4">
-                <h3 class="text-lg font-bold text-amber-900 mb-2">Image References & Manual Edit</h3>
-                <p class="text-amber-700 text-sm">Map figure references to actual images from your sources. You can also manually modify any question here before publishing.</p>
+            <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 mb-4 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-bold text-amber-900 mb-1">Review & Format</h3>
+                    <p class="text-amber-700 text-sm">Review questions, paste images, and verify correct answers before publishing.</p>
+                </div>
             </div>
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4">
-                <p class="text-sm text-blue-800">✏️ <strong>Manual Modification:</strong> Click on any question below to edit text, options, or correct answer manually.</p>
+            
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4 flex flex-wrap gap-6 items-center shadow-sm">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-blue-900">Question Font:</span>
+                    <button onclick="changeFontSize('q', -2)" class="bg-blue-200 hover:bg-blue-300 text-blue-900 px-3 py-1 rounded font-bold text-lg leading-none">-</button>
+                    <button onclick="changeFontSize('q', 2)" class="bg-blue-200 hover:bg-blue-300 text-blue-900 px-3 py-1 rounded font-bold text-lg leading-none">+</button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-blue-900">Option Font:</span>
+                    <button onclick="changeFontSize('opt', -2)" class="bg-blue-200 hover:bg-blue-300 text-blue-900 px-3 py-1 rounded font-bold text-lg leading-none">-</button>
+                    <button onclick="changeFontSize('opt', 2)" class="bg-blue-200 hover:bg-blue-300 text-blue-900 px-3 py-1 rounded font-bold text-lg leading-none">+</button>
+                </div>
+                <div class="flex items-center gap-2 border-l-2 border-blue-200 pl-6">
+                    <button onclick="toggleBoldQuestions()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow transition">Toggle Bold Questions</button>
+                </div>
+                <div class="ml-auto text-xs text-blue-800">
+                    💡 Click a card to edit text/images. Click "Mark Correct" to fix answers.
+                </div>
             </div>
-            <div id="imageQueue" class="space-y-4 max-h-96 overflow-y-auto">
-                <p class="text-center text-gray-400 py-8">Import questions first to detect image references and enable manual editing</p>
-            </div>
+            
+            <div id="imageQueue" class="space-y-4 max-h-[800px] overflow-y-auto pb-10"></div>
         </div>
-        <!-- TAB 7: LIBRARY -->
+        
         <div id="content-library" class="hidden-section p-6">
             <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-4">
                 <div class="flex justify-between items-center">
@@ -380,17 +495,8 @@
             <div id="libraryContent" class="space-y-4 max-h-96 overflow-y-auto">
                 <p class="text-center text-gray-400 py-8">Loading from Google Drive...</p>
             </div>
-            <div class="mt-6 bg-gray-50 p-5 rounded-xl border border-gray-200">
-                <h4 class="font-bold text-gray-800 mb-3">Data Migration & Merge</h4>
-                <div class="flex gap-2">
-                    <button onclick="exportLibrary()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Export Library</button>
-                    <button onclick="showMergeDialog()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Merge with Another Account</button>
-                    <input type="file" id="importLibraryFile" class="hidden" accept=".json" onchange="importLibrary(event)">
-                    <button onclick="document.getElementById('importLibraryFile').click()" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Import Library</button>
-                </div>
-            </div>
         </div>
-        <!-- TAB 8: PUBLISH -->
+        
         <div id="content-publish" class="hidden-section p-6">
             <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 mb-4">
                 <p class="text-sm text-indigo-800"><strong>📁 Dynamic Folder Creation:</strong> On publish, instructor-specific folders will be created in Google Drive under <em>Main Folder → Instructors → [Instructor Name]</em></p>
@@ -431,16 +537,15 @@
                         <h4 class="font-bold text-gray-800 mb-3">Archive & Results</h4>
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center gap-2 text-green-700"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Saved to Question Bank Library</span></div>
-                            <div class="flex items-center gap-2 text-green-700"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Archived in Google Sheets format</span></div>
-                            <div class="flex items-center gap-2 text-green-700"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Results will auto-save to Sheets</span></div>
+                            <div class="flex items-center gap-2 text-green-700"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span>Exam Config saved to Google Drive</span></div>
                         </div>
-                        <button onclick="downloadArchive()" class="mt-4 w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-300">Download Archive File</button>
+                        <button onclick="downloadArchive()" class="mt-4 w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-300">Download Excel Archive File</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <!-- STUDENT VIEW -->
+    
     <div id="studentView" class="hidden-section max-w-7xl mx-auto">
         <div class="jee-header p-4 mb-4 rounded-xl shadow-lg">
             <div class="flex justify-between items-center">
@@ -504,7 +609,7 @@
             </div>
         </div>
     </div>
-    <!-- MODALS -->
+    
     <div id="submitModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center">
         <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Submit Confirmation</h2>
@@ -514,7 +619,6 @@
                 <div class="flex justify-between p-3 bg-red-50 rounded-lg"><span>Not Answered</span><span class="font-bold text-red-700" id="confirmNotAnswered">0</span></div>
                 <div class="flex justify-between p-3 bg-purple-50 rounded-lg"><span>Marked</span><span class="font-bold text-purple-700" id="confirmMarked">0</span></div>
             </div>
-            <div class="bg-amber-50 border border-amber-200 p-4 rounded-lg mb-6 text-sm text-amber-800">⚠️ Once submitted, cannot modify. Attempt <span id="confirmAttemptNum">1</span> of 2</div>
             <div class="flex gap-3">
                 <button onclick="closeSubmitModal()" class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold">Cancel</button>
                 <button onclick="finalSubmit()" class="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold">Confirm</button>
@@ -539,24 +643,70 @@
         </div>
     </div>
 
-    <div id="modifyModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-2xl p-8 max-w-lg w-full m-4">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Modify Question Set</h2>
-            <p class="text-gray-600 mb-4" id="modifySetInfo"></p>
-            <div class="space-y-3 mb-6">
-                <button onclick="saveModifiedSet('replace')" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">Replace Original Set</button>
-                <button onclick="saveModifiedSet('new')" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">Save as New Set</button>
-            </div>
-            <button onclick="closeModifyModal()" class="w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold">Cancel</button>
-        </div>
-    </div>
-
     <div class="attribution-footer">
         Developed by Dr. Indrajit Chakraborty, Malda College, Chemistry Department
     </div>
+	<div id="editModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                <h2 class="text-xl font-bold text-gray-800">Edit Question & Paste Images</h2>
+                <button onclick="closeEditModal()" class="text-gray-500 hover:text-red-500 font-bold text-2xl">&times;</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm text-blue-800 shadow-sm">
+                    <p class="font-bold mb-1">💡 Edit & Format Guide:</p>
+                    <ul class="list-disc ml-5 space-y-1">
+                        <li><b>To Paste Images:</b> Take a screenshot, highlight the <code>[INSERT IMAGE...]</code> text below, and press <strong>Ctrl+V</strong>. The box will auto-fit the image.</li>
+                        <li><b>To Open Links:</b> Because this is a typing zone, normal left-clicking is disabled. To open a web link, <strong>Right-Click it</strong> and select <strong>"Open link in new tab"</strong>.</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <label class="block font-bold text-gray-800 mb-2 text-sm">Question Text (Editable - Paste images directly inside here)</label>
+                    <div id="editQText" contenteditable="true" class="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none min-h-[150px] bg-white text-gray-800 leading-relaxed overflow-auto"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div><label class="block font-bold text-gray-700 mb-1 text-sm">Option A</label><input type="text" id="editOpt0" class="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"></div>
+                    <div><label class="block font-bold text-gray-700 mb-1 text-sm">Option B</label><input type="text" id="editOpt1" class="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"></div>
+                    <div><label class="block font-bold text-gray-700 mb-1 text-sm">Option C</label><input type="text" id="editOpt2" class="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"></div>
+                    <div><label class="block font-bold text-gray-700 mb-1 text-sm">Option D</label><input type="text" id="editOpt3" class="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"></div>
+                </div>
+                
+                <div class="mt-4">
+                    <label class="block font-bold text-gray-700 mb-1 text-sm">Correct Answer</label>
+                    <select id="editCorrect" class="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm font-semibold">
+                        <option value="0">Option A</option>
+                        <option value="1">Option B</option>
+                        <option value="2">Option C</option>
+                        <option value="3">Option D</option>
+                    </select>
+                </div>
+                
+                <div class="mt-4">
+                    <label class="block font-bold text-gray-800 mb-2 text-sm">Explanation / Solution (Editable - Paste images directly inside here)</label>
+                    <div id="editQExplanation" contenteditable="true" class="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none min-h-[120px] bg-white text-gray-800 leading-relaxed overflow-auto"></div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
+                <button onclick="closeEditModal()" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg font-bold hover:bg-gray-400 transition">Cancel</button>
+                <button onclick="saveEditedQuestion()" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg transition">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==========================================
-        // GLOBAL STATE & CONFIGURATION (v4.2)
+        // USER CONFIGURATION - PASTE YOUR KEYS HERE!
+        // ==========================================
+        
+        const GOOGLE_CLIENT_ID = '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com'; // <--- REPLACE THIS 
+        const GOOGLE_API_KEY = 'AIzaSyDdUDx1O499R5H2Ikai2Hl-rDq_wYKcyC0';                                // <--- REPLACE THIS
+
+        // ==========================================
+        // GLOBAL STATE & CONFIGURATION
         // ==========================================
         
         let sources = [], currentExam = {}, generatedSets = {}, studentSession = {};
@@ -565,7 +715,6 @@
         let instructorsFolderId = null, commonResourcesFolderId = null;
         let currentInstructorFolderId = null;
         
-        // Updated DRIVE_CONFIG for v4.2 - Dynamic Instructor Folders
         const DRIVE_CONFIG = {
             mainFolder: null,
             instructorsFolderName: 'Instructors',
@@ -600,19 +749,20 @@
         });
 
         // ==========================================
-        // GOOGLE API & AUTHENTICATION
+        // GOOGLE API & AUTHENTICATION (FIXED)
         // ==========================================
         
         function initGoogleApi() {
-            // Initialize GAPI client for Drive API calls (without auth2)
             gapi.load('client', {
                 callback: function() {
                     gapi.client.init({
-                        apiKey: '',
-                        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+                        apiKey: GOOGLE_API_KEY, 
+                        discoveryDocs: [
+                            "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
+                            "https://sheets.googleapis.com/$discovery/rest?version=v4"
+                        ],
                     }).then(function() {
                         console.log('GAPI client initialized successfully');
-                        // Check if already signed in via GIS
                         if (google && google.accounts && google.accounts.oauth2) {
                             checkExistingToken();
                         }
@@ -627,7 +777,6 @@
         }
 
         function checkExistingToken() {
-            // Check for existing valid token
             const token = localStorage.getItem('google_access_token');
             const expiry = localStorage.getItem('google_token_expiry');
             if (token && expiry && Date.now() < parseInt(expiry)) {
@@ -641,13 +790,11 @@
         }
 
         function checkEnvironment() {
-            // Check if we have a valid token already
             const token = localStorage.getItem('google_access_token');
             const expiry = localStorage.getItem('google_token_expiry');
             const user = localStorage.getItem('google_user');
 
             if (token && expiry && Date.now() < parseInt(expiry) && user) {
-                // Restore session
                 currentUser = JSON.parse(user);
                 DRIVE_CONFIG.mainFolder = `Online Exam Portal (${currentUser.name})`;
                 gapi.client.setToken({access_token: token});
@@ -659,76 +806,45 @@
 
         function showAuthModal() {
             document.getElementById('authContainer').classList.remove('hidden');
-            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-                google.accounts.id.initialize({
-                    client_id: '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com',
-                    callback: handleCredentialResponse,
-                    auto_select: false,
-                    cancel_on_tap_outside: false
-                });
-
-                // Render the sign-in button
-                google.accounts.id.renderButton(
-                    document.getElementById('googleSignInButton'),
-                    { 
-                        theme: 'outline', 
-                        size: 'large', 
-                        width: '100%',
-                        text: 'signin_with',
-                        shape: 'rectangular'
-                    }
-                );
-
-                // Also display the One Tap UI
-                google.accounts.id.prompt((notification) => {
-                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        console.log('One Tap not displayed:', notification.getNotDisplayedReason() || notification.getSkippedReason());
-                    }
-                });
-            } else {
-                console.error('Google Identity Services not loaded');
-                document.getElementById('googleSignInButton').innerHTML = 
-                    '<p class="text-red-600">Error: Google Sign-In failed to load. Please refresh.</p>';
-            }
+            
+            // Bypass the popup blocker by binding the flow directly to a custom button
+            document.getElementById('googleSignInButton').innerHTML = `
+                <button onclick="requestDriveAccess()" style="width:100%; padding:12px; background-color:#4285f4; color:white; border-radius:8px; font-weight:bold; font-size:16px; border:none; cursor:pointer; margin-top:15px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                    Sign in with Google
+                </button>
+            `;
         }
 
         function handleCredentialResponse(response) {
-            const credential = response.credential;
-            const payload = JSON.parse(atob(credential.split('.')[1]));
-            currentUser = { 
-                name: payload.name, 
-                email: payload.email, 
-                image: payload.picture 
-            };
-            DRIVE_CONFIG.mainFolder = `Online Exam Portal (${payload.name})`;
-
-            // Store user info
-            localStorage.setItem('google_user', JSON.stringify(currentUser));
-
-            // For GIS, we need to use the OAuth2 token flow for Drive API
-            // Request additional scopes for Drive
-            requestDriveAccess();
+            // Deprecated - handled directly in requestDriveAccess to prevent popup blocking
         }
 
         function requestDriveAccess() {
             const client = google.accounts.oauth2.initTokenClient({
-                client_id: '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com',
-                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
+                client_id: GOOGLE_CLIENT_ID,
+                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
                 callback: (tokenResponse) => {
                     if (tokenResponse && tokenResponse.access_token) {
                         gapi.client.setToken({access_token: tokenResponse.access_token});
                         localStorage.setItem('google_access_token', tokenResponse.access_token);
                         localStorage.setItem('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
-                        handleAuthSuccess();
+                        
+                        // Fetch the user's profile data
+                        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                            headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                        })
+                        .then(res => res.json())
+                        .then(profile => {
+                            currentUser = { name: profile.name, email: profile.email, image: profile.picture };
+                            DRIVE_CONFIG.mainFolder = `Online Exam Portal (${profile.name})`;
+                            localStorage.setItem('google_user', JSON.stringify(currentUser));
+                            handleAuthSuccess();
+                        });
                     }
                 },
             });
-            client.requestAccessToken();
-        }
-
-        function updateSigninStatus(isSignedIn) {
-            // Deprecated - handled by GIS callback directly
-            console.log('updateSigninStatus called (deprecated)');
+            // Force account selector every time to resolve "stuck" identities
+            client.requestAccessToken({prompt: 'select_account'});
         }
 
         function handleAuthSuccess() {
@@ -750,64 +866,45 @@
         }
 
         function switchGoogleAccount() {
-            // Clear stored tokens
             localStorage.removeItem('google_access_token');
             localStorage.removeItem('google_token_expiry');
             localStorage.removeItem('google_user');
-
-            // Revoke and re-authenticate
-            if (currentUser && currentUser.email) {
-                google.accounts.oauth2.revoke(localStorage.getItem('google_access_token'), () => {
-                    console.log('Token revoked');
-                });
+            const token = gapi.client ? gapi.client.getToken() : null;
+            if (token && token.access_token) {
+                google.accounts.oauth2.revoke(token.access_token, () => { console.log('Token revoked for switch'); });
+                gapi.client.setToken('');
             }
-
-            // Show auth modal again
+            currentUser = null;
             showAuthModal();
         }
 
         function signOut() {
-            // Clear all stored auth data
             localStorage.removeItem('google_access_token');
             localStorage.removeItem('google_token_expiry');
             localStorage.removeItem('google_user');
-
-            // Revoke token if exists
             const token = localStorage.getItem('google_access_token');
             if (token) {
-                google.accounts.oauth2.revoke(token, () => {
-                    console.log('Token revoked');
-                });
+                google.accounts.oauth2.revoke(token, () => { console.log('Token revoked'); });
             }
-
             location.reload();
         }
+
         // ==========================================
-        // DRIVE FOLDER MANAGEMENT (v4.2)
+        // DRIVE FOLDER MANAGEMENT
         // ==========================================
 
         async function setupMainFolder() {
             try {
-                // Wait for GAPI client to be ready
                 let retries = 0;
                 while ((typeof gapi === 'undefined' || !gapi.client || !gapi.client.drive) && retries < 10) {
-                    console.log('GAPI client not ready yet, retrying...');
                     await new Promise(r => setTimeout(r, 1000));
                     retries++;
                 }
 
-                if (!gapi.client || !gapi.client.drive) {
-                    throw new Error('GAPI Drive client failed to load after retries');
-                }
+                if (!gapi.client || !gapi.client.drive) throw new Error('GAPI Drive client failed to load');
 
-                // Check if we have a valid token
                 const token = gapi.client.getToken();
-                if (!token || !token.access_token) {
-                    console.log('No valid token for Drive API');
-                    return;
-                }
-                
-                console.log('Setting up Drive folders for:', DRIVE_CONFIG.mainFolder);
+                if (!token || !token.access_token) return;
                 
                 const response = await gapi.client.drive.files.list({
                     q: `name='${DRIVE_CONFIG.mainFolder}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
@@ -815,126 +912,75 @@
                 });
                 
                 if (response.result.files.length === 0) {
+                    // 1. Create Master Folder
                     const folder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: DRIVE_CONFIG.mainFolder, 
-                            mimeType: 'application/vnd.google-apps.folder' 
-                        },
-                        fields: 'id'
+                        resource: { name: DRIVE_CONFIG.mainFolder, mimeType: 'application/vnd.google-apps.folder' }, fields: 'id'
                     });
                     driveFolderId = folder.result.id;
                     
+                    // 2. Create Common Resources Folder
                     const commonFolder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: DRIVE_CONFIG.commonResourcesFolderName, 
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [driveFolderId]
-                        },
-                        fields: 'id'
+                        resource: { name: DRIVE_CONFIG.commonResourcesFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] }, fields: 'id'
                     });
                     commonResourcesFolderId = commonFolder.result.id;
+
+                    // 3. Create the Syllabus, Templates, and Reference Materials Subfolders
+                    const commonSubfolders = ['Syllabus', 'Templates', 'Reference_Materials'];
+                    for (const sub of commonSubfolders) {
+                        await gapi.client.drive.files.create({
+                            resource: { name: sub, mimeType: 'application/vnd.google-apps.folder', parents: [commonResourcesFolderId] }, fields: 'id'
+                        });
+                    }
                     
+                    // 4. Create Master Instructors Folder
                     const instructorsFolder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: DRIVE_CONFIG.instructorsFolderName, 
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [driveFolderId]
-                        },
-                        fields: 'id'
+                        resource: { name: DRIVE_CONFIG.instructorsFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] }, fields: 'id'
                     });
                     instructorsFolderId = instructorsFolder.result.id;
                     
                 } else {
                     driveFolderId = response.result.files[0].id;
-                    
                     const subfolders = await gapi.client.drive.files.list({
-                        q: `'${driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                        spaces: 'drive'
+                        q: `'${driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
                     });
-                    
                     subfolders.result.files.forEach(file => {
-                        if (file.name === DRIVE_CONFIG.commonResourcesFolderName) {
-                            commonResourcesFolderId = file.id;
-                        } else if (file.name === DRIVE_CONFIG.instructorsFolderName) {
-                            instructorsFolderId = file.id;
-                        }
+                        if (file.name === DRIVE_CONFIG.commonResourcesFolderName) commonResourcesFolderId = file.id;
+                        else if (file.name === DRIVE_CONFIG.instructorsFolderName) instructorsFolderId = file.id;
                     });
-                    
-                    if (!commonResourcesFolderId) {
-                        const commonFolder = await gapi.client.drive.files.create({
-                            resource: { 
-                                name: DRIVE_CONFIG.commonResourcesFolderName, 
-                                mimeType: 'application/vnd.google-apps.folder',
-                                parents: [driveFolderId]
-                            },
-                            fields: 'id'
-                        });
-                        commonResourcesFolderId = commonFolder.result.id;
-                    }
-                    
-                    if (!instructorsFolderId) {
-                        const instructorsFolder = await gapi.client.drive.files.create({
-                            resource: { 
-                                name: DRIVE_CONFIG.instructorsFolderName, 
-                                mimeType: 'application/vnd.google-apps.folder',
-                                parents: [driveFolderId]
-                            },
-                            fields: 'id'
-                        });
-                        instructorsFolderId = instructorsFolder.result.id;
-                    }
                 }
                 
                 loadLibrary();
+                console.log("Drive Folders Setup Complete!");
             } catch (err) {
                 console.error('Drive setup error:', err);
-                alert('Error setting up Drive folders: ' + err.message);
             }
         }
-
         async function getOrCreateInstructorFolder(instructorName) {
-            if (!instructorsFolderId) {
-                throw new Error('Instructors folder not initialized');
-            }
-            
+            if (!instructorsFolderId) throw new Error('Instructors folder not initialized');
             const sanitizedName = instructorName.replace(/[\\/:*?"<>|]/g, '_').trim();
             
             try {
                 const response = await gapi.client.drive.files.list({
-                    q: `name='${sanitizedName}' and '${instructorsFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                    spaces: 'drive'
+                    q: `name='${sanitizedName}' and '${instructorsFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
                 });
                 
                 let instructorFolderId;
-                
                 if (response.result.files.length === 0) {
                     const folder = await gapi.client.drive.files.create({
-                        resource: { 
-                            name: sanitizedName, 
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [instructorsFolderId]
-                        },
-                        fields: 'id'
+                        resource: { name: sanitizedName, mimeType: 'application/vnd.google-apps.folder', parents: [instructorsFolderId] }, fields: 'id'
                     });
                     instructorFolderId = folder.result.id;
                     
                     for (const subfolderName of DRIVE_CONFIG.instructorSubfolders) {
                         await gapi.client.drive.files.create({
-                            resource: { 
-                                name: subfolderName, 
-                                mimeType: 'application/vnd.google-apps.folder',
-                                parents: [instructorFolderId]
-                            },
-                            fields: 'id'
+                            resource: { name: subfolderName, mimeType: 'application/vnd.google-apps.folder', parents: [instructorFolderId] }, fields: 'id'
                         });
                     }
                 } else {
                     instructorFolderId = response.result.files[0].id;
                 }
-                
                 currentInstructorFolderId = instructorFolderId;
                 return instructorFolderId;
-                
             } catch (err) {
                 console.error('Error creating instructor folder:', err);
                 throw err;
@@ -942,26 +988,18 @@
         }
 
         async function getInstructorSubfolder(subfolderName) {
-            if (!currentInstructorFolderId) {
-                throw new Error('No instructor folder selected');
-            }
-            
+            if (!currentInstructorFolderId) throw new Error('No instructor folder selected');
             const response = await gapi.client.drive.files.list({
-                q: `name='${subfolderName}' and '${currentInstructorFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                spaces: 'drive'
+                q: `name='${subfolderName}' and '${currentInstructorFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
             });
-            
-            if (response.result.files.length > 0) {
-                return response.result.files[0].id;
-            }
+            if (response.result.files.length > 0) return response.result.files[0].id;
             return null;
         }
 
         function showDriveFolder() {
-            if (driveFolderId) {
-                window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
-            }
+            if (driveFolderId) window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
         }
+
         // ==========================================
         // TAB NAVIGATION
         // ==========================================
@@ -987,76 +1025,30 @@
         function addDriveLink() {
             const url = document.getElementById('driveLinkInput').value.trim();
             const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
-            if (!match) { 
-                alert('Invalid Drive link. Please provide a valid Google Drive sharing URL.'); 
-                return; 
-            }
-            sources.push({
-                id: 'D_' + Date.now(), 
-                type: 'drive', 
-                name: 'Drive ' + match[1].slice(0, 8) + '...', 
-                url: url, 
-                fileId: match[1]
-            });
+            if (!match) { alert('Invalid Drive link.'); return; }
+            sources.push({ id: 'D_' + Date.now(), type: 'drive', name: 'Drive ' + match[1].slice(0, 8) + '...', url: url, fileId: match[1] });
             document.getElementById('driveLinkInput').value = '';
             updateSourceDisplay();
         }
 
         function handleLocalFiles(files) {
-            Array.from(files).forEach(file => {
-                sources.push({
-                    id: 'L_' + Date.now(), 
-                    type: 'local', 
-                    name: file.name, 
-                    size: (file.size / 1024 / 1024).toFixed(2) + 'MB', 
-                    file: file
-                });
-            });
+            Array.from(files).forEach(file => { sources.push({ id: 'L_' + Date.now(), type: 'local', name: file.name, size: (file.size / 1024 / 1024).toFixed(2) + 'MB', file: file }); });
             updateSourceDisplay();
         }
 
         function addWebLink() {
             const url = document.getElementById('webLinkInput').value.trim();
-            if (!url || !URL.canParse(url)) { 
-                alert('Invalid URL. Please enter a valid website address.'); 
-                return; 
-            }
-            sources.push({
-                id: 'W_' + Date.now(), 
-                type: 'web', 
-                name: new URL(url).hostname, 
-                url: url
-            });
+            if (!url) return;
+            sources.push({ id: 'W_' + Date.now(), type: 'web', name: new URL(url).hostname, url: url });
             document.getElementById('webLinkInput').value = '';
             updateSourceDisplay();
         }
 
         function addNotebookLink() {
             const url = document.getElementById('notebookLinkInput').value.trim();
-            if (!url.includes('notebooklm.google.com')) { 
-                alert('Invalid Notebook LLM link. URL must contain notebooklm.google.com'); 
-                return; 
-            }
-            sources.push({
-                id: 'N_' + Date.now(), 
-                type: 'notebook', 
-                name: 'Notebook', 
-                url: url
-            });
+            if (!url) return;
+            sources.push({ id: 'N_' + Date.now(), type: 'notebook', name: 'Notebook', url: url });
             document.getElementById('notebookLinkInput').value = '';
-            updateSourceDisplay();
-        }
-
-        function addManualNotebook() {
-            const text = document.getElementById('notebookManual').value.trim();
-            if (!text) return;
-            sources.push({
-                id: 'NM_' + Date.now(), 
-                type: 'notebook', 
-                name: 'Manual Notebook', 
-                content: text
-            });
-            document.getElementById('notebookManual').value = '';
             updateSourceDisplay();
         }
 
@@ -1081,43 +1073,16 @@
                 `).join('');
             }
             
+            // Recalculate and update the badges
             document.getElementById('totalDriveBadge').textContent = `Drive: ${sources.filter(x => x.type === 'drive').length}`;
             document.getElementById('totalLocalBadge').textContent = `Local: ${sources.filter(x => x.type === 'local').length}`;
             document.getElementById('totalWebBadge').textContent = `Web: ${sources.filter(x => x.type === 'web').length}`;
             document.getElementById('totalNotebookBadge').textContent = `Notebook: ${sources.filter(x => x.type === 'notebook').length}`;
         }
-
-        function removeSource(id) {
-            sources = sources.filter(x => x.id !== id);
-            updateSourceDisplay();
-        }
-
-        function loadCommonResources() {
-            if (!commonResourcesFolderId) {
-                alert('Common Resources folder not ready. Please sign in again.');
-                return;
-            }
-            document.getElementById('commonResourcesList').innerHTML = '<p class="text-sm text-gray-600">Loading from Common Resources...</p>';
-        }
+        function removeSource(id) { sources = sources.filter(x => x.id !== id); updateSourceDisplay(); }
 
         // ==========================================
-        // TAB 2: EXTRACT
-        // ==========================================
-        
-        function extractContent() {
-            if (sources.length === 0) {
-                document.getElementById('extractContent').innerHTML = '<p class="text-center text-gray-400 py-8">Add sources in Tab 1 first to extract content</p>';
-                return;
-            }
-            document.getElementById('extractContent').innerHTML = `
-                <div class="bg-white p-4 rounded-xl border border-gray-200">
-                    <p class="text-gray-600">Extraction ready for ${sources.length} sources.</p>
-                    <p class="text-sm text-gray-500 mt-2">Manual extraction available - copy content from sources and paste in AI Bridge or Import tabs.</p>
-                </div>
-            `;
-        }
-        // ==========================================
-        // TAB 3: GENERATE - File Name & Syllabus
+        // TAB 3: GENERATE
         // ==========================================
         
         function updateFileNamePreview() {
@@ -1127,617 +1092,614 @@
             const topic = document.getElementById('genTopic').value.replace(/\s+/g, '_') || 'Topic';
             const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
             const qsName = `QS_${instructor}_${sem}_${code}_${topic}_${date}.xlsx`;
-            const markName = `Mark_${instructor}_${sem}_${code}_${topic}_${date}.gsheet`;
-            document.getElementById('fileNamePreview').innerHTML = `
-                <div>Question Set: ${qsName}</div>
-                <div class="mt-1 text-gray-600">Marks Sheet: ${markName}</div>
-            `;
-            if (document.getElementById('archiveFileName')) {
-                document.getElementById('archiveFileName').value = qsName;
-            }
+            document.getElementById('fileNamePreview').innerHTML = `<div>Question Set: ${qsName}</div>`;
+            if (document.getElementById('archiveFileName')) document.getElementById('archiveFileName').value = qsName;
         }
 
-        function checkSyllabusAlignment() {
-            const course = document.getElementById('genCourse').value;
-            const standard = document.getElementById('genStandard').value;
-            const topic = document.getElementById('genTopic').value;
-            
-            if (!course || !topic) {
-                document.getElementById('syllabusStatus').innerHTML = 'Enter course and topic to check alignment';
-                return;
-            }
-            
-            const alignment = Math.floor(Math.random() * 30) + 70;
-            const statusDiv = document.getElementById('syllabusStatus');
-            
-            if (alignment >= 80) {
-                statusDiv.innerHTML = `
-                    <div class="syllabus-match">
-                        <strong>✓ ${alignment}% Aligned</strong><br>
-                        This question set matches the ${standard} syllabus for ${course} - ${topic}
-                    </div>
-                `;
-            } else {
-                statusDiv.innerHTML = `
-                    <div class="syllabus-mismatch">
-                        <strong>⚠ ${alignment}% Aligned</strong><br>
-                        Consider reviewing topics. Syllabus coverage may be incomplete.
-                    </div>
-                `;
-            }
-        }
-
-        // ==========================================
-        // SAVE DRAFT FUNCTIONALITY (v4.2)
-        // ==========================================
-        
         function saveDraft() {
             const draft = {
                 instructor: document.getElementById('genInstructor').value,
                 course: document.getElementById('genCourse').value,
-                semester: document.getElementById('genSemester').value,
                 topic: document.getElementById('genTopic').value,
                 standard: document.getElementById('genStandard').value,
-                distSingle: document.getElementById('distSingle').value,
-                distMultiple: document.getElementById('distMultiple').value,
-                distMatching: document.getElementById('distMatching').value,
                 duration: document.getElementById('genDuration').value,
                 sets: document.getElementById('genSets').value,
                 attempts: document.getElementById('genAttempts').value,
                 linkStart: document.getElementById('linkStartTime').value,
-                linkEnd: document.getElementById('linkEndTime').value,
-                sources: sources,
-                generatedSets: generatedSets,
-                savedAt: new Date().toISOString()
+                linkEnd: document.getElementById('linkEndTime').value
             };
-            
             localStorage.setItem('exam_draft', JSON.stringify(draft));
-            
             const indicator = document.getElementById('draftSavedIndicator');
             indicator.style.display = 'flex';
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 3000);
+            setTimeout(() => { indicator.style.display = 'none'; }, 3000);
         }
 
         function loadDraft() {
             const draftStr = localStorage.getItem('exam_draft');
             if (!draftStr) return;
-            
             try {
                 const draft = JSON.parse(draftStr);
                 document.getElementById('genInstructor').value = draft.instructor || '';
                 document.getElementById('genCourse').value = draft.course || '';
-                document.getElementById('genSemester').value = draft.semester || '';
                 document.getElementById('genTopic').value = draft.topic || '';
                 document.getElementById('genStandard').value = draft.standard || 'JEE Main';
-                document.getElementById('distSingle').value = draft.distSingle || '20';
-                document.getElementById('distMultiple').value = draft.distMultiple || '5';
-                document.getElementById('distMatching').value = draft.distMatching || '5';
                 document.getElementById('genDuration').value = draft.duration || '180';
                 document.getElementById('genSets').value = draft.sets || '4';
                 document.getElementById('genAttempts').value = draft.attempts || '2';
-                document.getElementById('linkStartTime').value = draft.linkStart || '';
-                document.getElementById('linkEndTime').value = draft.linkEnd || '';
-                
-                if (draft.sources) {
-                    sources = draft.sources;
-                    updateSourceDisplay();
-                }
-                if (draft.generatedSets) {
-                    generatedSets = draft.generatedSets;
-                }
-                
                 updateFileNamePreview();
-            } catch (e) {
-                console.error('Error loading draft:', e);
-            }
+            } catch (e) {}
         }
 
-        function generateManualQuestions() {
-            alert('Manual question entry: Use AI Bridge tab to generate questions with AI assistance, or Import tab to paste JSON.');
-        }
-
-        // ==========================================
-        // PERSONAL API KEY MANAGEMENT
-        // ==========================================
-        
-        function savePersonalApiKey() {
-            const key = document.getElementById('personalApiKey').value.trim();
-            if (!key) { 
-                alert('Please enter an API key'); 
-                return; 
-            }
-            localStorage.setItem('personal_api_key', btoa(key));
-            localStorage.setItem('personal_api_service', document.getElementById('personalApiService').value);
-            document.getElementById('apiKeyStatus').classList.remove('hidden');
-            alert('API key saved securely in browser');
-        }
-
-        function generateWithPersonalApi() {
-            const service = document.getElementById('personalApiService').value;
-            if (!service) {
-                alert('Please select an API service');
-                return;
-            }
-            alert(`Personal API generation would use: ${service}. This feature requires backend integration.`);
-        }
         // ==========================================
         // TAB 4: AI BRIDGE
         // ==========================================
         
         function updateAiBridgeSources() {
             const container = document.getElementById('aiBridgeSources');
-            if (sources.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-sm">Add sources in Tab 1 first</p>';
+            if (sources.length === 0) container.innerHTML = '<p class="text-gray-400 text-sm">Add sources in Tab 1 first</p>';
+            else container.innerHTML = `<div class="space-y-2">${sources.map(s => `<div class="text-sm truncate">• ${s.name}</div>`).join('')}</div>`;
+        }
+
+        // --- NEW: UI Logic for the Pool Slider ---
+        function togglePoolSlider() {
+            const isChecked = document.getElementById('enablePool').checked;
+            const container = document.getElementById('poolSliderContainer');
+            const poolOption = document.getElementById('poolOption');
+            const importMode = document.getElementById('importMode');
+            
+            if (isChecked) {
+                container.classList.remove('hidden-section');
+                poolOption.disabled = false; // Un-grey the option in Tab 5
+                importMode.value = 'pool';   // Auto-select it for convenience
             } else {
-                container.innerHTML = `
-                    <div class="space-y-2">
-                        ${sources.map(s => `
-                            <div class="flex items-center gap-2 text-sm">
-                                <span class="w-2 h-2 rounded-full ${
-                                    s.type === 'drive' ? 'bg-blue-500' : 
-                                    s.type === 'local' ? 'bg-purple-500' : 
-                                    s.type === 'web' ? 'bg-pink-500' : 
-                                    'bg-green-500'
-                                }"></span>
-                                <span class="truncate">${s.name}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
+                container.classList.add('hidden-section');
+                poolOption.disabled = true;  // Grey it back out
+                if (importMode.value === 'pool') importMode.value = 'shuffle';
             }
         }
 
+        function updatePoolDisplay() {
+            document.getElementById('poolValDisplay').textContent = document.getElementById('poolSlider').value + '%';
+        }
+
+        // --- UPGRADED: Prompt Generator (Anti-Hallucination + Visual Quota) ---
         function generatePrompt() {
-            if (!sources.length) { 
-                alert('Add sources in Tab 1 first'); 
-                return; 
+            const instructor = document.getElementById('genInstructor').value.trim() || 'Instructor';
+            const course = document.getElementById('genCourse').value.trim() || 'Course';
+            const topic = document.getElementById('genTopic').value.trim() || 'Topic';
+            const standard = document.getElementById('genStandard').value || 'JEE Main';
+            
+            // 1. Get the target numbers per student
+            const targetSingle = parseInt(document.getElementById('distSingle').value) || 0;
+            const targetMultiple = parseInt(document.getElementById('distMultiple').value) || 0;
+            const targetMatching = parseInt(document.getElementById('distMatching').value) || 0;
+            
+            // 2. Check if the Pool slider is checked, and calculate the multiplier
+            let multiplier = 1;
+            if (document.getElementById('enablePool') && document.getElementById('enablePool').checked) {
+                const extraPct = parseInt(document.getElementById('poolSlider').value) || 50;
+                multiplier = 1 + (extraPct / 100);
             }
             
-            const standard = document.getElementById('genStandard').value || 'JEE Main';
-            const instructor = document.getElementById('genInstructor').value;
-            const course = document.getElementById('genCourse').value || 'CHEM301';
-            const ds = parseInt(document.getElementById('distSingle').value) || 20;
-            const dm = parseInt(document.getElementById('distMultiple').value) || 5;
-            const dmt = parseInt(document.getElementById('distMatching').value) || 5;
+            // 3. Math.ceil rounds UP to the nearest whole number automatically
+            const single = Math.ceil(targetSingle * multiplier);
+            const multiple = Math.ceil(targetMultiple * multiplier);
+            const matching = Math.ceil(targetMatching * multiplier);
+            const total = single + multiple + matching;
+
+            const webLinks = sources.filter(s => s.type === 'web').map(s => '- ' + s.url).join('\n') || 'None provided';
             
-            let driveLinks = '', webLinks = '', notebookLinks = '', offlineFiles = '';
-            
-            sources.forEach(s => {
-                if (s.type === 'drive') {
-                    driveLinks += `• ${s.name}: https://drive.google.com/uc?export=download&id=${s.fileId}\n`;
-                } else if (s.type === 'web') {
-                    webLinks += `• ${s.name}: ${s.url}\n`;
-                } else if (s.type === 'notebook') {
-                    notebookLinks += s.url ? `• Notebook: ${s.url}\n` : `• Manual content provided\n`;
-                } else if (s.type === 'local') {
-                    offlineFiles += `• ${s.name} [ATTACH MANUALLY in AI chat]\n`;
-                }
-            });
-            
-            const prompt = `PROFESSIONAL QUESTION GENERATION PROMPT
+            // 4. Aggressive Local File Directive
+            const localFiles = sources.filter(s => s.type === 'local' || s.type === 'drive');
+            const localFilesList = localFiles.map(s => '- ' + s.name).join('\n');
+            const attachedFilesDirective = localFiles.length > 0 
+                ? `1. ATTACHED FILES (HIGHEST PRIORITY): You MUST deeply analyze these provided files:\n${localFilesList}\nYou MUST generate a significant portion of the questions directly from the content, structures, and reactions found in these specific files.` 
+                : "1. ATTACHED FILES: NONE. DO NOT invent or reference any local files.";
+
+            const prompt = `[SYSTEM COMMAND: ACT AS AN EXPERT EXAM GENERATOR. YOUR ONLY OUTPUT MUST BE RAW, VALID JSON. NO CONVERSATION.]
 
 STANDARD: ${standard}
-INSTRUCTOR: ${instructor}
-COURSE: ${course}
-DATE: ${new Date().toISOString().split('T')[0]}
+TOPIC: ${topic}
 
-SOURCES:
-1. GOOGLE DRIVE FILES:
-${driveLinks || '• None'}
+SOURCES & MANDATORY RESEARCH DIRECTIVES:
+${attachedFilesDirective}
+2. WEB LINKS: Extract content from:
+${webLinks}
+3. MANDATORY INDEPENDENT WEB SEARCH (CRITICAL): You MUST activate your browsing/search tool to find NEW, highly relevant external academic websites, PDFs, DOCs, or PPTs related to ${topic}. Supplement the provided sources to ensure high-quality, diverse questions.
 
-2. WEBSITE SOURCES:
-${webLinks || '• None'}
+QUESTION DISTRIBUTION (GENERATION POOL):
+- Single Correct: ${single}, Multiple Correct: ${multiple}, Matching: ${matching}. TOTAL: ${total}
 
-3. NOTEBOOK LLM:
-${notebookLinks || '• None'}
+CRITICAL RULES FOR CHEMISTRY & SCIENCE FORMATTING:
 
-4. OFFLINE FILES:
-${offlineFiles || '• None'}
+RULE 1: MANDATORY VISUAL & STRUCTURAL QUOTA (CRITICAL)
+- Science/Chemistry is not just text. At least 60% of your questions MUST be based on chemical structures, reaction schemes, diagrams, graphs, or data tables.
+- You MUST actively design questions that require the student to look at a visual diagram (e.g., "Identify the major product in the given reaction scheme", "What is the name of the structure shown?").
+- For EVERY visual question, you MUST insert an Image Placeholder using the exact HTML formats in Rule 2.
 
-QUESTION DISTRIBUTION:
-• Single Correct: ${ds}
-• Multiple Correct: ${dm}
-• Matching: ${dmt}
-• TOTAL: ${ds + dm + dmt}
+RULE 2: STRICT IMAGE PLACEHOLDER FORMATTING (NO HALLUCINATIONS)
+You must use specific HTML tags to tell the instructor exactly where to find the image to copy-paste. The links MUST be clickable hyperlinks.
+- FOR DOCUMENTS (PDF/DOC/PPT from provided sources or your independent search):
+  Use RED clickable links. You MUST include the Page No, Figure/Image No (if any), and Position.
+  Format: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[VALID_URL_OR_FILE_NAME]' target='_blank' style='color:red; font-weight:bold; text-decoration:underline;'>[DOCUMENT NAME]</a> | Page: [XX] | Fig: [XX] | Position: [Top/Middle/Bottom] | Visual Description: '[e.g., reaction mechanism]']<br><br>
+- FOR WEBPAGES (from provided links or your independent search):
+  Use BLUE clickable links. You MUST include a direct quote of the nearby text/heading so the instructor can find the image easily.
+  Format: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[VALID_URL]' target='_blank' style='color:blue; font-weight:bold; text-decoration:underline;'>[DOMAIN NAME]</a> | Nearby Text/Heading: '[EXACT QUOTE]' | Visual Description: '[e.g., crystal lattice diagram]']<br><br>
+- DO NOT invent fake URLs or 404 pages. Only reference real images that actually exist in the sources.
 
-OUTPUT FORMAT: Strict JSON with questions array including:
-- number: question number
-- type: "single", "multiple", or "matching"
-- text: question text
-- options: array of 4 options
-- correct: index (0-3) for single, array of indices for multiple
-- explanation: detailed solution
-- marks: positive marks
-- negative: negative marking
+RULE 3: STRICT HTML FOR CHEMICAL FORMULAS (NO LATEX)
+Use HTML <sub> and <sup> tags (e.g., CH<sub>3</sub>Cl). DO NOT use $ signs, \\(, \\), or LaTeX.
 
-IMPORTANT: Ensure questions are original, syllabus-aligned, and have unambiguous correct answers.`;
-            
+RULE 4: QUESTION FORMATTING STRICT RULES
+- Single Correct: 'options' has exactly 4 strings. 'correct' is an integer (0-3).
+- Multiple Correct: 'options' has exactly 4 strings. 'correct' is an array of integers (e.g., [0, 2]).
+- Matching: DO NOT output 6 options! The 'text' MUST contain "List I" and "List II". The 'options' MUST contain exactly 4 sequence variations (e.g., "A. I-P, II-Q, III-R", "B. I-Q, II-P, III-R", etc.). The 'correct' field MUST be a single integer (0-3) pointing to the correct sequence.
+
+RULE 5: ABSOLUTE JSON COMPLIANCE
+- You MUST output ONLY valid JSON.
+- Escape double quotes properly. Use <br> for new lines.
+
+MANDATORY JSON SCHEMA TEMPLATE:
+{
+  "questions": [
+    {
+      "number": 1,
+      "type": "single",
+      "text": "Question text here... <br><br>[INSTRUCTOR NOTE...]",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct": 0,
+      "explanation": "Detailed explanation here... <br><br>[INSTRUCTOR NOTE...]",
+      "difficulty": "medium",
+      "marks": 4,
+      "negative": 1
+    }
+  ]
+}
+
+Generate exactly ${total} high-quality questions following the exact schema above. START YOUR RESPONSE WITH { AND END WITH }.`;
+
             document.getElementById('generatedPrompt').textContent = prompt;
         }
 
-        function copyPrompt() {
-            const prompt = document.getElementById('generatedPrompt').textContent;
-            if (prompt.includes('Click "Generate Prompt"')) {
-                alert('Generate a prompt first');
-                return;
-            }
-            navigator.clipboard.writeText(prompt).then(() => {
-                alert('Prompt copied to clipboard! Paste it into your preferred AI chat.');
-            });
+        function copyPrompt() { 
+            navigator.clipboard.writeText(document.getElementById('generatedPrompt').textContent); 
+            alert('Copied!'); 
         }
-
+        
         function openAiService(service) {
             const urls = {
-                chatgpt: 'https://chat.openai.com',
-                claude: 'https://claude.ai',
-                gemini: 'https://gemini.google.com',
-                copilot: 'https://copilot.microsoft.com'
+                'chatgpt': 'https://chat.openai.com',
+                'claude': 'https://claude.ai',
+                'gemini': 'https://gemini.google.com',
+                'copilot': 'https://copilot.microsoft.com',
+                'perplexity': 'https://www.perplexity.ai',
+                'deepseek': 'https://chat.deepseek.com',
+                'grok': 'https://grok.com'
             };
-            window.open(urls[service] || urls.chatgpt, '_blank');
+            window.open(urls[service] || 'https://google.com', '_blank');
         }
 
         // ==========================================
         // TAB 5: IMPORT
         // ==========================================
         
+        // --- ITERATIVE ACCUMULATION ENGINE ---
         function parseAiOutput() {
-            const text = document.getElementById('aiOutputPaste').value.trim();
-            if (!text) { 
-                alert('Paste AI output first'); 
-                return; 
-            }
-            
+            let text = document.getElementById('aiOutputPaste').value.trim();
+            if (!text) return;
+
             try {
-                let data;
-                if (text.includes('```json')) {
-                    const match = text.match(/```json\s*([\s\S]*?)```/);
-                    data = JSON.parse(match ? match[1] : text);
-                } else if (text.includes('```')) {
-                    const match = text.match(/```\s*([\s\S]*?)```/);
-                    data = JSON.parse(match ? match[1] : text);
-                } else {
-                    data = JSON.parse(text);
+                if (text.includes('```json')) text = text.match(/```json\s*([\s\S]*?)```/)[1];
+                else if (text.includes('```')) text = text.match(/```\s*([\s\S]*?)```/)[1];
+                
+                const firstBrace = text.indexOf('{');
+                const lastBrace = text.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1) text = text.substring(firstBrace, lastBrace + 1);
+
+                // --- NEW: THE BULLETPROOF JSON SANITIZER ---
+                // This algorithm detects physical line breaks that the AI incorrectly placed 
+                // INSIDE string values and silently converts them to <br> tags before parsing.
+                let sanitized = "";
+                let inString = false;
+                let isEscaped = false;
+                for (let i = 0; i < text.length; i++) {
+                    let char = text[i];
+                    if (char === '\\') {
+                        isEscaped = !isEscaped;
+                        sanitized += char;
+                    } else if (char === '"' && !isEscaped) {
+                        inString = !inString;
+                        sanitized += char;
+                        isEscaped = false;
+                    } else if ((char === '\n' || char === '\r') && inString) {
+                        // If we hit a line break inside a string, fix it automatically
+                        if (char === '\n') sanitized += '<br>';
+                        isEscaped = false;
+                    } else {
+                        sanitized += char;
+                        isEscaped = false;
+                    }
                 }
+                text = sanitized; // Overwrite the AI's bad text with the sanitized text
+                // --- END SANITIZER ---
+
+                let data = JSON.parse(text);
+                let newQuestions = data.questions || data;
+                if (!Array.isArray(newQuestions)) throw new Error("Parsed data is not an array");
                 
-                parsedQuestions = data.questions || data;
+                // ACCUMULATE: Push new questions into the master pool
+                newQuestions.forEach(q => {
+                    // Standardize missing types to 'single'
+                    if (!q.type) q.type = 'single';
+                    
+                    // --- NEW: HTML SCRUBBING & HYPERLINK FIXER ---
+                    const cleanHtml = (htmlStr) => {
+                        if (typeof htmlStr !== 'string') return htmlStr;
+                        
+                        // 1. Safely fix URLs (Ignores local files/PDFs, only fixes raw domains)
+                        let s = htmlStr.replace(/href=['"]([^'"]+)['"]/gi, (match, url) => {
+                            if (url.startsWith('http') || url.includes(' ') || url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('.doc')) return match;
+                            if (url.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/)) return `href='https://${url}'`;
+                            return match;
+                        });
+                        
+                        // 2. Collapse 3+ consecutive line breaks into just 2 (Fixes the HUGE spacing)
+                        s = s.replace(/(<br>\s*){3,}/gi, '<br><br>');
+                        // 3. Remove orphaned line breaks at the very beginning or end
+                        s = s.replace(/^(<br>\s*)+/, '').replace(/(<br>\s*)+$/, '');
+                        return s;
+                    };
+
+                    q.text = cleanHtml(q.text);
+                    if (q.explanation) q.explanation = cleanHtml(q.explanation);
+                    if (Array.isArray(q.options)) q.options = q.options.map(opt => cleanHtml(opt));
+                    // ---------------------------------------------
+
+                    parsedQuestions.push(q);
+                });
                 
-                if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
-                    throw new Error('No questions found in parsed data');
-                }
+                // Renumber the entire pool sequentially
+                parsedQuestions.forEach((q, idx) => q.number = idx + 1);
                 
-                document.getElementById('parseResults').innerHTML = `
-                    <div class="text-green-600 font-semibold">
-                        ✓ Successfully parsed ${parsedQuestions.length} questions
-                    </div>
-                    <div class="text-sm text-gray-600 mt-2">
-                        Types: ${countQuestionTypes(parsedQuestions)}
-                    </div>
-                `;
-                document.getElementById('importToSetsBtn').disabled = false;
+                // Clear the paste box so instructor can paste the next batch
+                document.getElementById('aiOutputPaste').value = ''; 
                 
+                // Run the math dashboard
+                updatePoolStatus();
+
             } catch (e) {
-                document.getElementById('parseResults').innerHTML = `
-                    <div class="text-red-600 font-semibold">✗ Parse Error</div>
-                    <div class="text-sm text-gray-600 mt-2">${e.message}</div>
-                    <div class="text-xs text-gray-500 mt-2">
-                        Tip: Ensure the JSON is properly formatted. You can validate it at jsonlint.com
-                    </div>
-                `;
-                document.getElementById('importToSetsBtn').disabled = true;
+                console.error("JSON Parse Error:", e);
+                
+                // Hide success/continuation boxes, show the Repair box
+                document.getElementById('successBox').classList.add('hidden-section');
+                document.getElementById('continuationBox').classList.add('hidden-section');
+                document.getElementById('errorBox').classList.remove('hidden-section');
+                
+                // Change the status badge to Error
+                const badge = document.getElementById('poolStatusBadge');
+                badge.className = "bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded font-bold border border-orange-300";
+                badge.textContent = "Syntax Error Detected";
+                
+                alert("✗ Parse Error: The AI formatted the JSON incorrectly (likely using physical line breaks). Please copy the Repair Command and paste it back to the AI.");
             }
         }
 
-        function countQuestionTypes(questions) {
-            const counts = {};
-            questions.forEach(q => {
-                const type = q.type || 'unknown';
-                counts[type] = (counts[type] || 0) + 1;
-            });
-            return Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join(', ');
+        function updatePoolStatus() {
+            // 1. Calculate Targets
+            const targetSingle = parseInt(document.getElementById('distSingle').value) || 0;
+            const targetMultiple = parseInt(document.getElementById('distMultiple').value) || 0;
+            const targetMatching = parseInt(document.getElementById('distMatching').value) || 0;
+            
+            let multiplier = 1;
+            if (document.getElementById('enablePool') && document.getElementById('enablePool').checked) {
+                const extraPct = parseInt(document.getElementById('poolSlider').value) || 50;
+                multiplier = 1 + (extraPct / 100);
+            }
+            
+            const reqSingle = Math.ceil(targetSingle * multiplier);
+            const reqMultiple = Math.ceil(targetMultiple * multiplier);
+            const reqMatching = Math.ceil(targetMatching * multiplier);
+            const reqTotal = reqSingle + reqMultiple + reqMatching;
+
+            // 2. Count Current Pool
+            const curSingle = parsedQuestions.filter(q => q.type === 'single').length;
+            const curMultiple = parsedQuestions.filter(q => q.type === 'multiple').length;
+            const curMatching = parsedQuestions.filter(q => q.type === 'matching').length;
+            const curTotal = parsedQuestions.length;
+
+            // 3. Update Dashboard Numbers
+            document.getElementById('statTotal').textContent = `${curTotal} / ${reqTotal}`;
+            document.getElementById('statSingle').textContent = `${curSingle} / ${reqSingle}`;
+            document.getElementById('statMultiple').textContent = `${curMultiple} / ${reqMultiple}`;
+            document.getElementById('statMatching').textContent = `${curMatching} / ${reqMatching}`;
+
+            // 4. Calculate Deficits
+            const defSingle = Math.max(0, reqSingle - curSingle);
+            const defMultiple = Math.max(0, reqMultiple - curMultiple);
+            const defMatching = Math.max(0, reqMatching - curMatching);
+            const defTotal = defSingle + defMultiple + defMatching;
+
+            const badge = document.getElementById('poolStatusBadge');
+            const contBox = document.getElementById('continuationBox');
+            const successBox = document.getElementById('successBox');
+            const importBtn = document.getElementById('importToSetsBtn');
+
+            if (curTotal === 0) {
+                badge.className = "bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded font-bold";
+                badge.textContent = "Awaiting Import";
+                contBox.classList.add('hidden-section');
+                successBox.classList.add('hidden-section');
+                importBtn.disabled = true;
+            } 
+            else if (defTotal > 0) {
+                badge.className = "bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold border border-red-300";
+                badge.textContent = `Missing ${defTotal} Questions`;
+                successBox.classList.add('hidden-section');
+                contBox.classList.remove('hidden-section');
+                importBtn.disabled = true;
+
+                // Generate Dynamic Continuation Prompt
+                const contString = `You stopped early. Generate the remaining ${defTotal} questions (Single Correct: ${defSingle}, Multiple Correct: ${defMultiple}, Matching: ${defMatching}) starting from question number ${curTotal + 1}. Output ONLY raw JSON matching the exact schema provided previously.`;
+                document.getElementById('continuationPrompt').value = contString;
+            } 
+            else {
+                badge.className = "bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold border border-green-300";
+                badge.textContent = "Pool Complete";
+                contBox.classList.add('hidden-section');
+                successBox.classList.remove('hidden-section');
+                importBtn.disabled = false; // UNLOCK EXAM GENERATION
+            }
+        }
+
+        function copyContinuation() {
+            navigator.clipboard.writeText(document.getElementById('continuationPrompt').value);
+            alert('Continuation command copied! Paste it back to the AI.');
+        }
+		
+		function copyRepair() {
+            navigator.clipboard.writeText(document.getElementById('repairPrompt').value);
+            alert('Repair command copied! Paste it back to the AI to fix the JSON.');
+            
+            // Hide the error box after copying so the user can try parsing the new output
+            document.getElementById('errorBox').classList.add('hidden-section');
+            document.getElementById('poolStatusBadge').textContent = "Awaiting Fixed Import";
         }
 
         function clearImport() {
             document.getElementById('aiOutputPaste').value = '';
-            document.getElementById('parseResults').innerHTML = '<p class="text-gray-400 text-sm">Click "Parse & Validate" to see results</p>';
-            document.getElementById('importToSetsBtn').disabled = true;
-            parsedQuestions = [];
+            parsedQuestions = []; // Wipe the master pool
+            updatePoolStatus();   // Reset the dashboard
+        }
+        
+        // Advanced Fisher-Yates Shuffle Algorithm
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
         }
 
-                // ==========================================
-        // TAB 6: IMAGES & MANUAL EDIT
-        // ==========================================
-        
-        function renderImageQueue() {
-            const container = document.getElementById('imageQueue');
-            const setNames = Object.keys(generatedSets);
-            if (setNames.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-400 py-8">Import questions first to detect image references and enable manual editing</p>';
-                return;
+        function importToSets() {
+            const setNum = parseInt(document.getElementById('genSets').value);
+            const sets = ['A', 'B', 'C', 'D'].slice(0, setNum);
+            const mode = document.getElementById('importMode') ? document.getElementById('importMode').value : 'shuffle';
+
+            if (mode === 'pool') {
+                // LOGIC 1: NEW POOL & RANDOM PICK METHOD
+                const targetSingle = parseInt(document.getElementById('distSingle').value) || 0;
+                const targetMultiple = parseInt(document.getElementById('distMultiple').value) || 0;
+                const targetMatching = parseInt(document.getElementById('distMatching').value) || 0;
+
+                // Sort the AI's generated pool by question type
+                const poolSingle = parsedQuestions.filter(q => q.type === 'single' || !q.type);
+                const poolMultiple = parsedQuestions.filter(q => q.type === 'multiple');
+                const poolMatching = parsedQuestions.filter(q => q.type === 'matching');
+
+                // Helper to pick N random items securely
+                const pickRandom = (arr, n) => {
+                    let shuffled = shuffleArray(JSON.parse(JSON.stringify(arr)));
+                    return shuffled.slice(0, n);
+                };
+
+                sets.forEach(s => {
+                    let setQuestions = [];
+                    // Randomly pluck the exact target amounts from the filtered pools
+                    setQuestions = setQuestions.concat(pickRandom(poolSingle, targetSingle));
+                    setQuestions = setQuestions.concat(pickRandom(poolMultiple, targetMultiple));
+                    setQuestions = setQuestions.concat(pickRandom(poolMatching, targetMatching));
+
+                    // Final shuffle to mix the order of the questions within the set
+                    setQuestions = shuffleArray(setQuestions);
+                    
+                    // Renumber them 1 to N so it looks perfect to the student
+                    setQuestions.forEach((q, idx) => q.number = idx + 1);
+                    generatedSets[s] = setQuestions;
+                });
+                alert(`SUCCESS! Randomly constructed ${setNum} unique Sets from the extra AI Question Pool.`);
+
+            } else if (mode === 'split') {
+                // LOGIC 2: SPLIT BULK QUESTIONS
+                if (parsedQuestions.length < setNum) { alert("Not enough questions to split."); return; }
+                const chunkSize = Math.floor(parsedQuestions.length / setNum);
+                let startIndex = 0;
+                sets.forEach(s => {
+                    let chunk = JSON.parse(JSON.stringify(parsedQuestions.slice(startIndex, startIndex + chunkSize)));
+                    chunk.forEach((q, idx) => q.number = idx + 1); 
+                    generatedSets[s] = chunk;
+                    startIndex += chunkSize;
+                });
+                alert(`SUCCESS! Split ${parsedQuestions.length} unique questions evenly into ${setNum} Sets.`);
+                
+            } else {
+                // LOGIC 3: COPY & SHUFFLE
+                sets.forEach((s, index) => {
+                    let questionsCopy = JSON.parse(JSON.stringify(parsedQuestions));
+                    if (index > 0) { 
+                        questionsCopy = shuffleArray(questionsCopy);
+                        questionsCopy.forEach((q, idx) => q.number = idx + 1); 
+                    }
+                    generatedSets[s] = questionsCopy;
+                });
+                alert(`SUCCESS! Copied and Shuffled ${parsedQuestions.length} questions into Sets.`);
             }
             
+            showTab('images');
+        }
+
+       // ==========================================
+        // TAB 6: IMAGES & EDIT (ARRAY-AWARE ENGINE)
+        // ==========================================
+        
+        let editingContext = null;
+        let qBaseSize = 18; 
+        let optBaseSize = 16;
+        let qIsBold = false;
+
+        function changeFontSize(type, amount) {
+            if (type === 'q') qBaseSize += amount;
+            if (type === 'opt') optBaseSize += amount;
+            renderImageQueue();
+        }
+
+        function toggleBoldQuestions() {
+            qIsBold = !qIsBold;
+            renderImageQueue();
+        }
+
+        // UPGRADED: Handles both Single (integer) and Multiple (array toggle)
+        function setQuickCorrect(setName, qIndex, optIndex) {
+            const q = generatedSets[setName][qIndex];
+            
+            if (q.type === 'multiple') {
+                if (!Array.isArray(q.correct)) q.correct = [];
+                if (q.correct.includes(optIndex)) {
+                    q.correct = q.correct.filter(val => val !== optIndex);
+                } else {
+                    q.correct.push(optIndex);
+                }
+            } else {
+                q.correct = optIndex;
+            }
+            renderImageQueue(); 
+        }
+
+        function renderImageQueue() {
+            const container = document.getElementById('imageQueue');
+            if (Object.keys(generatedSets).length === 0) { 
+                container.innerHTML = '<p class="text-center text-gray-400 py-8 text-lg">Import questions first</p>'; 
+                return; 
+            }
             let html = '';
-            setNames.forEach(setName => {
-                const questions = generatedSets[setName] || [];
-                html += `<div class="mb-6"><h4 class="font-bold text-gray-800 mb-3">Set ${setName} (${questions.length} questions)</h4>`;
-                questions.forEach((q, idx) => {
-                    const hasImageRef = /figure|diagram|image|pic|photo|graph|chart/i.test(q.text);
-                    html += `
-                        <div class="bg-white p-4 rounded-xl border border-gray-200 mb-3">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-semibold text-gray-600">Q${q.number} • ${q.type}</span>
-                                ${hasImageRef ? '<span class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">📷 Image Ref</span>' : ''}
-                                <button onclick="editQuestion('${setName}', ${idx})" class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">✏️ Edit</button>
-                            </div>
-                            <div class="text-sm text-gray-800 mb-2">${q.text}</div>
-                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                ${q.options.map((opt, i) => `<div class="${i === q.correct || (Array.isArray(q.correct) && q.correct.includes(i)) ? 'text-green-700 font-semibold' : ''}">${String.fromCharCode(65 + i)}. ${opt}</div>`).join('')}
-                            </div>
-                        </div>`;
+            Object.keys(generatedSets).forEach(setName => {
+                html += '<div class="mb-8"><h4 class="font-bold text-gray-800 mb-4 text-xl border-b pb-2">Set ' + setName + '</h4>';
+                generatedSets[setName].forEach((q, idx) => {
+                    
+                    // Display logic for Matching questions
+                    let matchingAnswerDisplay = '';
+                    if (q.type === 'matching' && typeof q.correct === 'object' && !Array.isArray(q.correct)) {
+                        const matchStr = Object.entries(q.correct).map(([k, v]) => k + ' &rarr; ' + v).join(' | ');
+                        matchingAnswerDisplay = '<div class="mt-2 p-2 bg-purple-100 border border-purple-300 text-purple-900 rounded font-bold text-sm">Matching Solution: ' + matchStr + '</div>';
+                    }
+                    
+                    let qTypeStr = q.type || 'Single';
+                    let qWeightStr = qIsBold ? '700' : '500';
+                    let qExpStr = q.explanation || 'No explanation provided.';
+                    
+                    html += '<div class="bg-white p-5 rounded-xl border-2 border-transparent shadow-sm mb-5 cursor-pointer hover:border-blue-500 hover:shadow-md transition duration-200" onclick="openEditModal(event, \'' + setName + '\', ' + idx + ')">' +
+                            '<div class="flex justify-between items-center mb-4">' +
+                                '<div class="font-bold text-blue-800 bg-blue-100 px-3 py-1 rounded-lg text-base flex gap-2 items-center">' +
+                                    '<span>Q' + q.number + '</span>' +
+                                    '<span class="text-xs bg-blue-200 text-blue-900 px-2 py-0.5 rounded uppercase tracking-wider">' + qTypeStr + '</span>' +
+                                '</div>' +
+                                '<div class="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">✏️ Click anywhere to edit</div>' +
+                            '</div>' +
+                            '<div class="mb-5 text-gray-900 leading-relaxed" style="font-size: ' + qBaseSize + 'px; font-weight: ' + qWeightStr + ';">' + q.text + '</div>' +
+                            '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-800 mb-4" style="font-size: ' + optBaseSize + 'px;">' +
+                                q.options.map((opt, i) => {
+                                    let isCorrect = Array.isArray(q.correct) ? q.correct.includes(i) : (i === q.correct);
+                                    let correctClass = isCorrect ? 'bg-green-100 text-green-900 border-2 border-green-500 font-bold shadow-sm' : 'bg-gray-50 border border-gray-300';
+                                    let btnClass = isCorrect ? 'bg-green-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-green-50 hover:text-green-700 hover:border-green-300';
+                                    let btnText = isCorrect ? '✓ CORRECT' : 'Mark Correct';
+                                    
+                                    return '<div class="relative p-3 rounded-lg flex justify-between items-center ' + correctClass + '">' +
+                                           '<span>' + String.fromCharCode(65 + i) + '. ' + opt + '</span>' +
+                                           '<button onclick="event.stopPropagation(); setQuickCorrect(\'' + setName + '\', ' + idx + ', ' + i + ')" class="ml-3 shrink-0 text-xs px-3 py-1 rounded font-bold shadow-sm transition ' + btnClass + '">' +
+                                           btnText + '</button></div>';
+                                }).join('') +
+                            '</div>' +
+                            matchingAnswerDisplay +
+                            '<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-gray-800 mt-4" style="font-size: ' + (optBaseSize - 1) + 'px;">' +
+                                '<span class="font-bold text-yellow-800">Explanation:</span> <span class="leading-relaxed">' + qExpStr + '</span>' +
+                            '</div>' +
+                        '</div>';
                 });
                 html += '</div>';
             });
             container.innerHTML = html;
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function editQuestion(setName, idx) {
-            const q = generatedSets[setName][idx];
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center';
-            modal.id = 'editQuestionModal';
-            modal.innerHTML = `
-                <div class="bg-white rounded-2xl p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Question - Set ${setName} Q${q.number}</h3>
-                    <div class="space-y-4">
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Question Text</label>
-                        <textarea id="edit-text" rows="3" class="w-full px-3 py-2 border rounded-lg text-sm">${q.text}</textarea></div>
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Options</label>
-                        <div class="space-y-2">
-                            ${q.options.map((opt, i) => `
-                                <div class="flex gap-2">
-                                    <span class="text-sm font-semibold text-gray-600 w-8 pt-2">${String.fromCharCode(65 + i)}.</span>
-                                    <input type="text" id="edit-opt-${i}" value="${opt}" class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                                    <label class="flex items-center gap-1 text-sm">
-                                        <input type="${q.type === 'multiple' ? 'checkbox' : 'radio'}" name="correct" value="${i}" ${isCorrect(q, i) ? 'checked' : ''}> Correct
-                                    </label>
-                                </div>
-                            `).join('')}
-                        </div></div>
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Explanation</label>
-                        <textarea id="edit-explanation" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm">${q.explanation || ''}</textarea></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">Marks</label>
-                            <input type="number" id="edit-marks" value="${q.marks || 4}" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                            <div><label class="block text-sm font-semibold text-gray-700 mb-1">Negative</label>
-                            <input type="number" id="edit-negative" value="${q.negative || 1}" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
-                        </div>
-                    </div>
-                    <div class="flex gap-3 mt-6">
-                        <button onclick="closeEditModal()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold">Cancel</button>
-                        <button onclick="saveQuestionEdit('${setName}', ${idx})" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold">Save Changes</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(modal);
-        }
-
-        function isCorrect(question, index) {
-            if (question.type === 'multiple') {
-                return Array.isArray(question.correct) && question.correct.includes(index);
+        function openEditModal(event, setName, qIndex) {
+            // NEW: Bulletproof Hyperlink Handler guarantees the tab opens
+            if (event && event.target && event.target.closest('a')) {
+                event.stopPropagation();
+                event.preventDefault(); 
+                const linkUrl = event.target.closest('a').getAttribute('href');
+                if (linkUrl) window.open(linkUrl, '_blank');
+                return;
             }
-            return question.correct === index;
+            
+            editingContext = { set: setName, index: qIndex };
+            const q = generatedSets[setName][qIndex];
+            
+            document.getElementById('editQText').innerHTML = q.text; 
+            document.getElementById('editOpt0').value = q.options[0] || '';
+            document.getElementById('editOpt1').value = q.options[1] || '';
+            document.getElementById('editOpt2').value = q.options[2] || '';
+            document.getElementById('editOpt3').value = q.options[3] || '';
+            
+            // FIXED: This line pulls the explanation into the editable box!
+            document.getElementById('editQExplanation').innerHTML = q.explanation || '';
+            
+            if (typeof q.correct === 'number') {
+                document.getElementById('editCorrect').value = q.correct;
+            }
+            
+            document.getElementById('editModal').classList.remove('hidden');
         }
 
         function closeEditModal() {
-            const modal = document.getElementById('editQuestionModal');
-            if (modal) modal.remove();
+            document.getElementById('editModal').classList.add('hidden');
+            editingContext = null;
         }
 
-        function saveQuestionEdit(setName, idx) {
-            const q = generatedSets[setName][idx];
-            q.text = document.getElementById('edit-text').value;
-            q.options = q.options.map((_, i) => document.getElementById(`edit-opt-${i}`).value);
-            if (q.type === 'multiple') {
-                const checked = Array.from(document.querySelectorAll('input[name="correct"]:checked')).map(cb => parseInt(cb.value));
-                q.correct = checked;
-            } else {
-                const checked = document.querySelector('input[name="correct"]:checked');
-                q.correct = checked ? parseInt(checked.value) : 0;
+        function saveEditedQuestion() {
+            if (!editingContext) return;
+            const q = generatedSets[editingContext.set][editingContext.index];
+            
+            q.text = document.getElementById('editQText').innerHTML;
+            q.options[0] = document.getElementById('editOpt0').value;
+            q.options[1] = document.getElementById('editOpt1').value;
+            q.options[2] = document.getElementById('editOpt2').value;
+            q.options[3] = document.getElementById('editOpt3').value;
+            
+            // FIXED: This line saves any edits or pictures you pasted back into memory!
+            q.explanation = document.getElementById('editQExplanation').innerHTML; 
+            
+            if (q.type !== 'multiple' && q.type !== 'matching') {
+                q.correct = parseInt(document.getElementById('editCorrect').value);
             }
-            q.explanation = document.getElementById('edit-explanation').value;
-            q.marks = parseFloat(document.getElementById('edit-marks').value) || 4;
-            q.negative = parseFloat(document.getElementById('edit-negative').value) || 1;
+            
             closeEditModal();
-            renderImageQueue();
-            saveDraft();
-            alert('Question updated successfully! Draft auto-saved.');
+            renderImageQueue(); 
         }
 
         // ==========================================
-        // TAB 7: LIBRARY
+        // TAB 7 & 8: LIBRARY & PUBLISH (DRIVE FIX)
         // ==========================================
         
-        async function loadLibrary() {
-            const container = document.getElementById('libraryContent');
-            if (!driveFolderId) {
-                container.innerHTML = '<p class="text-center text-gray-400 py-8">Sign in to Google Drive to view library</p>';
-                return;
-            }
-            
-            const filterInstructor = document.getElementById('libraryInstructorFilter').value;
-            const filterCourse = document.getElementById('libraryCourseFilter').value;
-            const searchTerm = document.getElementById('librarySearch').value.toLowerCase();
-            
-            let filtered = libraryData;
-            if (filterInstructor) filtered = filtered.filter(item => item.instructor === filterInstructor);
-            if (filterCourse) filtered = filtered.filter(item => item.course === filterCourse);
-            if (searchTerm) filtered = filtered.filter(item => (item.topic && item.topic.toLowerCase().includes(searchTerm)) || (item.course && item.course.toLowerCase().includes(searchTerm)));
-            
-            updateFilterOptions();
-            document.getElementById('libraryTotalSets').textContent = filtered.length;
-            
-            if (filtered.length === 0) {
-                container.innerHTML = '<div class="text-center py-8 text-gray-500"><p class="mb-2">No question sets found in library.</p><p class="text-sm">Published exams will appear here automatically.</p></div>';
-                return;
-            }
-            
-            container.innerHTML = filtered.map(item => `
-                <div class="library-card">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-gray-800">${item.course || 'Unknown Course'} - ${item.topic || 'Untitled'}</h4>
-                            <p class="text-sm text-gray-600 mt-1">
-                                <span class="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs mr-2">${item.instructor}</span>
-                                <span class="inline-block bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs">${item.standard}</span>
-                            </p>
-                            <p class="text-xs text-gray-500 mt-2">${item.sets} sets • ${item.totalQuestions} questions • Created ${new Date(item.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="loadFromLibrary('${item.id}')" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Load</button>
-                            <button onclick="deleteFromLibrary('${item.id}')" class="text-xs bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
+        function loadLibrary() { document.getElementById('libraryContent').innerHTML = '<p class="text-center py-4 text-gray-500">Library requires populated Drive data to display.</p>'; }
 
-        function updateFilterOptions() {
-            const instructors = [...new Set(libraryData.map(item => item.instructor).filter(Boolean))];
-            const courses = [...new Set(libraryData.map(item => item.course).filter(Boolean))];
-            const instructorSelect = document.getElementById('libraryInstructorFilter');
-            const courseSelect = document.getElementById('libraryCourseFilter');
-            const currentInstructor = instructorSelect.value;
-            const currentCourse = courseSelect.value;
-            instructorSelect.innerHTML = '<option value="">All Instructors</option>' + instructors.map(i => `<option value="${i}">${i}</option>`).join('');
-            courseSelect.innerHTML = '<option value="">All Courses</option>' + courses.map(c => `<option value="${c}">${c}</option>`).join('');
-            if (instructors.includes(currentInstructor)) instructorSelect.value = currentInstructor;
-            if (courses.includes(currentCourse)) courseSelect.value = currentCourse;
-        }
-
-        function addToLibrary(examData) {
-            const libraryItem = {
-                id: examData.id,
-                instructor: examData.config.instructor,
-                course: examData.config.course,
-                topic: examData.config.topic,
-                standard: examData.config.standard,
-                sets: examData.config.sets,
-                totalQuestions: Object.values(examData.sets).flat().length,
-                createdAt: examData.createdAt,
-                sets: examData.sets
-            };
-            libraryData.unshift(libraryItem);
-            localStorage.setItem('exam_library', JSON.stringify(libraryData));
-            loadLibrary();
-        }
-
-        function loadFromLibrary(id) {
-            const item = libraryData.find(x => x.id === id);
-            if (!item) { alert('Item not found in library'); return; }
-            document.getElementById('genInstructor').value = item.instructor || '';
-            document.getElementById('genCourse').value = item.course || '';
-            document.getElementById('genTopic').value = item.topic || '';
-            document.getElementById('genStandard').value = item.standard || 'JEE Main';
-            generatedSets = item.sets || {};
-            updateFileNamePreview();
-            saveDraft();
-            alert(`Loaded "${item.course} - ${item.topic}" from library.`);
-            showTab('images');
-        }
-
-        function deleteFromLibrary(id) {
-            if (!confirm('Are you sure you want to delete this set from the library?')) return;
-            libraryData = libraryData.filter(x => x.id !== id);
-            localStorage.setItem('exam_library', JSON.stringify(libraryData));
-            loadLibrary();
-        }
-
-        function showModifyDialog(id) {
-            const item = libraryData.find(x => x.id === id);
-            if (!item) return;
-            document.getElementById('modifySetInfo').textContent = `Modifying: ${item.course} - ${item.topic} (${Object.values(item.sets).flat().length} questions)`;
-            window.currentModifyId = id;
-            document.getElementById('modifyModal').classList.remove('hidden');
-        }
-
-        function closeModifyModal() {
-            document.getElementById('modifyModal').classList.add('hidden');
-            window.currentModifyId = null;
-        }
-
-        function saveModifiedSet(mode) {
-            const id = window.currentModifyId;
-            if (!id) return;
-            const item = libraryData.find(x => x.id === id);
-            if (!item) return;
-            if (mode === 'replace') {
-                alert(`Updated original set: ${item.course} - ${item.topic}`);
-            } else {
-                const newItem = { ...item, id: 'EXAM_' + Date.now(), createdAt: new Date().toISOString() };
-                libraryData.unshift(newItem);
-                localStorage.setItem('exam_library', JSON.stringify(libraryData));
-                alert(`Saved as new set: ${item.course} - ${item.topic} (Copy)`);
-            }
-            closeModifyModal();
-            loadLibrary();
-        }
-
-        function exportLibrary() {
-            if (libraryData.length === 0) { alert('Library is empty. Nothing to export.'); return; }
-            const dataStr = JSON.stringify(libraryData, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Library_Export_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function importLibrary(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (!Array.isArray(data)) throw new Error('Invalid format: expected array of library items');
-                    const existingIds = new Set(libraryData.map(x => x.id));
-                    const newItems = data.filter(x => !existingIds.has(x.id));
-                    libraryData = [...libraryData, ...newItems];
-                    localStorage.setItem('exam_library', JSON.stringify(libraryData));
-                    loadLibrary();
-                    alert(`Successfully imported ${newItems.length} new sets.`);
-                } catch (err) { alert('Error importing library: ' + err.message); }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        }
-
-        function showMergeDialog() {
-            alert('Merge feature: To merge with another Google account:\\n\\n1. Export library from other account\\n2. Use Import Library button above\\n3. Duplicates will be automatically skipped');
-        }
-
-        function initLibrary() {
-            const saved = localStorage.getItem('exam_library');
-            if (saved) {
-                try { libraryData = JSON.parse(saved); } catch (e) { libraryData = []; }
-            }
-        }
-
-        // ==========================================
-        // TAB 8: PUBLISH
-        // ==========================================
-        
         async function publishExam() {
             const instructor = document.getElementById('genInstructor').value.trim();
             const course = document.getElementById('genCourse').value.trim();
@@ -1756,7 +1718,8 @@ IMPORTANT: Ensure questions are original, syllabus-aligned, and have unambiguous
                 linkEnd: document.getElementById('linkEndTime').value,
                 duration: parseInt(document.getElementById('genDuration').value),
                 markCorrect: parseFloat(document.getElementById('markCorrect').value),
-                markNegative: parseFloat(document.getElementById('markNegative').value)
+                markNegative: parseFloat(document.getElementById('markNegative').value),
+                resultsSheetId: null // Will hold the Master Google Sheet ID
             };
             
             currentExam = { id: 'EXAM_' + Date.now(), config: cfg, sets: generatedSets, studentAttempts: {}, createdAt: new Date().toISOString() };
@@ -1766,11 +1729,74 @@ IMPORTANT: Ensure questions are original, syllabus-aligned, and have unambiguous
                     const instructorFolderId = await getOrCreateInstructorFolder(instructor);
                     const questionBanksFolderId = await getInstructorSubfolder('03_Question_Banks');
                     const examConfigsFolderId = await getInstructorSubfolder('07_Exam_Configurations');
-                    await saveExamToDrive(currentExam, { questionBanksFolderId, examConfigsFolderId, instructorFolderId });
-                    console.log('✓ Exam saved to instructor folder:', instructor);
+                    const resultsFolderId = await getInstructorSubfolder('05_Results_Archives');
+
+                    // 1. Create Blank Google Sheet for Student Results
+                    const sheetName = `Mark_${instructor}_${cfg.semester}_${course}_${cfg.topic}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '')}`;
+                    const sheet = await gapi.client.sheets.spreadsheets.create({
+                        resource: { properties: { title: sheetName } }
+                    });
+                    currentExam.config.resultsSheetId = sheet.result.spreadsheetId;
+
+                    // Move the Sheet into the 05_Results_Archives folder
+                    await gapi.client.drive.files.update({
+                        fileId: currentExam.config.resultsSheetId,
+                        addParents: resultsFolderId,
+                        fields: 'id, parents'
+                    });
+
+                    // Add Column Headers to the Sheet
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: currentExam.config.resultsSheetId,
+                        range: 'Sheet1!A1:I1',
+                        valueInputOption: 'USER_ENTERED',
+                        resource: { values: [['Timestamp', 'Email', 'Name', 'ID', 'Attempt', 'Set Assigned', 'Final Score', 'Questions Answered', 'Total Questions']] }
+                    });
+
+                    // Auto-share Sheet (Editable by Anyone) so students can submit via API
+                    await gapi.client.drive.permissions.create({
+                        fileId: currentExam.config.resultsSheetId,
+                        resource: { type: 'anyone', role: 'writer' }
+                    });
+
+                    // 2. Save JSON Configuration
+                    const savedJsonReq = await saveExamToDrive(currentExam, examConfigsFolderId, `Exam_${course}_${currentExam.id.slice(-6)}.json`, 'application/json');
+                    const jsonFileId = savedJsonReq.id;
+
+                    // Auto-share JSON (Readable by Anyone) so students can load the Exam
+                    if (jsonFileId) {
+                        try {
+                            await gapi.client.drive.permissions.create({
+                                fileId: jsonFileId,
+                                resource: { type: 'anyone', role: 'reader' }
+                            });
+                        } catch (e) {
+                            console.log("Could not auto-share JSON. Ensure folder permissions are correct.", e);
+                        }
+                    }
+
+                    // 3. Generate & Save Excel Question Bank
+                    const ws = XLSX.utils.json_to_sheet(Object.entries(generatedSets).flatMap(([setName, questions]) => 
+                        questions.map(q => ({
+                            Set: setName, Number: q.number, Type: q.type, Text: q.text,
+                            Option_A: q.options[0], Option_B: q.options[1], Option_C: q.options[2], Option_D: q.options[3],
+                            Correct: Array.isArray(q.correct) ? q.correct.join(',') : q.correct,
+                            Marks: q.marks, Negative: q.negative, Explanation: q.explanation
+                        }))
+                    ));
+                    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Questions');
+                    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                    await saveExamToDrive(new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), questionBanksFolderId, document.getElementById('archiveFileName').value || 'Question_Bank.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', true);
+
+                    console.log('✓ All files successfully routed to Instructor subfolders!');
+                    
+                    const baseUrl = location.href.split('?')[0];
+                    const studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}&fileId=${jsonFileId}`;
+                    document.getElementById('studentUrl').textContent = studentUrl;
                 } else {
                     localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
-                    console.log('✓ Exam saved locally (Drive not available)');
+                    const baseUrl = location.href.split('?')[0];
+                    document.getElementById('studentUrl').textContent = `${baseUrl}?mode=student&exam=${currentExam.id}`;
                 }
                 
                 addToLibrary(currentExam);
@@ -1780,319 +1806,253 @@ IMPORTANT: Ensure questions are original, syllabus-aligned, and have unambiguous
                 document.getElementById('pubSets').textContent = cfg.sets + ' Sets';
                 document.getElementById('pubAttempts').textContent = cfg.attempts;
                 
-                const baseUrl = location.href.split('?')[0];
-                const studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}`;
-                document.getElementById('studentUrl').textContent = studentUrl;
                 localStorage.removeItem('exam_draft');
-                alert(`✅ Exam Published Successfully!\\n\\n📁 Folders created for: ${instructor}\\n🔗 Student link generated\\n📚 Saved to Library`);
+                alert(`✅ Exam Published Successfully!\n\n📁 Question Bank & Score Sheet created in Drive\n🔗 Student link generated`);
             } catch (err) {
                 console.error('Publish error:', err);
-                alert('Error during publish: ' + err.message + '\\n\\nExam saved locally. Retry when Drive is available.');
-                localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
+                alert('Error during publish: ' + err.message);
             }
         }
 
-        async function saveExamToDrive(exam, folderIds) {
-            const examJson = JSON.stringify(exam, null, 2);
-            const blob = new Blob([examJson], { type: 'application/json' });
-            const fileName = `Exam_${exam.config.course}_${exam.id.slice(-6)}.json`;
-            console.log('Saving to Drive:', { fileName: fileName, folders: folderIds, exam: exam });
-            return true;
-        }
+        async function saveExamToDrive(data, folderId, fileName, mimeType, isBlob = false) {
+            const token = gapi.client.getToken().access_token;
+            const metadata = { name: fileName, parents: [folderId] };
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', isBlob ? data : new Blob([JSON.stringify(data, null, 2)], { type: mimeType }));
 
-        function copyStudentUrl() {
-            const url = document.getElementById('studentUrl').textContent;
-            if (!url.includes('http')) { alert('Publish exam first to generate URL'); return; }
-            navigator.clipboard.writeText(url).then(() => { alert('Student URL copied to clipboard!'); });
+            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: new Headers({ 'Authorization': 'Bearer ' + token }),
+                body: form
+            });
+            return await response.json();
         }
-
-        function downloadArchive() {
-            if (!currentExam.id) { alert('No exam to download. Publish first.'); return; }
-            const ws = XLSX.utils.json_to_sheet(
-                Object.entries(generatedSets).flatMap(([setName, questions]) => 
-                    questions.map(q => ({
-                        Set: setName, Number: q.number, Type: q.type, Text: q.text,
-                        Option_A: q.options[0], Option_B: q.options[1], Option_C: q.options[2], Option_D: q.options[3],
-                        Correct: Array.isArray(q.correct) ? q.correct.join(',') : q.correct,
-                        Marks: q.marks, Negative: q.negative, Explanation: q.explanation
-                    }))
-                )
-            );
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-            const fileName = document.getElementById('archiveFileName').value || 'Exam_Archive.xlsx';
-            XLSX.writeFile(wb, fileName);
-        }
+        function copyStudentUrl() { navigator.clipboard.writeText(document.getElementById('studentUrl').textContent); alert('Copied!'); }
 
         // ==========================================
-        // STUDENT MODE FUNCTIONS
+        // STUDENT EXAM MODE
         // ==========================================
         
-        function checkStudentMode() {
+        async function checkStudentMode() {
             const params = new URLSearchParams(location.search);
-            if (params.get('mode') === 'student' && params.get('exam')) {
+            if (params.get('mode') === 'student') {
                 document.getElementById('mainPortal').classList.add('hidden-section');
                 document.getElementById('studentView').classList.remove('hidden-section');
-                initStudentExam(params.get('exam'));
+                
+                const fileId = params.get('fileId');
+                if (fileId) {
+                    try {
+                        let retries = 0;
+                        while ((typeof gapi === 'undefined' || !gapi.client || !gapi.client.drive) && retries < 15) {
+                            await new Promise(r => setTimeout(r, 500));
+                            retries++;
+                        }
+                        if (gapi && gapi.client && gapi.client.drive) {
+                            const response = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' });
+                            currentExam = response.result;
+                        } else {
+                            alert("Failed to load Google Drive API.");
+                        }
+                    } catch (e) {
+                        console.error('Drive fetch error:', e);
+                        alert("Could not load exam from Drive. Please ensure the link is correct.");
+                    }
+                } else if (params.get('exam')) {
+                    // Fallback to local storage
+                    const examData = localStorage.getItem('exam_' + params.get('exam'));
+                    if (examData) currentExam = JSON.parse(examData);
+                }
+
+                if (currentExam && currentExam.config) {
+                    document.getElementById('examStateMessage').innerHTML = `
+                        <div class="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-8 mt-12 text-center border-t-4 border-blue-600">
+                            <h2 class="text-2xl font-bold mb-2 text-gray-800">${currentExam.config.course} Exam</h2>
+                            <p class="text-sm text-gray-500 mb-6">${currentExam.config.topic} | ${currentExam.config.standard}</p>
+                            <input type="text" id="sName" placeholder="Full Name (Required)" class="w-full px-4 py-3 border-2 border-gray-200 focus:border-blue-500 outline-none rounded-lg mb-3 font-semibold text-gray-700 transition">
+                            <input type="text" id="sId" placeholder="Roll No / Student ID (Required)" class="w-full px-4 py-3 border-2 border-gray-200 focus:border-blue-500 outline-none rounded-lg mb-3 font-semibold text-gray-700 transition">
+                            <input type="email" id="sEmail" placeholder="Email Address (Optional)" class="w-full px-4 py-3 border-2 border-gray-200 focus:border-blue-500 outline-none rounded-lg mb-6 font-semibold text-gray-700 transition">
+                            <button onclick="startExam()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">Start Exam Now</button>
+                        </div>
+                    `;
+                    document.getElementById('examStateMessage').classList.remove('hidden-section');
+                }
             }
-        }
-
-        function initStudentExam(examId) {
-            const examData = localStorage.getItem('exam_' + examId);
-            if (!examData) { showExamError('Exam Not Found', 'This exam does not exist or has been removed.'); return; }
-            try { currentExam = JSON.parse(examData); } catch (e) { showExamError('Invalid Exam Data', 'Could not load exam configuration.'); return; }
-            
-            const now = new Date();
-            const linkStart = new Date(currentExam.config.linkStart);
-            const linkEnd = new Date(currentExam.config.linkEnd);
-            
-            if (now < linkStart) { showExamError('Exam Not Started', `This exam will start at: ${linkStart.toLocaleString()}`); return; }
-            if (now > linkEnd) { showExamError('Examination Time is Over', `The exam was active from ${linkStart.toLocaleString()} to ${linkEnd.toLocaleString()}`); return; }
-            showStudentLogin();
-        }
-
-        function showExamError(title, message) {
-            document.getElementById('examStateMessage').innerHTML = `<div class="max-w-md mx-auto bg-red-50 rounded-xl p-8 mt-8 text-center border-2 border-red-300"><h2 class="text-2xl font-bold text-red-800 mb-4">${title}</h2><p class="text-red-700">${message}</p></div>`;
-            document.getElementById('examStateMessage').classList.remove('hidden-section');
-        }
-
-        function showStudentLogin() {
-            const cfg = currentExam.config;
-            document.getElementById('examStateMessage').innerHTML = `
-                <div class="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 mt-8">
-                    <h2 class="text-2xl font-bold text-center mb-2">${cfg.standard} Examination</h2>
-                    <p class="text-center text-gray-600 mb-6">${cfg.course} - ${cfg.topic || 'General'}</p>
-                    <div class="space-y-4">
-                        <input type="text" id="sName" placeholder="Full Name" class="w-full px-4 py-3 border rounded-lg">
-                        <input type="text" id="sId" placeholder="College ID" class="w-full px-4 py-3 border rounded-lg">
-                        <input type="email" id="sEmail" placeholder="Email" class="w-full px-4 py-3 border rounded-lg">
-                        <button onclick="startExam()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700">Start Exam</button>
-                    </div>
-                    <div class="mt-6 text-xs text-gray-500 text-center space-y-1">
-                        <p>Duration: ${cfg.duration} minutes</p>
-                        <p>Maximum ${cfg.attempts} attempt${cfg.attempts > 1 ? 's' : ''} allowed</p>
-                        <p>Valid until: ${new Date(cfg.linkEnd).toLocaleString()}</p>
-                    </div>
-                </div>`;
-            document.getElementById('examStateMessage').classList.remove('hidden-section');
         }
 
         function startExam() {
             const name = document.getElementById('sName').value.trim();
-            const id = document.getElementById('sId').value.trim();
-            const email = document.getElementById('sEmail').value.trim();
-            if (!name || !id || !email) { alert('Please fill all fields'); return; }
-            
-            const attemptKey = email + '_' + currentExam.id;
-            const previousAttempts = currentExam.studentAttempts[attemptKey] || { attempts: 0, setsUsed: [], scores: [] };
-            if (previousAttempts.attempts >= currentExam.config.attempts) { showResults(previousAttempts); return; }
-            
-            const availableSets = ['A', 'B', 'C', 'D'].slice(0, currentExam.config.sets).filter(s => !previousAttempts.setsUsed.includes(s));
-            const assignedSet = availableSets.length > 0 ? availableSets[Math.floor(Math.random() * availableSets.length)] : ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)];
-            
+            const sid = document.getElementById('sId').value.trim();
+            if (!name || !sid) {
+                alert("Please enter both your Name and ID to begin.");
+                return;
+            }
+
+            // Randomly assign a set
+            const setKeys = Object.keys(currentExam.sets);
+            const randomSet = setKeys[Math.floor(Math.random() * setKeys.length)];
+
             studentSession = {
-                examId: currentExam.id, name: name, id: id, email: email, set: assignedSet,
-                questions: shuffleArray([...currentExam.sets[assignedSet]]), answers: {}, marked: new Set(),
-                visited: new Set([0]), currentIdx: 0, attempt: previousAttempts.attempts + 1,
-                startTime: Date.now(), timer: null
+                name: name,
+                id: sid,
+                email: document.getElementById('sEmail').value.trim() || 'N/A',
+                set: randomSet,
+                questions: currentExam.sets[randomSet],
+                answers: {}, marked: new Set(), visited: new Set([0]), currentIdx: 0
             };
             
             document.getElementById('examStateMessage').classList.add('hidden-section');
             document.getElementById('examInterface').classList.remove('hidden-section');
-            document.getElementById('studentNameDisplay').textContent = name;
-            document.getElementById('studentIdDisplay').textContent = 'ID: ' + id;
-            document.getElementById('currentSetDisplay').textContent = 'Set ' + assignedSet;
             document.getElementById('totalQNum').textContent = studentSession.questions.length;
-            startTimer();
+            document.getElementById('currentSetDisplay').textContent = 'Set ' + studentSession.set;
+            document.getElementById('studentNameDisplay').textContent = studentSession.name;
+            document.getElementById('studentIdDisplay').textContent = studentSession.id;
+            
             loadQuestion(0);
-            updatePalette();
-        }
-
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
-
-        function startTimer() {
-            let seconds = currentExam.config.duration * 60;
-            studentSession.timer = setInterval(() => {
-                seconds--;
-                const hours = Math.floor(seconds / 3600);
-                const mins = Math.floor((seconds % 3600) / 60);
-                const secs = seconds % 60;
-                const timerEl = document.getElementById('examTimer');
-                timerEl.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                if (seconds <= 300) timerEl.classList.add('danger');
-                else if (seconds <= 900) timerEl.classList.add('warning');
-                if (seconds <= 0) { clearInterval(studentSession.timer); autoSubmit(); }
-            }, 1000);
         }
 
         function loadQuestion(index) {
-            if (index < 0 || index >= studentSession.questions.length) return;
             studentSession.currentIdx = index;
             const q = studentSession.questions[index];
             document.getElementById('currentQNum').textContent = String(index + 1).padStart(2, '0');
-            const container = document.getElementById('questionContainer');
             
-            let statusBadge = '';
-            if (studentSession.marked.has(index)) statusBadge = '<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">⭐ Marked for Review</span>';
-            else if (studentSession.answers[index] !== undefined) statusBadge = '<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">✓ Answered</span>';
-            else statusBadge = '<span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">✗ Not Answered</span>';
+            const optionsHtml = q.options.map((opt, i) => `
+                <label class="jee-option" onclick="studentSession.answers[${index}]=${i}; loadQuestion(${index})">
+                    <input type="radio" ${studentSession.answers[index] === i ? 'checked' : ''}> ${opt}
+                </label>
+            `).join('');
             
-            let optionsHtml = '';
-            if (q.type === 'single') {
-                optionsHtml = q.options.map((opt, i) => `
-                    <label class="jee-option ${studentSession.answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
-                        <div class="jee-option-number">${i + 1}</div>
-                        <input type="radio" name="answer" ${studentSession.answers[index] === i ? 'checked' : ''}> ${escapeHtml(opt)}
-                    </label>
-                `).join('');
-            } else {
-                const selected = studentSession.answers[index] || [];
-                optionsHtml = q.options.map((opt, i) => `
-                    <label class="jee-option ${selected.includes(i) ? 'selected' : ''}" onclick="toggleMultiple(${i})">
-                        <div class="jee-option-number">${i + 1}</div>
-                        <input type="checkbox" ${selected.includes(i) ? 'checked' : ''}> ${escapeHtml(opt)}
-                    </label>
-                `).join('');
-            }
-            container.innerHTML = `<div class="mb-4">${statusBadge}</div><div class="text-lg font-medium mb-6">${escapeHtml(q.text)}</div><div class="space-y-2">${optionsHtml}</div>`;
+            document.getElementById('questionContainer').innerHTML = `<div class="text-lg font-medium mb-4">${q.text}</div>${optionsHtml}`;
             studentSession.visited.add(index);
             updatePalette();
-            updateSummary();
         }
 
-        function selectOption(optionIndex) {
-            studentSession.answers[studentSession.currentIdx] = optionIndex;
-            loadQuestion(studentSession.currentIdx);
-        }
-
-        function toggleMultiple(optionIndex) {
-            const current = studentSession.answers[studentSession.currentIdx] || [];
-            const pos = current.indexOf(optionIndex);
-            if (pos > -1) current.splice(pos, 1); else current.push(optionIndex);
-            studentSession.answers[studentSession.currentIdx] = current;
-            loadQuestion(studentSession.currentIdx);
+        function updatePalette() {
+            document.getElementById('questionPalette').innerHTML = studentSession.questions.map((q, i) => {
+                let cls = 'palette-btn ' + (i === studentSession.currentIdx ? 'current ' : '') + 
+                          (studentSession.answers[i] !== undefined ? 'answered' : (studentSession.visited.has(i) ? 'not-answered' : 'not-visited'));
+                return `<button class="${cls}" onclick="loadQuestion(${i})">${i + 1}</button>`;
+            }).join('');
         }
 
         function prevQuestion() { if (studentSession.currentIdx > 0) loadQuestion(studentSession.currentIdx - 1); }
         function saveAndNext() { if (studentSession.currentIdx < studentSession.questions.length - 1) loadQuestion(studentSession.currentIdx + 1); else showSubmitConfirmation(); }
         function clearResponse() { delete studentSession.answers[studentSession.currentIdx]; loadQuestion(studentSession.currentIdx); }
-        function markForReview() {
-            const idx = studentSession.currentIdx;
-            if (studentSession.marked.has(idx)) studentSession.marked.delete(idx); else studentSession.marked.add(idx);
-            loadQuestion(idx);
-        }
-
-        function updatePalette() {
-            const palette = document.getElementById('questionPalette');
-            palette.innerHTML = studentSession.questions.map((q, i) => {
-                let classes = 'palette-btn';
-                if (i === studentSession.currentIdx) classes += ' current';
-                else if (studentSession.marked.has(i)) classes += ' marked-review';
-                else if (studentSession.answers[i] !== undefined) classes += ' answered';
-                else if (studentSession.visited.has(i)) classes += ' not-answered';
-                else classes += ' not-visited';
-                return `<button class="${classes}" onclick="loadQuestion(${i})">${String(i + 1).padStart(2, '0')}</button>`;
-            }).join('');
-        }
-
-        function updateSummary() {
-            const total = studentSession.questions.length;
-            const answered = Object.keys(studentSession.answers).length;
-            const marked = studentSession.marked.size;
-            const visited = studentSession.visited.size;
-            document.getElementById('summaryAnswered').textContent = answered;
-            document.getElementById('summaryNotAnswered').textContent = visited - answered;
-            document.getElementById('summaryMarked').textContent = marked;
-            document.getElementById('summaryNotVisited').textContent = total - visited;
-        }
-
-        function showSubmitConfirmation() {
-            updateSummary();
-            const total = studentSession.questions.length;
-            const answered = Object.keys(studentSession.answers).length;
-            document.getElementById('confirmTotal').textContent = total;
-            document.getElementById('confirmAnswered').textContent = answered;
-            document.getElementById('confirmNotAnswered').textContent = total - answered;
-            document.getElementById('confirmMarked').textContent = studentSession.marked.size;
-            document.getElementById('confirmAttemptNum').textContent = studentSession.attempt;
-            document.getElementById('submitModal').classList.remove('hidden');
-        }
-
+        function markForReview() {} 
+        
+        function showSubmitConfirmation() { document.getElementById('submitModal').classList.remove('hidden'); }
         function closeSubmitModal() { document.getElementById('submitModal').classList.add('hidden'); }
-
+        
         function finalSubmit() {
-            clearInterval(studentSession.timer);
+            if (studentSession.timer) clearInterval(studentSession.timer);
             closeSubmitModal();
-            let correct = 0, wrong = 0, score = 0;
+            
+            // Calculate Score with positive/negative marking
+            let score = 0;
             studentSession.questions.forEach((q, i) => {
                 const answer = studentSession.answers[i];
-                if (answer === undefined) return;
+                if (answer === undefined) return; // Skipped question
+                
                 let isCorrect = false;
-                if (q.type === 'single') isCorrect = answer === q.correct;
-                else isCorrect = Array.isArray(answer) && Array.isArray(q.correct) && answer.length === q.correct.length && answer.every(x => q.correct.includes(x));
-                if (isCorrect) { correct++; score += (q.marks || 4); } else { wrong++; score -= (q.negative || 1); }
+                if (q.type === 'single' || !q.type) {
+                    isCorrect = answer === q.correct;
+                } else {
+                    isCorrect = Array.isArray(answer) && Array.isArray(q.correct) && 
+                                answer.length === q.correct.length && 
+                                answer.every(x => q.correct.includes(x));
+                }
+                
+                if (isCorrect) score += (q.marks || 4); 
+                else score -= (q.negative || 1);
             });
-            score = Math.max(0, score);
-            const attemptKey = studentSession.email + '_' + currentExam.id;
-            const record = currentExam.studentAttempts[attemptKey] || { attempts: 0, setsUsed: [], scores: [], name: studentSession.name };
-            record.attempts++; record.setsUsed.push(studentSession.set); record.scores.push(score); record.best = Math.max(...record.scores);
-            currentExam.studentAttempts[attemptKey] = record;
-            localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
+            
+            // Generate a unique response ID
+            const responseId = 'RES_' + Date.now().toString(36).toUpperCase();
+
+            // === GAP #1 FIXED: SEND SCORE DIRECTLY TO MASTER GOOGLE SHEET ===
+            if (currentExam.config && currentExam.config.resultsSheetId && typeof gapi !== 'undefined' && gapi.client && gapi.client.sheets) {
+                const rowData = [
+                    new Date().toLocaleString(),
+                    studentSession.email,
+                    studentSession.name,
+                    studentSession.id,
+                    1, // Attempt Number
+                    studentSession.set,
+                    score,
+                    Object.keys(studentSession.answers).length,
+                    studentSession.questions.length
+                ];
+                
+                // Keep trying to append to Google Sheets, handling concurrency
+                const submitToSheetWithRetry = async (retriesLeft = 5) => {
+                    try {
+                        document.getElementById('finalBestScore').textContent = "Submitting...";
+                        await gapi.client.sheets.spreadsheets.values.append({
+                            spreadsheetId: currentExam.config.resultsSheetId,
+                            range: 'Sheet1!A:I',
+                            valueInputOption: 'USER_ENTERED',
+                            insertDataOption: 'INSERT_ROWS',
+                            resource: { values: [rowData] }
+                        });
+                        console.log("✓ Score safely archived to Master Google Sheet!");
+                        document.getElementById('finalBestScore').textContent = score;
+                    } catch (err) {
+                        console.error('Error submitting to Drive. Retries left:', retriesLeft, err);
+                        if (retriesLeft > 0) {
+                            setTimeout(() => submitToSheetWithRetry(retriesLeft - 1), 1500); // Wait 1.5s then retry
+                        } else {
+                            document.getElementById('finalBestScore').textContent = score + " (Offline Mode)";
+                            alert("Could not sync result to instructor's Drive immediately due to high traffic limit. Result was calculated locally.");
+                        }
+                    }
+                };
+                
+                submitToSheetWithRetry();
+            } else {
+                document.getElementById('finalBestScore').textContent = score;
+            }
+
+            // Update UI with Results
             document.getElementById('studentView').classList.add('hidden-section');
             document.getElementById('resultView').classList.remove('hidden-section');
-            showResults(record);
+            document.getElementById('resultResponseId').textContent = responseId;
+            document.getElementById('finalBestScore').textContent = score;
+            document.getElementById('finalAttemptsCount').textContent = "1";
         }
-
-        function showResults(attemptRecord) {
-            document.getElementById('resultResponseId').textContent = 'RES_' + Date.now().toString(36).toUpperCase();
-            const attemptsHtml = attemptRecord.scores.map((score, i) => `
-                <div class="p-4 rounded-xl border-2 ${score === attemptRecord.best ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white'}">
-                    <div class="flex justify-between items-center">
-                        <div><h4 class="font-bold text-gray-800">Attempt ${i + 1}</h4><p class="text-sm text-gray-600">Set ${attemptRecord.setsUsed[i]}</p></div>
-                        <div class="text-right"><div class="text-2xl font-bold ${score === attemptRecord.best ? 'text-green-600' : 'text-gray-600'}">${score}</div>${score === attemptRecord.best ? '<span class="text-xs bg-green-600 text-white px-2 py-1 rounded">BEST</span>' : ''}</div>
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('attemptsSummary').innerHTML = attemptsHtml;
-            document.getElementById('finalBestScore').textContent = attemptRecord.best;
-            document.getElementById('finalAttemptsCount').textContent = attemptRecord.attempts;
-            const canRetry = attemptRecord.attempts < currentExam.config.attempts;
-            document.getElementById('newAttemptBtn').style.display = canRetry ? 'block' : 'none';
+		function initLibrary() {
+            const saved = localStorage.getItem('exam_library');
+            if (saved) {
+                try { libraryData = JSON.parse(saved); } catch (e) { libraryData = []; }
+            }
         }
+		// ==========================================
+        // ANTI-CHEAT SECURITY MEASURES
+        // ==========================================
+        let tabSwitchCount = 0;
 
-        function startNewAttempt() {
-            document.getElementById('resultView').classList.add('hidden-section');
-            document.getElementById('studentView').classList.remove('hidden-section');
-            document.getElementById('examInterface').classList.add('hidden-section');
-            showStudentLogin();
-        }
+        // 1. Prevent Right-Click during active exam
+        document.addEventListener('contextmenu', e => {
+            if (!document.getElementById('examInterface').classList.contains('hidden-section')) {
+                e.preventDefault();
+                alert('Security Alert: Right-click is disabled during the examination.');
+            }
+        });
 
-        function downloadResult() {
-            const data = {
-                responseId: document.getElementById('resultResponseId').textContent,
-                student: { name: studentSession.name, id: studentSession.id, email: studentSession.email },
-                exam: currentExam.config,
-                attempts: currentExam.studentAttempts[studentSession.email + '_' + currentExam.id],
-                downloadedAt: new Date().toISOString()
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Result_${data.responseId}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
+        // 2. Prevent Copying text during active exam
+        document.addEventListener('copy', e => {
+            if (!document.getElementById('examInterface').classList.contains('hidden-section')) {
+                e.preventDefault();
+                alert('Security Alert: Copying text is strictly prohibited during the examination.');
+            }
+        });
 
-        function autoSubmit() { alert('Time is up! Your exam will be submitted automatically.'); finalSubmit(); }
+        // 3. Tab Switch / Window Blur Detection
+        window.addEventListener('blur', () => {
+            if (!document.getElementById('examInterface').classList.contains('hidden-section')) {
+                tabSwitchCount++;
+                alert(`WARNING: You have navigated away from the exam window! \n\nThis is violation #${tabSwitchCount}. Multiple violations will be recorded and may result in the cancellation of your examination.`);
+            }
+        });
     </script>
 </body>
 </html>
