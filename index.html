@@ -34,8 +34,11 @@
         .jee-timer{background:linear-gradient(to right,#dc2626,#b91c1c);color:#fff;font-family:'Courier New',monospace;font-size:1.5rem;font-weight:bold;padding:8px 16px;border-radius:8px;border:2px solid #fff;box-shadow:0 4px 10px rgba(220,38,38,.4)}
         .jee-timer.warning{background:#ea580c;animation:pulse 1s infinite}.jee-timer.danger{background:#dc2626;animation:pulse .5s infinite}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        .btn-shimmer{background:linear-gradient(90deg, #3b82f6 25%, #60a5fa 50%, #3b82f6 75%);background-size:200% 100%;color:white;animation:shimmer 3s infinite linear;transition:all 0.3s ease;box-shadow:0 4px 15px rgba(59,130,246,0.4)}
+        .btn-shimmer:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(59,130,246,0.6)}
         .question-palette{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-width:300px}
-        .palette-btn{width:40px;height:40px;border-radius:8px;font-weight:bold;font-size:14px;border:2px solid #e5e7eb;cursor:pointer;transition:all 0.2s}
+        .palette-btn{width:40px;height:40px;border-radius:8px;font-weight:bold;font-size:14px;border:2px solid transparent;cursor:pointer;transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1)}
         .palette-btn:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgba(0,0,0,.05)}
         .palette-btn.answered{background:linear-gradient(to bottom,#22c55e,#16a34a);color:#fff;border-color:#15803d}
         .palette-btn.not-answered{background:linear-gradient(to bottom,#ef4444,#dc2626);color:#fff;border-color:#b91c1c}
@@ -59,21 +62,32 @@
         .syllabus-mismatch{background:#fef2f2;border-left:4px solid #ef4444;padding:12px;margin:8px 0}
         .library-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:8px 0;transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
         .library-card:hover{box-shadow:0 10px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);transform:translateY(-3px);border-color:#cbd5e1}
-        .save-draft-btn{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;border:none;margin-right:8px;transition:all 0.2s}
-        .save-draft-btn:hover{opacity:0.9;box-shadow:0 4px 12px rgba(99,102,241,.3)}
-        .draft-saved-indicator{color:#10b981;font-size:0.875rem;display:none;align-items:center;gap:4px}
+        .save-draft-btn{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;border:none;margin-right:8px;transition:all 0.3s ease;box-shadow:0 4px 12px rgba(99,102,241,.2)}
+        .save-draft-btn:hover{opacity:0.9;box-shadow:0 6px 16px rgba(99,102,241,.4);transform:translateY(-2px)}
+        .draft-saved-indicator{color:#10b981;font-size:0.875rem;display:none;align-items:center;gap:4px;animation:fadeIn 0.5s}
+        /* Custom Input Styling */
+        input[type="text"], input[type="email"], select, textarea {transition: all 0.3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);}
+        input[type="text"]:focus, input[type="email"]:focus, select:focus, textarea:focus {transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.15); border-color: #3b82f6; outline: none;}
+        /* Modal Animation */
+        @keyframes modalPop { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+        .modal-animate { animation: modalPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .fade-in { animation: fadeIn 0.5s ease-in forwards; }
 		/* NEW: Image Auto-Fitting & Resizing */
         #imageQueue img { max-width: 100%; height: auto; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
         #editQText img, #editQExplanation img { max-width: 100%; height: auto; border: 2px dashed #3b82f6; border-radius: 4px; padding: 2px; }
     </style>
 <base target="_blank">
 </head>
-<body class="p-4 pb-20">
-    <div id="authContainer" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4 text-center">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Connect Google Drive</h2>
-            <p class="text-gray-600 mb-6">Select a Google account to store your question banks and exam results</p>
-            <div id="googleSignInButton"></div>
+<body class="p-4 pb-20 fade-in">
+    <div id="authContainer" class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center hidden transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full m-4 text-center modal-animate shadow-2xl border border-gray-100">
+            <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="text-blue-600"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-5A1.5 1.5 0 0 1 12.5 10h1a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5zm1-10c-.83 0-1.5-.67-1.5-1.5S11.17 5 12 5s1.5.67 1.5 1.5S12.83 6.5 12 6.5z" fill="currentColor"/></svg>
+            </div>
+            <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Connect Google Drive</h2>
+            <p class="text-gray-500 mb-8 text-sm">Select an instructor account to secure your question banks and student results.</p>
+            <div id="googleSignInButton" class="w-full flex justify-center mb-4"></div>
         </div>
     </div>
 
@@ -1860,13 +1874,28 @@ Generate exactly ${total} high-quality questions following the exact schema abov
 
                 if (currentExam && currentExam.config) {
                     document.getElementById('examStateMessage').innerHTML = `
-                        <div class="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-8 mt-12 text-center border-t-4 border-blue-600">
-                            <h2 class="text-2xl font-bold mb-2 text-gray-800">${currentExam.config.course} Exam</h2>
-                            <p class="text-sm text-gray-500 mb-6">${currentExam.config.topic} | ${currentExam.config.standard}</p>
-                            <input type="text" id="sName" placeholder="Full Name (Required)" class="w-full px-4 py-3 border-2 border-gray-200 focus:border-blue-500 outline-none rounded-lg mb-3 font-semibold text-gray-700 transition">
-                            <input type="text" id="sId" placeholder="Roll No / Student ID (Required)" class="w-full px-4 py-3 border-2 border-gray-200 focus:border-blue-500 outline-none rounded-lg mb-3 font-semibold text-gray-700 transition">
-                            <input type="email" id="sEmail" placeholder="Email Address (Optional)" class="w-full px-4 py-3 border-2 border-gray-200 focus:border-blue-500 outline-none rounded-lg mb-6 font-semibold text-gray-700 transition">
-                            <button onclick="startExam()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">Start Exam Now</button>
+                        <div class="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-8 mt-12 text-center border-t-[6px] border-blue-600 modal-animate">
+                            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+                                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
+                            </div>
+                            <h2 class="text-3xl font-extrabold mb-2 text-gray-800 tracking-tight">${currentExam.config.course} Exam</h2>
+                            <p class="text-sm font-medium text-blue-600 mb-8 bg-blue-50 py-1.5 px-4 rounded-full inline-block">${currentExam.config.topic} | ${currentExam.config.standard}</p>
+                            
+                            <div class="space-y-4 mb-8">
+                                <div class="relative">
+                                    <input type="text" id="sName" placeholder="Full Name (Required)" class="w-full pl-4 pr-4 py-3.5 border-2 border-gray-200 focus:border-blue-500 hover:border-gray-300 outline-none rounded-xl font-semibold text-gray-700 bg-gray-50 focus:bg-white transition-all">
+                                </div>
+                                <div class="relative">
+                                    <input type="text" id="sId" placeholder="Roll No / Student ID (Required)" class="w-full pl-4 pr-4 py-3.5 border-2 border-gray-200 focus:border-blue-500 hover:border-gray-300 outline-none rounded-xl font-semibold text-gray-700 bg-gray-50 focus:bg-white transition-all">
+                                </div>
+                                <div class="relative">
+                                    <input type="email" id="sEmail" placeholder="Email Address (Optional)" class="w-full pl-4 pr-4 py-3.5 border-2 border-gray-200 focus:border-blue-500 hover:border-gray-300 outline-none rounded-xl font-semibold text-gray-700 bg-gray-50 focus:bg-white transition-all">
+                                </div>
+                            </div>
+                            
+                            <button onclick="startExam()" class="w-full btn-shimmer font-bold text-lg py-4 rounded-xl transition-transform transform">
+                                Start Exam Now
+                            </button>
                         </div>
                     `;
                     document.getElementById('examStateMessage').classList.remove('hidden-section');
