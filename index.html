@@ -73,6 +73,32 @@
         @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
         .modal-animate { animation: modalPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .fade-in { animation: fadeIn 0.5s ease-in forwards; }
+        /* === 21st.dev Quiz-Section Inspired Animations === */
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes celebrate { 0% { transform: scale(1) rotate(0deg); } 25% { transform: scale(1.15) rotate(5deg); } 50% { transform: scale(1.25) rotate(-5deg); } 75% { transform: scale(1.15) rotate(3deg); } 100% { transform: scale(1) rotate(0deg); } }
+        @keyframes bounceIn { 0% { transform: scale(0); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+        @keyframes progressGlow { 0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.4); } 50% { box-shadow: 0 0 16px rgba(124,58,237,0.6); } }
+        .slide-in-right { animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .slide-in-up { animation: slideInUp 0.35s ease-out forwards; }
+        .celebrate-anim { animation: celebrate 0.6s ease-in-out; }
+        .bounce-in { animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .progress-glow { animation: progressGlow 2s ease-in-out infinite; }
+        .quiz-progress-track { background: #e2e8f0; border-radius: 9999px; height: 10px; overflow: hidden; }
+        .quiz-progress-fill { background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6); background-size: 200% 100%; height: 100%; border-radius: 9999px; transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1); animation: shimmer 3s infinite linear; }
+        .gift-tracker { display: flex; justify-content: space-between; align-items: center; padding: 0 4px; }
+        .gift-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
+        .gift-icon { width: 28px; height: 28px; transition: all 0.3s ease; }
+        .gift-icon.current { color: #3b82f6; animation: pulse 1.5s infinite; transform: scale(1.2); }
+        .gift-icon.answered { color: #22c55e; }
+        .gift-icon.unanswered { color: #cbd5e1; opacity: 0.4; }
+        .gift-badge { position: absolute; top: -4px; right: -4px; width: 14px; height: 14px; border-radius: 50%; }
+        .quiz-option { display: flex; align-items: center; padding: 14px 16px; margin: 6px 0; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; background: #fff; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .quiz-option:hover { border-color: rgba(59,130,246,0.5); box-shadow: 0 4px 12px rgba(0,0,0,0.06); transform: scale(1.02); }
+        .quiz-option:active { transform: scale(0.98); }
+        .quiz-option.selected { border-color: #3b82f6; background: linear-gradient(135deg, #eff6ff, #f0f9ff); box-shadow: 0 4px 12px rgba(59,130,246,0.15); }
+        .quiz-option input[type="radio"] { width: 20px; height: 20px; margin-right: 14px; cursor: pointer; accent-color: #3b82f6; }
+        .score-display { font-size: 4.5rem; font-weight: 800; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; }
 		/* NEW: Image Auto-Fitting & Resizing */
         #imageQueue img { max-width: 100%; height: auto; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
         #editQText img, #editQExplanation img { max-width: 100%; height: auto; border: 2px dashed #3b82f6; border-radius: 4px; padding: 2px; }
@@ -578,20 +604,35 @@
         <div id="examStateMessage" class="hidden-section"></div>
         <div id="examInterface" class="hidden-section grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div class="lg:col-span-3 bg-white rounded-xl shadow-lg p-6">
-                <div class="flex justify-between items-center mb-4 pb-4 border-b">
-                    <div class="flex items-center gap-3">
-                        <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold" id="currentSetDisplay">Set A</span>
-                        <span class="text-gray-600">Question <span id="currentQNum" class="font-bold text-lg">01</span> of <span id="totalQNum">30</span></span>
+                <!-- 21st.dev Inspired: Animated Progress Tracker -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="text-sm text-gray-500 font-medium">Question <span id="currentQNum" class="font-bold text-gray-800 text-lg">01</span> of <span id="totalQNum">30</span></div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold" id="currentSetDisplay">Set A</span>
+                            <span class="bg-amber-100 border border-amber-200 px-3 py-1 rounded-lg text-sm font-medium">+4 / -1</span>
+                        </div>
                     </div>
-                    <div class="bg-amber-100 border border-amber-200 px-3 py-1 rounded-lg text-sm font-medium">Correct: <span class="text-green-700 font-bold">+4</span> | Wrong: <span class="text-red-700 font-bold">-1</span></div>
+                    <!-- Gift Icon Tracker -->
+                    <div id="giftTracker" class="gift-tracker mb-3"></div>
+                    <!-- Animated gradient progress bar -->
+                    <div class="quiz-progress-track">
+                        <div id="quizProgressBar" class="quiz-progress-fill progress-glow" style="width: 0%"></div>
+                    </div>
                 </div>
-                <div id="questionContainer" class="mb-6"></div>
+                <div id="questionContainer" class="mb-6 slide-in-right"></div>
                 <div class="flex justify-between items-center pt-4 border-t">
-                    <button onclick="prevQuestion()" class="jee-nav-btn bg-gray-500 text-white hover:bg-gray-600">← Previous</button>
+                    <button onclick="prevQuestion()" class="jee-nav-btn bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 hover:shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        Previous
+                    </button>
                     <div class="flex gap-2">
-                        <button onclick="clearResponse()" class="jee-nav-btn bg-red-500 text-white hover:bg-red-600">Clear</button>
-                        <button onclick="markForReview()" class="jee-nav-btn bg-purple-500 text-white hover:bg-purple-600">⭐ Mark Review</button>
-                        <button onclick="saveAndNext()" class="jee-nav-btn bg-green-500 text-white hover:bg-green-600">Save & Next →</button>
+                        <button onclick="clearResponse()" class="jee-nav-btn bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">Clear</button>
+                        <button onclick="markForReview()" class="jee-nav-btn bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100">⭐ Review</button>
+                        <button onclick="saveAndNext()" class="jee-nav-btn btn-shimmer text-white">
+                            Save & Next
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -599,10 +640,10 @@
                 <h3 class="font-bold text-gray-800 mb-3 text-sm">Question Palette</h3>
                 <div id="questionPalette" class="question-palette mb-4"></div>
                 <div class="space-y-2 text-xs mb-4">
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-green-500 rounded"></div><span>Answered</span></div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-red-500 rounded"></div><span>Not Answered</span></div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-purple-500 rounded"></div><span>Marked</span></div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-gray-400 rounded"></div><span>Not Visited</span></div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 rounded" style="background:linear-gradient(to bottom,#22c55e,#16a34a)"></div><span>Answered</span></div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 rounded" style="background:linear-gradient(to bottom,#ef4444,#dc2626)"></div><span>Not Answered</span></div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 rounded" style="background:linear-gradient(to bottom,#a855f7,#9333ea)"></div><span>Marked</span></div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-gray-200 rounded"></div><span>Not Visited</span></div>
                 </div>
                 <div class="border-t pt-4">
                     <div class="text-sm font-semibold text-gray-700 mb-2">Summary</div>
@@ -613,7 +654,7 @@
                         <div class="bg-gray-50 p-2 rounded text-center"><div class="font-bold text-gray-700" id="summaryNotVisited">30</div><div class="text-gray-600">Not Visited</div></div>
                     </div>
                 </div>
-                <button onclick="showSubmitConfirmation()" class="w-full mt-4 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700">Submit Exam</button>
+                <button onclick="showSubmitConfirmation()" class="w-full mt-4 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">Submit Exam</button>
             </div>
         </div>
     </div>
@@ -1939,23 +1980,72 @@ Generate exactly ${total} high-quality questions following the exact schema abov
             const q = studentSession.questions[index];
             document.getElementById('currentQNum').textContent = String(index + 1).padStart(2, '0');
             
-            const optionsHtml = q.options.map((opt, i) => `
-                <label class="jee-option" onclick="studentSession.answers[${index}]=${i}; loadQuestion(${index})">
-                    <input type="radio" ${studentSession.answers[index] === i ? 'checked' : ''}> ${opt}
-                </label>
-            `).join('');
+            // 21st.dev inspired: animated slide-in for question content
+            const container = document.getElementById('questionContainer');
+            container.classList.remove('slide-in-right');
+            void container.offsetWidth; // Trigger reflow to restart animation
+            container.classList.add('slide-in-right');
+
+            const optionsHtml = q.options.map((opt, i) => {
+                const isSelected = studentSession.answers[index] === i;
+                return `
+                <div class="quiz-option ${isSelected ? 'selected' : ''}" onclick="studentSession.answers[${index}]=${i}; loadQuestion(${index})" style="animation: slideInUp 0.3s ease-out ${i * 0.08}s both;">
+                    <input type="radio" ${isSelected ? 'checked' : ''} name="q${index}"> 
+                    <span class="font-medium text-gray-700">${opt}</span>
+                </div>
+            `}).join('');
             
-            document.getElementById('questionContainer').innerHTML = `<div class="text-lg font-medium mb-4">${q.text}</div>${optionsHtml}`;
+            container.innerHTML = `<div class="text-lg font-semibold mb-5 text-gray-800 leading-relaxed">${q.text}</div>${optionsHtml}`;
             studentSession.visited.add(index);
             updatePalette();
+            updateGiftTracker();
+            updateProgressBar();
         }
 
         function updatePalette() {
+            const total = studentSession.questions.length;
+            let answered = 0, notAnswered = 0, marked = 0, notVisited = 0;
+            
             document.getElementById('questionPalette').innerHTML = studentSession.questions.map((q, i) => {
-                let cls = 'palette-btn ' + (i === studentSession.currentIdx ? 'current ' : '') + 
-                          (studentSession.answers[i] !== undefined ? 'answered' : (studentSession.visited.has(i) ? 'not-answered' : 'not-visited'));
-                return `<button class="${cls}" onclick="loadQuestion(${i})">${i + 1}</button>`;
+                let cls = 'palette-btn bounce-in ';
+                if (i === studentSession.currentIdx) cls += 'current ';
+                if (studentSession.marked && studentSession.marked.has(i)) { cls += 'marked-review'; marked++; }
+                else if (studentSession.answers[i] !== undefined) { cls += 'answered'; answered++; }
+                else if (studentSession.visited.has(i)) { cls += 'not-answered'; notAnswered++; }
+                else { cls += 'not-visited'; notVisited++; }
+                return `<button class="${cls}" style="animation-delay: ${i * 20}ms" onclick="loadQuestion(${i})">${i + 1}</button>`;
             }).join('');
+
+            document.getElementById('summaryAnswered').textContent = answered;
+            document.getElementById('summaryNotAnswered').textContent = notAnswered;
+            document.getElementById('summaryMarked').textContent = marked;
+            document.getElementById('summaryNotVisited').textContent = total - answered - notAnswered - marked;
+        }
+
+        // 21st.dev Inspired: Gift icon progress tracker
+        function updateGiftTracker() {
+            const tracker = document.getElementById('giftTracker');
+            if (!tracker || !studentSession) return;
+            const total = studentSession.questions.length;
+            const step = total > 10 ? Math.ceil(total / 10) : 1;
+            const icons = [];
+            for (let i = 0; i < total; i += step) {
+                let iconCls = 'gift-icon ';
+                let badge = '';
+                if (i === studentSession.currentIdx) iconCls += 'current';
+                else if (studentSession.answers[i] !== undefined) { iconCls += 'answered'; badge = '<div class="gift-badge" style="background:#22c55e"></div>'; }
+                else iconCls += 'unanswered';
+                icons.push(`<div class="gift-item"><svg class="${iconCls}" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>${badge}<span class="text-[10px] text-gray-400">${i+1}</span></div>`);
+            }
+            tracker.innerHTML = icons.join('');
+        }
+
+        function updateProgressBar() {
+            const answered = Object.keys(studentSession.answers).length;
+            const total = studentSession.questions.length;
+            const pct = Math.round((answered / total) * 100);
+            const bar = document.getElementById('quizProgressBar');
+            if (bar) bar.style.width = pct + '%';
         }
 
         function prevQuestion() { if (studentSession.currentIdx > 0) loadQuestion(studentSession.currentIdx - 1); }
