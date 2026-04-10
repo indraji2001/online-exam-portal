@@ -103,6 +103,21 @@
         .quiz-option.selected { border-color: #3b82f6; background: linear-gradient(135deg, #eff6ff, #f0f9ff); box-shadow: 0 4px 12px rgba(59,130,246,0.15); }
         .quiz-option input[type="radio"] { width: 20px; height: 20px; margin-right: 14px; cursor: pointer; accent-color: #3b82f6; }
         .score-display { font-size: 4.5rem; font-weight: 800; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; }
+        /* === Stardust / Pearl Button (21st.dev Inspired) === */
+        .pearl-btn { position: relative; border: 0; border-radius: 14px; cursor: pointer; overflow: hidden; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: inset 0 0.2rem 0.6rem rgba(255,255,255,0.25), inset 0 -0.1rem 0.2rem rgba(0,0,0,0.5), inset 0 -0.3rem 0.6rem rgba(255,255,255,0.35), 0 1.5rem 2rem rgba(0,0,0,0.15), 0 0.5rem 0.8rem -0.3rem rgba(0,0,0,0.3); }
+        .pearl-btn::before { content: ''; position: absolute; left: -10%; right: -10%; bottom: 30%; top: -80%; border-radius: 50%; background: rgba(255,255,255,0.08); transition: transform 0.3s ease; pointer-events: none; }
+        .pearl-btn::after { content: ''; position: absolute; left: 8%; right: 8%; top: 0; height: 45%; border-radius: 0 0 50% 50%; background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%); transition: all 0.3s ease; pointer-events: none; }
+        .pearl-btn:hover { transform: translateY(-3px); box-shadow: inset 0 0.2rem 0.6rem rgba(255,255,255,0.35), inset 0 -0.1rem 0.2rem rgba(0,0,0,0.6), inset 0 -0.3rem 0.8rem rgba(255,255,255,0.45), 0 2rem 2.5rem rgba(0,0,0,0.2), 0 0.8rem 1rem -0.3rem rgba(0,0,0,0.35); }
+        .pearl-btn:hover::before { transform: translateY(-5%); }
+        .pearl-btn:hover::after { opacity: 0.5; transform: translateY(3px); }
+        .pearl-btn:active { transform: translateY(2px); box-shadow: inset 0 0.2rem 0.4rem rgba(255,255,255,0.3), inset 0 -0.1rem 0.2rem rgba(0,0,0,0.7), inset 0 -0.2rem 0.4rem rgba(255,255,255,0.3), 0 0.8rem 1rem rgba(0,0,0,0.15); }
+        /* Pearl variants */
+        .pearl-btn-blue { background: linear-gradient(145deg, #2563eb 0%, #1d4ed8 100%); color: white; }
+        .pearl-btn-blue:hover { background: linear-gradient(145deg, #3b82f6 0%, #2563eb 100%); }
+        .pearl-btn-green { background: linear-gradient(145deg, #16a34a 0%, #15803d 100%); color: white; }
+        .pearl-btn-green:hover { background: linear-gradient(145deg, #22c55e 0%, #16a34a 100%); }
+        .pearl-btn-red { background: linear-gradient(145deg, #dc2626 0%, #b91c1c 100%); color: white; }
+        .pearl-btn-red:hover { background: linear-gradient(145deg, #ef4444 0%, #dc2626 100%); }
 		/* NEW: Image Auto-Fitting & Resizing */
         #imageQueue img { max-width: 100%; height: auto; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
         #editQText img, #editQExplanation img { max-width: 100%; height: auto; border: 2px dashed #3b82f6; border-radius: 4px; padding: 2px; }
@@ -557,7 +572,7 @@
                         <p class="text-xs text-blue-700">Auto-generated based on exam details</p>
                     </div>
                     <div class="bg-green-50 p-5 rounded-xl border border-green-200">
-                        <button onclick="publishExam()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700">Publish Exam & Create Folders</button>
+                        <button onclick="publishExam()" class="w-full pearl-btn pearl-btn-green text-white py-4 rounded-xl font-bold text-lg">✦ Publish Exam & Create Folders</button>
                         <p class="text-xs text-green-700 mt-2 text-center">This will create instructor folders in Drive and generate student link</p>
                     </div>
                 </div>
@@ -658,7 +673,7 @@
                         <div class="bg-gray-50 p-2 rounded text-center"><div class="font-bold text-gray-700" id="summaryNotVisited">30</div><div class="text-gray-600">Not Visited</div></div>
                     </div>
                 </div>
-                <button onclick="showSubmitConfirmation()" class="w-full mt-4 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-bold hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">Submit Exam</button>
+                <button onclick="showSubmitConfirmation()" class="w-full mt-4 pearl-btn pearl-btn-red text-white py-3 rounded-xl font-bold text-base">Submit Exam</button>
             </div>
         </div>
     </div>
@@ -862,8 +877,8 @@
             
             // Bypass the popup blocker by binding the flow directly to a custom button
             document.getElementById('googleSignInButton').innerHTML = `
-                <button onclick="requestDriveAccess()" style="width:100%; padding:12px; background-color:#4285f4; color:white; border-radius:8px; font-weight:bold; font-size:16px; border:none; cursor:pointer; margin-top:15px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-                    Sign in with Google
+                <button onclick="requestDriveAccess()" class="pearl-btn pearl-btn-blue w-full py-4 rounded-xl font-bold text-lg text-white mt-4">
+                    ✧ Sign in with Google
                 </button>
             `;
         }
@@ -1949,8 +1964,8 @@ Generate exactly ${total} high-quality questions following the exact schema abov
                                 </div>
                             </div>
                             
-                            <button onclick="startExam()" class="w-full btn-shimmer font-bold text-lg py-4 rounded-xl transition-transform transform">
-                                Start Exam Now
+                            <button onclick="startExam()" class="w-full pearl-btn pearl-btn-blue font-bold text-lg py-4 rounded-xl text-white">
+                                ✧ Start Exam Now
                             </button>
                         </div>
                     `;
