@@ -255,20 +255,27 @@
                                 <input type="number" id="genDuration" value="180" class="w-full p-4 border-2 rounded-xl font-bold">
                             </div>
                         </div>
-                        <div class="pt-4 border-t">
-                             <label class="flex justify-between items-center mb-1">
-                                <span class="text-sm font-bold text-slate-700">Accumulate Question Pool</span>
-                                <input type="checkbox" id="enablePool" onchange="togglePoolSlider()" class="w-5 h-5 accent-blue-600 cursor-pointer">
-                            </label>
-                            <div id="poolSliderContainer" class="hidden-section slide-in-up bg-blue-50/50 p-4 rounded-2xl border border-blue-100 mt-2">
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-[10px] uppercase font-black text-blue-500 tracking-wider">Extra Question Buffer</span>
-                                    <span id="poolValDisplay" class="text-sm font-black text-blue-700 bg-white px-3 py-1 rounded-full shadow-sm">50%</span>
-                                </div>
-                                <input type="range" id="poolSlider" min="0" max="300" step="10" value="50" oninput="updatePoolDisplay()" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
-                                <p class="text-[9px] text-blue-400 mt-2 font-medium">Higher pool allows the AI to provide extra choices for student randomization.</p>
-                            </div>
+                        <!-- AI Engine Selection -->
+                        <div class="pt-4 border-t mb-4">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Primary AI Intelligence</label>
+                            <select id="aiEngine" class="w-full p-4 border-2 rounded-xl text-sm font-bold bg-blue-50/30 outline-none focus:ring-4 focus:ring-blue-100" onchange="toggleAiMode()">
+                                <option value="gemini">Auto-Generate (Internal Gemini API)</option>
+                                <option value="manual">Manual Entry (ChatGPT / Claude / Custom)</option>
+                            </select>
                         </div>
+
+                        <!-- Manual Mode Instruction & Input -->
+                        <div id="manualAiPanel" class="hidden-section slide-in-up bg-slate-900 text-white p-6 rounded-3xl mb-6 shadow-2xl">
+                            <p class="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-2">External AI Workflow</p>
+                            <ol class="text-[11px] text-slate-300 space-y-2 mb-4">
+                                <li>1. Click "Generate Blueprint" below</li>
+                                <li>2. Copy the resulting prompt to your AI</li>
+                                <li>3. Paste the AI's JSON answer here:</li>
+                            </ol>
+                            <textarea id="manualAiResponse" placeholder="Paste JSON here..." class="w-full h-32 p-4 bg-slate-800 border border-slate-700 rounded-2xl text-xs font-mono text-emerald-400 outline-none focus:border-blue-500 mb-4"></textarea>
+                            <button onclick="processManualResponse()" class="w-full py-4 bg-blue-600 rounded-xl font-bold text-sm hover:bg-blue-700 transition">Validate & Load Question Pool</button>
+                        </div>
+
                         <div class="flex items-center justify-between pt-4 border-t">
                             <span id="draftSavedIndicator" class="draft-saved-indicator">✨ Draft Saved</span>
                             <button onclick="saveDraft()" class="pearl-btn pearl-btn-green py-3 px-6 rounded-xl text-white font-bold shadow-lg">Save Draft</button>
