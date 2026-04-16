@@ -129,6 +129,43 @@ function showAuthModal() {
     `;
 }
 
+// ==========================================
+// NAVIGATION & CORE UI
+// ==========================================
+
+function showTab(tabId) {
+    // Hide all sections
+    document.querySelectorAll('section').forEach(el => {
+        if (el.id.startsWith('content-')) {
+            el.classList.add('hidden-section');
+            el.classList.add('hidden'); // Double safety
+        }
+    });
+
+    // Show target section
+    const target = document.getElementById('content-' + tabId);
+    if (target) {
+        target.classList.remove('hidden-section');
+        target.classList.remove('hidden');
+    }
+
+    // Update Tab Buttons
+    document.querySelectorAll('nav button').forEach(btn => {
+        if (btn.id && btn.id.startsWith('tab-')) {
+            btn.className = 'flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl';
+        }
+    });
+    
+    const activeBtn = document.getElementById('tab-' + tabId);
+    if (activeBtn) {
+        activeBtn.className = 'flex-1 py-4 px-4 font-semibold tab-active rounded-xl';
+    }
+
+    // Special Rendering for dynamic tabs
+    if (tabId === 'library') renderLibraryUI();
+    if (tabId === 'settings') renderAdminSettings();
+}
+
 function requestDriveAccess() {
     // Clear any stuck tokens in memory before requesting a new one
     gapi.client.setToken(null);
@@ -1781,7 +1818,7 @@ window.addEventListener('blur', () => { if (!document.getElementById('examInterf
 function renderAdminSettings() {
     if (!systemConfig) return;
     
-    document.getElementById('settingAdminPass').value = systemConfig.admin_password;
+    document.getElementById('setAdminPass').value = systemConfig.admin_password;
     const list = document.getElementById('facultyRegistryList');
     list.innerHTML = systemConfig.faculty.map((f, i) => `
         <div class="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
@@ -1817,7 +1854,7 @@ async function saveSystemConfig(manual = false) {
     
     // Update admin pass from UI if manual save
     if (manual) {
-        systemConfig.admin_password = document.getElementById('settingAdminPass').value;
+        systemConfig.admin_password = document.getElementById('setAdminPass').value;
     }
 
     try {
