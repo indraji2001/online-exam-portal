@@ -985,6 +985,32 @@ function showDriveFolder() {
     if (driveFolderId) window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
 }
 
+// --- DIFFICULTY UI LOGIC ---
+window.setDifficulty = function(level) {
+    document.getElementById('genDifficulty').value = level;
+    
+    // Reset all
+    ['EASY', 'MODERATE', 'HARD'].forEach(l => {
+        const btn = document.getElementById(`diffBtn_${l}`);
+        if(btn) {
+            btn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg text-slate-500 hover:bg-white hover:shadow-sm transition-all duration-300";
+        }
+    });
+
+    // Style active
+    const activeBtn = document.getElementById(`diffBtn_${level}`);
+    if (activeBtn) {
+        if (level === 'EASY') {
+            activeBtn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-emerald-500 text-white shadow-md transition-all duration-300";
+        } else if (level === 'MODERATE') {
+            activeBtn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 text-white shadow-md transition-all duration-300";
+        } else if (level === 'HARD') {
+            activeBtn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-rose-500 text-white shadow-md transition-all duration-300";
+        }
+    }
+    saveDraft();
+};
+
 // ==========================================
 // TAB NAVIGATION
 // ==========================================
@@ -1119,7 +1145,16 @@ function loadDraft() {
         document.getElementById('genCourse').value = draft.course || '';
         document.getElementById('genTopic').value = draft.topic || '';
         document.getElementById('genStandard').value = draft.standard || 'UG';
-        if (document.getElementById('genDifficulty')) document.getElementById('genDifficulty').value = draft.difficulty || 'MODERATE';
+        
+        if (document.getElementById('genDifficulty')) {
+            const diff = draft.difficulty || 'MODERATE';
+            if (typeof setDifficulty === 'function') {
+                setDifficulty(diff);
+            } else {
+                document.getElementById('genDifficulty').value = diff;
+            }
+        }
+        
         document.getElementById('genDuration').value = draft.duration || '180';
         document.getElementById('genSets').value = draft.sets || '4';
         document.getElementById('genAttempts').value = draft.attempts || '2';
