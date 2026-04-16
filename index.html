@@ -894,19 +894,21 @@
         }
         .footer-link:hover { color: #6366f1; }
 
-        /* Scroll-in Animation */
+        /* High-End Scroll-in Animation (Matches React/Framer-Motion) */
         .footer-anim-item {
             opacity: 0;
-            filter: blur(4px);
-            transform: translateY(-8px);
-            transition: opacity 0.8s ease var(--delay, 0s),
-                        filter 0.8s ease var(--delay, 0s),
-                        transform 0.8s ease var(--delay, 0s);
+            filter: blur(8px);
+            transform: translateY(12px) scale(0.98);
+            transition: 
+                opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s),
+                filter 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s),
+                transform 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s);
+            will-change: transform, opacity, filter;
         }
         .footer-anim-item.footer-visible {
             opacity: 1;
             filter: blur(0px);
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
     </style>
 
@@ -916,9 +918,14 @@
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('footer-visible');
+                    // Unobserve after it's shown to save performance
+                    footerObserver.unobserve(entry.target);
                 }
             });
-        }, { threshold: 0.1 });
+        }, { 
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px' // Triggers slightly before it fully enters
+        });
         document.querySelectorAll('.footer-anim-item').forEach(el => footerObserver.observe(el));
     </script>
 
