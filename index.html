@@ -11,6 +11,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .identity-selection-btn {
+            background: white;
+            border: 2px solid #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: left;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .identity-selection-btn:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body class="bg-slate-50">
 
@@ -33,41 +52,65 @@
         </div>
     </div>
 
-    <!-- Hybrid Identity Pop-up (Point #2 & #3 Integration) -->
-    <div id="identityModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm hidden-section">
+    <!-- Role & Identity Selection Modal (v4.8 Departmental) -->
+    <div id="identityModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md hidden-section">
         <div class="glass w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl text-center border-2 border-white modal-animate">
-            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-12 mx-auto mb-6">
-                <span class="text-white text-3xl">🛡️</span>
-            </div>
-            <h2 class="text-2xl font-black text-slate-900 mb-1">Hybrid Security</h2>
-            <p class="text-[10px] font-black uppercase text-blue-600 tracking-widest mb-6">Select your Departmental Role</p>
-            
-            <div class="space-y-3 mb-6">
-                <button onclick="selectAccountType('admin')" class="w-full flex items-center gap-4 p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition group">
-                    <span class="text-2xl group-hover:scale-125 transition">👑</span>
-                    <div class="text-left">
-                        <span class="block font-bold text-slate-800 text-sm">Main Administrator</span>
-                        <span class="block text-[10px] text-slate-400 font-bold uppercase">Full Master Access</span>
-                    </div>
-                </button>
+            <div id="roleSelectionStep">
+                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-12 mx-auto mb-6">
+                    <span class="text-white text-3xl">🛡️</span>
+                </div>
+                <h2 class="text-2xl font-black text-slate-900 mb-1">Verify Role</h2>
+                <p class="text-[10px] font-black uppercase text-blue-600 tracking-widest mb-6" id="welcomeUserEmail"></p>
                 
-                <button onclick="selectAccountType('faculty')" class="w-full flex items-center gap-4 p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition group">
-                    <span class="text-2xl group-hover:scale-125 transition">🧑‍🏫</span>
-                    <div class="text-left">
-                        <span class="block font-bold text-slate-800 text-sm">Faculty Member</span>
-                        <span class="block text-[10px] text-slate-400 font-bold uppercase">Locked Private Folder</span>
-                    </div>
-                </button>
+                <div class="space-y-3">
+                    <button id="btnRoleAdmin" onclick="selectRole('admin')" class="identity-selection-btn hidden group">
+                        <span class="text-2xl group-hover:scale-125 transition">👑</span>
+                        <div>
+                            <span class="block font-bold text-slate-800 text-sm">System Admin</span>
+                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Master Access</span>
+                        </div>
+                    </button>
+                    
+                    <button id="btnRoleFaculty" onclick="selectRole('faculty')" class="identity-selection-btn hidden group">
+                        <span class="text-2xl group-hover:scale-125 transition">🧑‍🏫</span>
+                        <div>
+                            <span class="block font-bold text-slate-800 text-sm">Faculty Member</span>
+                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Departmental Folder</span>
+                        </div>
+                    </button>
+                </div>
+                <div id="wrongAccountWarning" class="hidden mt-4 p-4 bg-rose-50 text-rose-600 rounded-2xl text-xs font-bold">
+                    This Google account is not authorized for the selected role.
+                </div>
             </div>
-            
-            <!-- Hidden Input Forms -->
-            <div id="facultyForm" class="hidden-section slide-in-up mt-2">
-                <input type="password" id="facultyPin" maxlength="4" placeholder="Enter your 4-digit PIN" class="w-full p-4 border-2 rounded-xl text-center text-2xl tracking-widest font-black bg-slate-50 outline-none focus:border-emerald-500">
-                <button onclick="verifyFaculty()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg shadow-emerald-100">Unlock My Sync Folder</button>
+
+            <!-- Admin Drive Switcher -->
+            <div id="adminDriveStep" class="hidden-section slide-in-up">
+                <h3 class="text-xl font-bold mb-4">Storage Target?</h3>
+                <div class="space-y-3">
+                    <button onclick="confirmAdminEntry('departmental')" class="identity-selection-btn">
+                        <span>🏢</span>
+                        <div>
+                            <span class="block font-bold">Departmental Drive</span>
+                            <span class="block text-[9px] uppercase">chemistrydept account</span>
+                        </div>
+                    </button>
+                    <button onclick="confirmAdminEntry('personal')" class="identity-selection-btn">
+                        <span>👤</span>
+                        <div>
+                            <span class="block font-bold">Personal Drive</span>
+                            <span class="block text-[9px] uppercase">Your own storage</span>
+                        </div>
+                    </button>
+                </div>
             </div>
-            <div id="adminForm" class="hidden-section slide-in-up mt-2">
-                <input type="password" id="adminPass" placeholder="Enter Master Password" class="w-full p-4 border-2 rounded-xl text-center font-bold bg-slate-50 outline-none focus:border-blue-500">
-                <button onclick="verifyAdmin()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg shadow-blue-100">Enter Terminal</button>
+
+            <!-- Faculty Name Claim -->
+            <div id="facultyNameStep" class="hidden-section slide-in-up">
+                <h3 class="text-xl font-bold mb-2">Identify Yourself</h3>
+                <p class="text-xs text-slate-400 mb-4 uppercase font-black">Shared Dept. Account Login</p>
+                <input type="text" id="facultyNameClaim" placeholder="Enter Your Full Name" class="w-full p-4 border-2 rounded-xl text-center font-bold bg-slate-50 outline-none focus:border-blue-500 mb-4">
+                <button onclick="confirmFacultyEntry()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg">Open My Workspace</button>
             </div>
         </div>
     </div>
