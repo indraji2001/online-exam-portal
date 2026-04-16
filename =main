@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Exam Portal | Multimodal Engine</title>
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50">
+
+    <!-- Auth Modal -->
+    <div id="authContainer" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md hidden fade-in">
+        <div class="glass w-full max-w-md p-10 rounded-3xl shadow-2xl text-center border-t-8 border-blue-600 modal-animate">
+            <div class="mb-6 flex justify-center">
+                <div class="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-12">
+                    <span class="text-white text-4xl">🎓</span>
+                </div>
+            </div>
+            <h1 class="text-3xl font-extrabold text-slate-900 mb-2">Exam Portal v4.5</h1>
+            <p class="text-slate-500 mb-8 font-medium">Identity Verification Required to Access Departmental Drives</p>
+            <div id="googleSignInButton" class="space-y-4">
+                <div class="animate-pulse flex space-x-4 justify-center">
+                    <div class="h-10 bg-slate-200 rounded w-full"></div>
+                </div>
+            </div>
+            <p class="mt-8 text-xs text-slate-400 font-semibold tracking-widest uppercase">Secured by Google Identity</p>
+        </div>
+    </div>
+
+    <!-- Identity Verification Modal (Point #2 & #3 Integration) -->
+    <div id="identityModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-lg hidden-section">
+        <div class="glass w-full max-w-lg p-10 rounded-3xl shadow-2xl text-center border-4 border-blue-500 modal-animate">
+            <h2 class="text-3xl font-bold text-slate-800 mb-2">Who is Logging In?</h2>
+            <p class="text-slate-500 mb-8">Please verify your role within the Chemistry Department</p>
+            
+            <div class="grid grid-cols-2 gap-6 mb-8">
+                <!-- Admin Path -->
+                <button onclick="selectAccountType('admin')" class="flex flex-col items-center p-6 bg-blue-50 border-2 border-blue-200 rounded-2xl hover:bg-blue-100 hover:border-blue-400 transition group">
+                    <div class="text-4xl mb-4 group-hover:scale-110 transition">👑</div>
+                    <span class="font-bold text-blue-900">I am the Admin</span>
+                    <span class="text-xs text-blue-600 mt-2 font-medium">(Full Drive Access)</span>
+                </button>
+                
+                <!-- Faculty Path -->
+                <button onclick="selectAccountType('faculty')" class="flex flex-col items-center p-6 bg-emerald-50 border-2 border-emerald-200 rounded-2xl hover:bg-emerald-100 hover:border-emerald-400 transition group">
+                    <div class="text-4xl mb-4 group-hover:scale-110 transition">🧑‍🏫</div>
+                    <span class="font-bold text-emerald-900">Faculty Member</span>
+                    <span class="text-xs text-emerald-600 mt-2 font-medium">(Private Folder Access)</span>
+                </button>
+            </div>
+            
+            <!-- Hidden Faculty Selection Form -->
+            <div id="facultyForm" class="hidden-section slide-in-up mt-4 text-left p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                <label class="block text-sm font-bold text-slate-700 mb-2">Access PIN (Locked to your Name)</label>
+                <input type="password" maxlength="4" placeholder="Enter your 4-digit PIN" class="w-full p-4 border-2 rounded-xl text-center text-2xl tracking-widest font-bold">
+                <button onclick="verifyFaculty()" class="w-full pearl-btn pearl-btn-green py-4 rounded-xl text-white font-bold text-lg mt-4">Unlock My Drive Profile</button>
+            </div>
+            
+            <!-- Hidden Admin Password Form -->
+            <div id="adminForm" class="hidden-section slide-in-up mt-4 text-left p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                <label class="block text-sm font-bold text-slate-700 mb-2">Master Administrator Key</label>
+                <input type="password" placeholder="Enter Admin Password" class="w-full p-4 border-2 rounded-xl font-bold">
+                <button onclick="verifyAdmin()" class="w-full pearl-btn pearl-btn-blue py-4 rounded-xl text-white font-bold text-lg mt-4">Enter Master Terminal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account & Toolbar -->
+    <nav id="accountBar" class="glass fixed top-4 right-4 z-50 rounded-full pl-2 pr-6 py-2 flex items-center gap-4 hidden border border-slate-200">
+        <div class="flex items-center gap-3">
+            <img id="userAvatar" src="" class="w-10 h-10 rounded-full border-2 border-blue-500 hidden shadow-sm">
+            <div class="flex flex-col -space-y-1">
+                <span id="userName" class="text-sm font-bold text-slate-800"></span>
+                <span id="userEmail" class="text-[10px] text-slate-500 font-medium"></span>
+            </div>
+        </div>
+        <div class="h-8 w-[1px] bg-slate-200"></div>
+        <button onclick="showDriveFolder()" class="text-blue-600 hover:scale-110 transition p-1" title="Open Master Drive Folder">📁</button>
+        <button onclick="switchGoogleAccount()" class="text-slate-500 hover:text-blue-600 transition p-1" title="Switch User">🔄</button>
+        <button onclick="signOut()" class="text-red-500 hover:scale-110 transition p-1" title="Logout">🚪</button>
+    </nav>
+
+    <!-- Main Application UI -->
+    <main id="mainPortal" class="container mx-auto px-4 pt-24 pb-20 hidden">
+        
+        <!-- Header: The 21st.dev / Stardust Look -->
+        <header class="text-center mb-10 fade-in">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full mb-4 border border-blue-100 shadow-sm">
+                <span class="animate-pulse">●</span>
+                <span class="text-xs font-bold tracking-widest uppercase">Department of Chemistry</span>
+            </div>
+            <h1 class="text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">Exam Portal v4.5</h1>
+            <p class="text-slate-500 text-lg font-medium">Generate, Publish & Archive Exams with Multimodal AI Context</p>
+        </header>
+
+        <!-- Dynamic Navigation Tabs -->
+        <nav class="flex overflow-x-auto gap-1 bg-white p-1.5 rounded-2xl shadow-xl mb-8 border border-slate-200 max-w-5xl mx-auto scrollbox-hide">
+            <button id="tab-sources" onclick="showTab('sources')" class="flex-1 py-4 px-4 font-semibold tab-active rounded-xl">1. Sources</button>
+            <button id="tab-extract" onclick="showTab('extract')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">2. Extract</button>
+            <button id="tab-generate" onclick="showTab('generate')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">3. Generate</button>
+            <button id="tab-ai-bridge" onclick="showTab('ai-bridge')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">4. AI Bridge</button>
+            <button id="tab-import" onclick="showTab('import')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">5. Import</button>
+            <button id="tab-images" onclick="showTab('images')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">6. Images</button>
+            <button id="tab-library" onclick="showTab('library')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">7. Library</button>
+            <button id="tab-publish" onclick="showTab('publish')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">8. Publish</button>
+        </nav>
+
+        <!-- Tab 1: Sources -->
+        <section id="content-sources" class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 fade-in">
+            <div class="glass p-8 rounded-3xl border border-white shadow-xl">
+                <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-blue-100 p-2 rounded-lg">📤</span> Input Sources</h3>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Google Drive Shared Link</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="driveLinkInput" placeholder="Paste Folder/File Link..." class="flex-1 p-4 border-2 rounded-xl focus:ring-4 focus:ring-blue-100 outline-none">
+                        <button onclick="addDriveLink()" class="pearl-btn pearl-btn-blue px-6 rounded-xl font-bold text-white">Add</button>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Local Learning Materials (.pdf, .doc, .xlsx)</label>
+                    <div class="border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center hover:bg-slate-50 transition cursor-pointer relative group">
+                        <input type="file" multiple onchange="handleLocalFiles(this.files)" class="absolute inset-0 opacity-0 cursor-pointer">
+                        <div class="text-4xl mb-4 group-hover:scale-125 transition">📁</div>
+                        <p class="text-slate-500 font-medium">Click to upload files</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Reference Website URL</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="webLinkInput" placeholder="site.com" class="flex-1 p-3 border-2 rounded-xl text-sm">
+                            <button onclick="addWebLink()" class="bg-slate-800 text-white p-3 rounded-xl hover:bg-black transition">Add</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Personal Notebooks</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="notebookLinkInput" placeholder="Paste link..." class="flex-1 p-3 border-2 rounded-xl text-sm">
+                            <button onclick="addNotebookLink()" class="bg-slate-800 text-white p-3 rounded-xl hover:bg-black transition">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div class="glass p-8 rounded-3xl flex-1 border border-white shadow-xl">
+                    <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-indigo-100 p-2 rounded-lg">⚙️</span> Active Context Pool</h3>
+                    <div id="combinedSourceList" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbox-hide"></div>
+                </div>
+                <!-- Status Badges for Source Types -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-white p-4 rounded-3xl shadow-lg border border-slate-100">
+                        <span class="text-slate-400 text-xs font-bold uppercase block mb-1">Google Cloud</span>
+                        <div id="totalDriveBadge" class="text-xl font-black text-blue-600">Drive: 0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-3xl shadow-lg border border-slate-100">
+                        <span class="text-slate-400 text-xs font-bold uppercase block mb-1">Local Storage</span>
+                        <div id="totalLocalBadge" class="text-xl font-black text-emerald-600">Files: 0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-3xl shadow-lg border border-slate-100">
+                        <span class="text-slate-400 text-xs font-bold uppercase block mb-1">Web Sources</span>
+                        <div id="totalWebBadge" class="text-xl font-black text-pink-600">Links: 0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-3xl shadow-lg border border-slate-100">
+                        <span class="text-slate-400 text-xs font-bold uppercase block mb-1">Notebooks</span>
+                        <div id="totalNotebookBadge" class="text-xl font-black text-fuchsia-600">Pages: 0</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Extract (LLM Context Prep) -->
+        <section id="content-extract" class="max-w-5xl mx-auto hidden-section">
+            <div class="glass p-10 rounded-3xl shadow-xl border border-white text-center">
+                <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-8 shadow-inner">📄</div>
+                <h3 class="text-3xl font-extrabold text-slate-900 mb-4">Syllabus & Material Extractor</h3>
+                <p class="text-slate-500 max-w-2xl mx-auto mb-10 text-lg">Use AI to scan your source materials and map them against the Master Syllabus or Course Curriculum.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                    <div class="bg-slate-900 text-slate-300 p-8 rounded-3xl border border-slate-700 shadow-2xl relative">
+                        <div class="absolute -top-3 left-8 bg-blue-600 text-white text-[10px] font-black uppercase px-4 py-1 rounded-full shadow-lg">Analysis Prompt</div>
+                        <p class="mb-4 text-emerald-400 font-mono text-sm leading-relaxed">System Command: Analyze the provided folder contents. Identify all Chemistry reactions and diagrams. Compare against the "Organic Chem Sem 4" main syllabus file.</p>
+                        <div class="space-y-3">
+                            <div class="syllabus-match rounded-xl border border-emerald-200">✓ Found: Nucleophilic Substitution (14 pages)</div>
+                            <div class="syllabus-match rounded-xl border border-emerald-200">✓ Found: SN1/SN2 Mechanism Charts</div>
+                            <div class="syllabus-mismatch rounded-xl border border-red-200">✗ Missing: Aromaticity Theory</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center gap-4">
+                        <button class="pearl-btn pearl-btn-blue py-6 px-10 rounded-2xl text-white font-bold text-xl flex items-center justify-center gap-3">
+                            <span>🚀</span> Run Full AI Scan
+                        </button>
+                        <button class="bg-white text-slate-600 py-4 px-10 rounded-2xl font-bold border-2 border-slate-100 hover:border-slate-300 transition">
+                            Save Analysis to Drive
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Generate (Refined) -->
+        <section id="content-generate" class="max-w-5xl mx-auto hidden-section">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Config Panel -->
+                <div class="lg:col-span-1 glass p-8 rounded-3xl border border-white shadow-xl">
+                    <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-purple-100 p-2 rounded-lg">⚙️</span> Exam Blueprint</h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Instructor Name (Required)</label>
+                            <input type="text" id="genInstructor" oninput="updateFileNamePreview()" placeholder="Full Name..." class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Semester</label>
+                                <select id="genSemester" onchange="updateFileNamePreview()" class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none font-medium">
+                                    <option value="Sem_1">Semester 1</option>
+                                    <option value="Sem_2">Semester 2</option>
+                                    <option value="Sem_3">Semester 3</option>
+                                    <option value="Sem_4">Semester 4</option>
+                                    <option value="Sem_5">Semester 5</option>
+                                    <option value="Sem_6">Semester 6</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Course Code</label>
+                                <input type="text" id="genCourse" oninput="updateFileNamePreview()" placeholder="e.g. CHEM-301" class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Exam Topic / Heading</label>
+                            <input type="text" id="genTopic" oninput="updateFileNamePreview()" placeholder="e.g. Organic Mechanism - I" class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Standard</label>
+                                <select id="genStandard" class="w-full p-4 border-2 rounded-xl font-medium">
+                                    <option>JEE Main</option>
+                                    <option>JEE Advanced</option>
+                                    <option>B.Sc. Finals</option>
+                                    <option>UG Entrance</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Duration (Min)</label>
+                                <input type="number" id="genDuration" value="180" class="w-full p-4 border-2 rounded-xl font-bold">
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t">
+                             <label class="flex justify-between items-center mb-1">
+                                <span class="text-sm font-bold text-slate-700">Accumulate Question Pool</span>
+                                <input type="checkbox" id="enablePool" onchange="togglePoolSlider()" class="w-5 h-5 accent-blue-600 cursor-pointer">
+                            </label>
+                            <div id="poolSliderContainer" class="hidden-section slide-in-up bg-blue-50/50 p-4 rounded-2xl border border-blue-100 mt-2">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-[10px] uppercase font-black text-blue-500 tracking-wider">Extra Question Buffer</span>
+                                    <span id="poolValDisplay" class="text-sm font-black text-blue-700 bg-white px-3 py-1 rounded-full shadow-sm">50%</span>
+                                </div>
+                                <input type="range" id="poolSlider" min="0" max="300" step="10" value="50" oninput="updatePoolDisplay()" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                                <p class="text-[9px] text-blue-400 mt-2 font-medium">Higher pool allows the AI to provide extra choices for student randomization.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t">
+                            <span id="draftSavedIndicator" class="draft-saved-indicator">✨ Draft Saved</span>
+                            <button onclick="saveDraft()" class="pearl-btn pearl-btn-green py-3 px-6 rounded-xl text-white font-bold shadow-lg">Save Draft</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribution and Prompt -->
+                <div class="lg:col-span-2 glass p-8 rounded-3xl border border-white shadow-xl flex flex-col h-full">
+                    <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-emerald-100 p-2 rounded-lg">📊</span> Question Distribution</h3>
+                    
+                    <div class="grid grid-cols-3 gap-6 mb-8 text-center">
+                        <div class="bg-blue-50 p-5 rounded-3xl border border-blue-100 shadow-sm">
+                            <label class="block text-[11px] font-black text-blue-500 uppercase tracking-widest mb-3">Single Correct</label>
+                            <input type="number" id="distSingle" value="20" class="w-full p-4 text-3xl font-black rounded-2xl bg-white border-2 border-blue-200 text-center text-blue-700">
+                        </div>
+                        <div class="bg-emerald-50 p-5 rounded-3xl border border-emerald-100 shadow-sm">
+                            <label class="block text-[11px] font-black text-emerald-500 uppercase tracking-widest mb-3">Multiple Correct</label>
+                            <input type="number" id="distMultiple" value="5" class="w-full p-4 text-3xl font-black rounded-2xl bg-white border-2 border-emerald-200 text-center text-emerald-700">
+                        </div>
+                        <div class="bg-amber-50 p-5 rounded-3xl border border-amber-100 shadow-sm">
+                            <label class="block text-[11px] font-black text-amber-500 uppercase tracking-widest mb-3">Matching Matrix</label>
+                            <input type="number" id="distMatching" value="5" class="w-full p-4 text-3xl font-black rounded-2xl bg-white border-2 border-amber-200 text-center text-amber-700">
+                        </div>
+                    </div>
+
+                    <div class="flex-grow flex flex-col gap-4">
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <h4 class="font-bold text-slate-800">Final AI Synthesis Prompt</h4>
+                                <p class="text-xs text-slate-400 font-medium">Automatic context injection active</p>
+                            </div>
+                            <button onclick="generatePrompt()" class="pearl-btn pearl-btn-blue px-8 py-3 rounded-xl text-white font-bold shadow-lg">✨ Rewrite Prompt</button>
+                        </div>
+                        <div id="generatedPrompt" class="prompt-box flex-grow min-h-[300px] border-2 border-indigo-100 text-indigo-900 leading-relaxed text-sm bg-indigo-50/20 backdrop-blur-sm p-6 rounded-3xl">Click Generate to Synthesis Prompt...</div>
+                        <button onclick="copyPrompt()" class="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-black transition text-lg shadow-xl shadow-slate-200">
+                            <span>📋</span> Copy Multi-Modal Command & Open AI
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 4: AI Bridge -->
+        <section id="content-ai-bridge" class="max-w-4xl mx-auto hidden-section text-center">
+            <div class="glass p-12 rounded-[3rem] shadow-2xl border border-white">
+                <div class="w-24 h-24 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-10 shadow-inner">🌉</div>
+                <h3 class="text-4xl font-extrabold text-slate-900 mb-6 tracking-tight">AI Connection Bridge</h3>
+                <p class="text-slate-500 text-xl font-medium mb-12 max-w-2xl mx-auto italic">"The portal is connected to your sources. Now, use one of the expert AI engines to build the questions."</p>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+                    <button onclick="openAiService('chatgpt')" class="flex flex-col items-center p-6 bg-white border-2 border-emerald-100 rounded-3xl shadow-lg hover:border-emerald-500 hover:scale-110 transition group">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" class="w-16 h-16 mb-4 group-hover:rotate-180 transition duration-700">
+                        <span class="font-bold text-slate-800">ChatGPT 4o</span>
+                    </button>
+                    <button onclick="openAiService('claude')" class="flex flex-col items-center p-6 bg-white border-2 border-orange-100 rounded-3xl shadow-lg hover:border-orange-500 hover:scale-110 transition group">
+                        <span class="text-5xl mb-4">🎭</span>
+                        <span class="font-bold text-slate-800">Claude 3.5</span>
+                    </button>
+                    <button onclick="openAiService('gemini')" class="flex flex-col items-center p-6 bg-white border-2 border-blue-100 rounded-3xl shadow-lg hover:border-blue-500 hover:scale-110 transition group">
+                        <span class="text-5xl mb-4">💎</span>
+                        <span class="font-bold text-slate-800">Gemini Pro</span>
+                    </button>
+                    <button onclick="openAiService('perplexity')" class="flex flex-col items-center p-6 bg-white border-2 border-cyan-100 rounded-3xl shadow-lg hover:border-cyan-500 hover:scale-110 transition group">
+                        <span class="text-5xl mb-4">🌎</span>
+                        <span class="font-bold text-slate-800">Perplexity</span>
+                    </button>
+                </div>
+
+                <div class="bg-blue-50 p-8 rounded-3xl text-left border border-blue-100">
+                    <h4 class="font-bold text-blue-800 mb-4 flex items-center gap-2">🔗 Virtual Context Active:</h4>
+                    <div id="aiBridgeSources" class="text-blue-900/70 font-medium"></div>
+                    <div class="mt-6 pt-6 border-t border-blue-200">
+                        <ol class="list-decimal list-inside space-y-3 text-sm font-semibold text-blue-800">
+                            <li>Paste the copied Prompt Command into the AI.</li>
+                            <li>If prompted, upload/attach your Local Files to the AI chat.</li>
+                            <li>Once the AI provides the JSON output, copy it and go to Tab 5.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 5: Import -->
+        <section id="content-import" class="max-w-5xl mx-auto hidden-section">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Data Entry -->
+                <div class="glass p-8 rounded-3xl border border-white shadow-xl flex flex-col h-[700px]">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold flex items-center gap-3"><span class="bg-blue-100 p-2 rounded-lg">📥</span> AI Output Sink</h3>
+                        <div class="flex gap-2">
+                             <button onclick="clearImport()" class="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition uppercase tracking-widest">Wipe Data</button>
+                             <button onclick="parseAiOutput()" class="pearl-btn pearl-btn-blue px-6 py-2 rounded-xl text-white font-bold text-sm">Process Batch</button>
+                        </div>
+                    </div>
+                    
+                    <textarea id="aiOutputPaste" class="flex-1 w-full p-8 border-2 rounded-3xl font-mono text-sm leading-relaxed bg-slate-50 focus:bg-white outline-none resize-none" placeholder="Paste the JSON code here... (You can paste multiple times to accumulate questions)"></textarea>
+
+                    <!-- Error/Repair Logic (Hidden by default) -->
+                    <div id="errorBox" class="hidden-section slide-in-up mt-4 bg-orange-50 border-2 border-orange-200 p-6 rounded-3xl">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-2xl">⚡</span>
+                            <h4 class="font-black text-orange-900 uppercase tracking-wide">JSON Repair Required</h4>
+                        </div>
+                        <p class="text-xs text-orange-700 font-bold mb-4">The AI output contained errors. Paste this repair command back to fix it:</p>
+                        <textarea id="repairPrompt" class="w-full h-24 p-3 bg-white border border-orange-300 rounded-xl font-mono text-[10px] mb-3" readonly>CRITICAL ERROR: Your last JSON output was malformed (likely contains physical line breaks within string values). FIX THIS: Rewrite the JSON ensuring EVERY new line within a string (text/explanation) is replaced with an HTML <br> tag. Output ONLY the raw JSON block.</textarea>
+                        <button onclick="copyRepair()" class="w-full bg-orange-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-orange-200">Copy Repair Command</button>
+                    </div>
+                </div>
+
+                <!-- Accumulation Dashboard -->
+                <div class="glass p-8 rounded-3xl border border-white shadow-xl flex flex-col h-[700px]">
+                    <div class="flex justify-between items-center mb-8">
+                        <div>
+                             <h3 class="text-xl font-bold">Pool Accumulator</h3>
+                             <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Iterative Generation Dashboard</p>
+                        </div>
+                        <span id="poolStatusBadge" class="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded font-bold">Awaiting Import</span>
+                    </div>
+
+                    <!-- Statistics View -->
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                         <div class="bg-indigo-600 p-6 rounded-3xl text-white shadow-xl shadow-indigo-100 relative overflow-hidden group">
+                             <div class="absolute -right-4 -top-4 text-7xl opacity-10 group-hover:rotate-12 transition">📋</div>
+                             <span class="text-[10px] font-black uppercase tracking-widest opacity-80">Total Gathered</span>
+                             <div id="statTotal" class="text-4xl font-black mt-1">0 / 0</div>
+                         </div>
+                         <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-xl shadow-slate-200">
+                             <span class="text-[10px] font-black uppercase tracking-widest opacity-80">Single Correct</span>
+                             <div id="statSingle" class="text-4xl font-black mt-1">0 / 0</div>
+                         </div>
+                         <div class="bg-slate-100 p-6 rounded-3xl border border-slate-200">
+                             <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Multiple Type</span>
+                             <div id="statMultiple" class="text-4xl font-black text-slate-900 mt-1">0 / 0</div>
+                         </div>
+                         <div class="bg-slate-100 p-6 rounded-3xl border border-slate-200">
+                             <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Matching Matrix</span>
+                             <div id="statMatching" class="text-4xl font-black text-slate-900 mt-1">0 / 0</div>
+                         </div>
+                    </div>
+
+                    <!-- Continuation Box -->
+                    <div id="continuationBox" class="hidden-section flex-grow bg-slate-50 border-2 border-slate-200 p-6 rounded-3xl border-dashed">
+                        <div class="text-center mb-4">
+                            <span class="text-3xl">🧩</span>
+                            <h4 class="font-bold text-slate-800 mt-2">Resume Generation</h4>
+                            <p class="text-xs text-slate-500 font-medium">Quota not reached. Use this command for the next batch:</p>
+                        </div>
+                        <textarea id="continuationPrompt" class="w-full h-24 p-4 border rounded-2xl bg-white text-xs font-mono mb-4 outline-none" readonly></textarea>
+                        <button onclick="copyContinuation()" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-100 hover:scale-105 transition">Copy Resume Command</button>
+                    </div>
+
+                    <!-- Success Box -->
+                    <div id="successBox" class="hidden-section flex-grow flex flex-col items-center justify-center p-6 text-center">
+                        <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mb-6 bounce-in">🏆</div>
+                        <h4 class="text-2xl font-black text-slate-900">Pool Quota Met!</h4>
+                        <p class="text-slate-500 font-medium">All questions required for your chosen sets have been gathered.</p>
+                        
+                        <div class="mt-8 w-full space-y-4">
+                            <div class="bg-white p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                                <span class="text-xs font-black uppercase text-slate-400">Assignment Logic</span>
+                                <select id="importMode" class="text-sm font-bold text-emerald-600 outline-none">
+                                    <option value="shuffle">Mode: Shuffle Masters</option>
+                                    <option value="split">Mode: Unique Split</option>
+                                    <option id="poolOption" value="pool" disabled>Mode: Randomized Draw (Pool)</option>
+                                </select>
+                            </div>
+                            <button id="importToSetsBtn" onclick="importToSets()" class="w-full pearl-btn pearl-btn-emerald py-5 rounded-2xl text-white font-bold text-lg">Build Exam Sets Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 6: Images & Editing -->
+        <section id="content-images" class="max-w-6xl mx-auto hidden-section">
+             <div class="flex justify-between items-center mb-8 glass px-8 py-4 rounded-3xl border border-white">
+                <div>
+                     <h3 class="text-2xl font-black text-slate-900">Visual QA & Set Review</h3>
+                     <p class="text-sm text-slate-500 font-semibold tracking-wide uppercase">Double Check ALL INSTRUCTOR NOTES in <span class="text-red-500">RED</span> and <span class="text-blue-500">BLUE</span></p>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                        <button onclick="changeFontSize('q', -2)" class="w-10 h-10 flex items-center justify-center bg-white rounded-xl font-bold shadow-sm">A-</button>
+                        <button onclick="changeFontSize('q', 2)" class="w-10 h-10 flex items-center justify-center bg-white rounded-xl font-bold shadow-sm ml-1">A+</button>
+                    </div>
+                    <button onclick="toggleBoldQuestions()" class="w-12 h-12 flex items-center justify-center bg-slate-900 text-white rounded-2xl text-xl font-bold shadow-lg">B</button>
+                    <button onclick="showTab('publish')" class="pearl-btn pearl-btn-blue px-10 py-3 rounded-2xl text-white font-bold text-lg">Lock & Continue</button>
+                </div>
+            </div>
+
+            <div id="imageQueue" class="space-y-12"></div>
+        </section>
+
+        <!-- Tab 7: Library -->
+        <section id="content-library" class="max-w-5xl mx-auto hidden-section">
+            <div class="glass p-10 rounded-[3rem] border border-white shadow-xl min-h-[500px]">
+                <h3 class="text-3xl font-extrabold mb-10 flex items-center justify-between">
+                    <span>📚 Local Exam Archive</span>
+                    <button class="text-sm bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold uppercase tracking-wider">Sync with Cloud</button>
+                </h3>
+                <div id="libraryContent" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </div>
+        </section>
+
+        <!-- Tab 8: Publish -->
+        <section id="content-publish" class="max-w-4xl mx-auto hidden-section text-center">
+            <div class="glass p-12 rounded-[3rem] shadow-2xl border border-white">
+                <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-10 shadow-inner">🎉</div>
+                <h3 class="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Ready to Deploy</h3>
+                <p class="text-slate-500 text-xl font-medium mb-12 max-w-2xl mx-auto italic">This will finalize the Question Bank, create the Result Sheet, and provide the Student Exam Link.</p>
+                
+                <div class="bg-slate-50 p-10 rounded-[2.5rem] text-left border border-slate-200 mb-10">
+                    <div class="grid grid-cols-2 gap-8 mb-8">
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Assigned Instructor</span>
+                            <div id="pubInstructor" class="text-lg font-black text-blue-600">---</div>
+                            <div class="absolute -right-2 -bottom-2 text-4xl opacity-5">🧑‍🏫</div>
+                        </div>
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Course Target</span>
+                            <div id="pubCourse" class="text-lg font-black text-emerald-600">---</div>
+                            <div class="absolute -right-2 -bottom-2 text-4xl opacity-5">📖</div>
+                        </div>
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Standard</span>
+                            <div id="pubStandard" class="text-lg font-black text-slate-800">---</div>
+                        </div>
+                        <div class="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Configuration</span>
+                            <div id="pubSets" class="text-lg font-black text-slate-800 inline-block mr-2">---</div>
+                            <div id="pubAttempts" class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full inline-block">0 Attms</div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Archive File Name (.xlsx)</label>
+                            <input type="text" id="archiveFileName" class="w-full p-4 border border-slate-200 rounded-2xl font-bold bg-white outline-none focus:border-blue-500 transition">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                             <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exam Starts</label>
+                                <input type="datetime-local" id="linkStartTime" class="w-full p-3 border rounded-xl text-sm font-bold bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exam Expiry</label>
+                                <input type="datetime-local" id="linkEndTime" class="w-full p-3 border rounded-xl text-sm font-bold bg-white">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 pt-4 border-t">
+                             <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Correct Mark</label>
+                                <input type="number" id="markCorrect" value="4" class="w-full p-3 border rounded-xl font-bold bg-emerald-50 text-emerald-700">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Penalty / Reduction</label>
+                                <input type="number" id="markNegative" value="1" class="w-full p-3 border rounded-xl font-bold bg-red-50 text-red-700">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    <button onclick="publishExam()" class="pearl-btn pearl-btn-blue w-full py-6 rounded-3xl text-white font-extrabold text-2xl shadow-2xl flex items-center justify-center gap-4 group">
+                        <span>🚀</span> PUBLISH TO CLOUD DRIVE
+                        <span class="hidden group-hover:inline animate-pulse">→</span>
+                    </button>
+                    
+                    <div id="publishResult" class="hidden-section slide-in-up mt-8">
+                        <div class="bg-emerald-50 border-2 border-emerald-100 p-8 rounded-[2rem]">
+                            <h4 class="text-emerald-800 font-black mb-4 uppercase tracking-widest text-sm">✓ Exam Live - Share Link with Students:</h4>
+                            <div class="flex gap-2">
+                                <div id="studentUrl" class="flex-1 bg-white p-4 border rounded-2xl font-mono text-xs text-blue-800 overflow-x-auto whitespace-nowrap scrollbox-hide shadow-inner">Generating Link...</div>
+                                <button onclick="copyStudentUrl()" class="bg-emerald-600 text-white px-6 rounded-2xl font-bold hover:bg-emerald-700 shadow-lg transition">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Question Editing -->
+    <div id="editModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md hidden fade-in">
+        <div class="glass w-full max-w-4xl h-[90vh] flex flex-col p-0 rounded-[2.5rem] shadow-2xl border-2 border-white overflow-hidden modal-animate">
+            <div class="p-8 bg-slate-50 border-b flex justify-between items-center">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-900">Advanced Item Editor</h3>
+                    <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">Live Content & Logic Modification</p>
+                </div>
+                <button onclick="closeEditModal()" class="w-12 h-12 flex items-center justify-center bg-white border-2 rounded-2xl text-2xl hover:bg-red-50 hover:text-red-500 transition">×</button>
+            </div>
+            
+            <div class="overflow-y-auto p-10 flex-grow space-y-8 scrollbox-hide">
+                <div>
+                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Question Text Content (HTML Supported)</label>
+                    <div id="editQText" contenteditable="true" class="w-full p-6 border-2 border-slate-200 rounded-3xl min-h-[150px] bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition text-lg leading-relaxed shadow-inner"></div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Option A</label>
+                        <input type="text" id="editOpt0" class="w-full p-4 border-2 rounded-2xl font-medium outline-none focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Option B</label>
+                        <input type="text" id="editOpt1" class="w-full p-4 border-2 rounded-2xl font-medium outline-none focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Option C</label>
+                        <input type="text" id="editOpt2" class="w-full p-4 border-2 rounded-2xl font-medium outline-none focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Option D</label>
+                        <input type="text" id="editOpt3" class="w-full p-4 border-2 rounded-2xl font-medium outline-none focus:border-blue-400">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-8 items-end">
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Solution / Explanation</label>
+                        <div id="editQExplanation" contenteditable="true" class="w-full p-5 border-2 border-slate-200 rounded-[2rem] min-h-[120px] bg-white text-sm"></div>
+                    </div>
+                    <div class="bg-emerald-50 p-6 rounded-[2rem] border-2 border-emerald-100 flex flex-col gap-3">
+                         <label class="block text-xs font-black text-emerald-800 uppercase tracking-widest">Logic: Master Answer</label>
+                         <select id="editCorrect" class="w-full p-4 rounded-xl border-2 border-emerald-200 font-bold text-emerald-900 bg-white">
+                            <option value="0">Option A is CORRECT</option>
+                            <option value="1">Option B is CORRECT</option>
+                            <option value="2">Option C is CORRECT</option>
+                            <option value="3">Option D is CORRECT</option>
+                        </select>
+                         <button onclick="saveEditedQuestion()" class="w-full pearl-btn pearl-btn-emerald py-4 rounded-xl text-white font-black text-lg shadow-lg">Commit Change</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student View (Standalone Section) -->
+    <div id="studentView" class="hidden-section bg-slate-950 min-h-screen text-slate-100 p-4 md:p-8">
+        <header class="max-w-7xl mx-auto flex justify-between items-center mb-10 pb-6 border-b border-slate-800">
+             <div class="flex items-center gap-4">
+                 <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">🧬</div>
+                 <div>
+                     <h1 id="studentExamHeader" class="text-2xl font-black tracking-tight">Chemistry Department Exam</h1>
+                     <div class="flex gap-3 text-[10px] font-black uppercase text-slate-500 tracking-widest mt-0.5">
+                         <span id="studentNameDisplay" class="text-blue-400">---</span>
+                         <span class="opacity-30">|</span>
+                         <span id="studentIdDisplay">ID: ---</span>
+                     </div>
+                 </div>
+             </div>
+             <div class="flex items-center gap-6">
+                 <div class="text-right hidden md:block">
+                     <span class="text-[10px] uppercase font-black text-slate-500 block">Time Remaining</span>
+                     <div id="examTimerDisplay" class="text-3xl font-black text-white tabular-nums">00:00:00</div>
+                 </div>
+                 <button onclick="showSubmitConfirmation()" class="btn-shimmer px-10 py-4 rounded-2xl font-black text-lg shadow-xl">SUBMIT EXAM</button>
+             </div>
+        </header>
+
+        <div id="examStateMessage" class="hidden-section text-center py-20"></div>
+
+        <div id="examInterface" class="hidden-section max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-10">
+            <!-- Left: Question Content -->
+            <div class="lg:col-span-3 flex flex-col gap-8">
+                 <div class="bg-white text-slate-900 rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/10 min-h-[500px] relative border-4 border-white">
+                     <div class="flex justify-between items-center mb-8">
+                         <div class="flex gap-2">
+                             <div class="bg-blue-600 text-white px-5 py-1.5 rounded-full font-black text-sm uppercase tracking-tighter">Question <span id="currentQNum">00</span></div>
+                             <div id="currentSetDisplay" class="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full font-black text-[10px] uppercase border border-slate-200">Set X</div>
+                         </div>
+                         <div class="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase">
+                             <span>Marking: <span class="text-emerald-500">+4</span> / <span class="text-red-500">-1</span></span>
+                         </div>
+                     </div>
+                     <div id="questionContainer" class="slide-in-right"></div>
+                 </div>
+
+                 <div class="flex justify-between items-center bg-slate-900 p-4 rounded-[2rem] border border-slate-800 shadow-xl">
+                      <div class="flex gap-3">
+                          <button onclick="prevQuestion()" class="px-8 py-4 bg-slate-800 text-slate-300 rounded-2xl font-bold hover:bg-slate-700 transition">BACK</button>
+                      </div>
+                      <button onclick="clearResponse()" class="text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:text-white transition">Clear My Choice</button>
+                      <button onclick="saveAndNext()" class="px-12 py-4 bg-white text-slate-900 rounded-2xl font-black text-lg hover:scale-105 transition shadow-lg shadow-white/5">SAVE & NEXT →</button>
+                 </div>
+            </div>
+
+            <!-- Right: Navigation Palette -->
+            <div class="lg:col-span-1 space-y-6">
+                 <div class="bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-8 rounded-[2rem] shadow-2xl">
+                     <h4 class="text-[11px] font-black text-blue-500 uppercase tracking-widest mb-6">Exam Progress</h4>
+                     <div id="questionPalette" class="question-palette mb-8"></div>
+                     
+                     <div class="space-y-4 pt-6 border-t border-slate-800">
+                         <div class="flex items-center justify-between">
+                             <span class="text-xs text-slate-400 font-bold">Answered:</span>
+                             <span id="statAnswered" class="text-xs font-black text-emerald-400">0</span>
+                         </div>
+                         <div class="flex items-center justify-between">
+                             <span class="text-xs text-slate-400 font-bold">Total Items:</span>
+                             <span id="totalQNum" class="text-xs font-black">---</span>
+                         </div>
+                         <div class="quiz-progress-track mt-4 progress-glow">
+                             <div id="quizProgressBar" class="quiz-progress-fill" style="width: 0%"></div>
+                         </div>
+                     </div>
+                 </div>
+
+                 <div class="bg-indigo-950 p-8 rounded-[2rem] border border-indigo-900/50 shadow-inner">
+                      <h4 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Milestone Tracker</h4>
+                      <div id="giftTracker" class="gift-tracker"></div>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Result Summary -->
+    <div id="resultView" class="hidden-section bg-slate-50 min-h-screen flex items-center justify-center p-8">
+        <div class="glass w-full max-w-2xl p-16 rounded-[4rem] shadow-2xl text-center border-t-8 border-blue-600 modal-animate">
+            <div class="w-32 h-32 bg-emerald-100 text-emerald-600 rounded-[2.5rem] flex items-center justify-center text-6xl mx-auto mb-10 celebrate-anim">🎯</div>
+            <h1 class="text-4xl font-extrabold text-slate-950 mb-4">Submission Captured!</h1>
+            <p class="text-slate-500 mb-12 font-medium text-lg leading-relaxed">Well done. Your responses have been securely archived to the Departmental Results Sheet.</p>
+            
+            <div class="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl mb-12">
+                 <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Preliminary Score Insight</div>
+                 <div id="finalBestScore" class="score-display">0</div>
+                 <div class="text-sm font-bold text-slate-400 mt-2 uppercase tracking-wide">Final marks pending review</div>
+            </div>
+
+            <button onclick="location.reload()" class="pearl-btn pearl-btn-blue px-12 py-5 rounded-2xl text-white font-bold text-lg shadow-xl shadow-blue-100">Portal Main Terminal</button>
+        </div>
+    </div>
+
+    <!-- Standard Submission Confirmation Modal -->
+    <div id="submitModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/90 backdrop-blur-xl hidden fade-in">
+        <div class="glass w-full max-w-md p-10 rounded-[2.5rem] text-center border border-white">
+            <div class="text-5xl mb-6">📤</div>
+            <h3 class="text-2xl font-black text-slate-900 mb-4">Ready to Lock?</h3>
+            <p class="text-slate-500 mb-10 font-medium">Once submitted, you cannot change your responses or re-enter the exam.</p>
+            <div class="flex gap-4">
+                <button onclick="closeSubmitModal()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-bold hover:bg-slate-200 transition">Go Back</button>
+                <button onclick="finalSubmit()" class="flex-1 py-4 pearl-btn pearl-btn-blue rounded-2xl text-white font-bold shadow-lg">Submit Final</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="attribution-footer">
+        <div class="flex items-center justify-center gap-2">
+            <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+            Professional Multi-Modal Research Engine v4.5 | Department of Chemistry | Malda College
+        </div>
+    </footer>
+
+    <!-- Load scripts in order -->
+    <script src="app.js"></script>
+</body>
+</html>
