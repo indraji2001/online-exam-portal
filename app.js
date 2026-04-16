@@ -2225,15 +2225,17 @@ let currentSearchLevel = 'UG';
 
 function setSearchLevel(lvl) {
     currentSearchLevel = lvl;
-    const ugBtn = document.getElementById('level-ug');
-    const pgBtn = document.getElementById('level-pg');
     
-    if (lvl === 'UG') {
-        ugBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 bg-white text-indigo-600 shadow-sm border border-slate-200/50';
-        pgBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 text-slate-500 hover:text-indigo-600';
-    } else {
-        pgBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 bg-white text-indigo-600 shadow-sm border border-slate-200/50';
-        ugBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 text-slate-500 hover:text-indigo-600';
+    // Reset all buttons to default inactive state
+    const buttons = document.querySelectorAll('.search-level-btn');
+    buttons.forEach(btn => {
+        btn.className = 'search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-white text-slate-500 hover:text-indigo-600 border border-slate-100';
+    });
+    
+    // Highlight the active button
+    const activeBtn = document.getElementById('btn-' + lvl);
+    if (activeBtn) {
+        activeBtn.className = 'search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-indigo-600 text-white shadow-lg shadow-indigo-100';
     }
 }
 
@@ -2245,19 +2247,64 @@ function runAcademicSearch() {
     }
 
     const resultsContainer = document.getElementById('adminSearchPortals');
+    
+    let levelDisplay = currentSearchLevel;
+    if (levelDisplay === 'JEE_MAINS') levelDisplay = 'JEE Mains';
+    else if (levelDisplay === 'JEE_ADV') levelDisplay = 'JEE Advanced';
+    else if (levelDisplay === 'UG') levelDisplay = 'Undergraduate';
+    else if (levelDisplay === 'PG') levelDisplay = 'Postgraduate';
+
     resultsContainer.innerHTML = `
         <div class="col-span-full py-12 text-center">
             <div class="animate-spin text-4xl mb-4">🔮</div>
             <h4 class="text-indigo-600 font-bold">Mapping Internet Resources...</h4>
-            <p class="text-slate-400 text-[10px] uppercase tracking-widest font-black mt-2">Level: ${currentSearchLevel === 'UG' ? 'Undergraduate' : 'Postgraduate'}</p>
+            <p class="text-slate-400 text-[10px] uppercase tracking-widest font-black mt-2">Level: ${levelDisplay}</p>
         </div>
     `;
     resultsContainer.className = 'mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-100 translate-y-0 transition-all duration-500';
 
-    // Academic Query Expansion Logic
-    const academicSuffix = currentSearchLevel === 'UG' 
-        ? ' "university lecture notes" "study materials" "solved problems"' 
-        : ' "postgraduate lecture series" "research papers" "advanced derivation" site:edu';
+    // Competitive Exam Context Expansion Logic
+    let academicSuffix = '';
+    let videoSuffix = '';
+    let scholarSuffix = '';
+
+    switch (currentSearchLevel) {
+        case 'UG':
+            academicSuffix = ' "university lecture notes" "study materials" "solved problems"';
+            videoSuffix = ' "university level"';
+            scholarSuffix = ' "introductory review"';
+            break;
+        case 'PG':
+            academicSuffix = ' "postgraduate lecture series" "research papers" "advanced derivation" site:edu';
+            videoSuffix = ' "advanced seminar"';
+            scholarSuffix = ' "recent advancements"';
+            break;
+        case 'JEE_MAINS':
+            academicSuffix = ' "JEE Mains preparation" "previous year questions" "short tricks"';
+            videoSuffix = ' "JEE Mains crash course"';
+            scholarSuffix = ' "concept mapping"'; 
+            break;
+        case 'JEE_ADV':
+            academicSuffix = ' "JEE Advanced multiple correct" "IIT level problems" "conceptual depth"';
+            videoSuffix = ' "JEE Advanced difficult problems"';
+            scholarSuffix = ' "advanced concepts"';
+            break;
+        case 'GATE':
+            academicSuffix = ' "GATE NAT questions" "standard author references" "GATE previous year"';
+            videoSuffix = ' "GATE conceptual lectures"';
+            scholarSuffix = ' "engineering core concepts"';
+            break;
+        case 'NET':
+            academicSuffix = ' "CSIR NET previous papers" "research methodology" "JRF notes"';
+            videoSuffix = ' "CSIR NET full lectures"';
+            scholarSuffix = ' "advanced syllabus review"';
+            break;
+        case 'JAM':
+            academicSuffix = ' "IIT JAM study material" "Integrated MSc notes"';
+            videoSuffix = ' "IIT JAM preparation"';
+            scholarSuffix = ' "fundamental derivations"';
+            break;
+    }
 
     const portals = [
         {
@@ -2265,35 +2312,35 @@ function runAcademicSearch() {
             icon: '🏫',
             engine: 'google',
             query: topic + academicSuffix,
-            desc: `Curated university materials and pedagogical structures for ${topic}.`
+            desc: `Curated university/exam materials and pedagogical structures for ${topic}.`
         },
         {
             label: 'Video Repositories',
             icon: '📺',
             engine: 'youtube',
-            query: topic + (currentSearchLevel === 'UG' ? ' "university level"' : ' "advanced seminar"'),
-            desc: `Expert-led video series and visualized problem sets.`
+            query: topic + videoSuffix,
+            desc: `Expert-led video series and visualized problem sets tailored for ${levelDisplay}.`
         },
         {
             label: 'Research Context',
             icon: '🔬',
             engine: 'scholar',
-            query: topic + (currentSearchLevel === 'UG' ? ' "introductory review"' : ' "recent advancements"'),
-            desc: `Direct mapping to Google Scholar for high-end academic rigor.`
+            query: topic + scholarSuffix,
+            desc: `Direct mapping to Google Scholar for high-end academic rigor and concept reviews.`
         },
         {
-            label: 'Open Courseware',
+            label: 'Premium Courseware',
             icon: '🏛️',
             engine: 'google',
-            query: `site:(mit.edu OR harvard.edu OR stanford.edu) "${topic}"`,
-            desc: `Tier-1 global repository search for Ivy League standards.`
+            query: `site:(mit.edu OR nptel.ac.in OR harvard.edu) "${topic}"`,
+            desc: `Tier-1 global repository search including NPTEL and Ivy League standards.`
         },
         {
             label: 'PDF Deep-Scan',
             icon: '📄',
             engine: 'google',
             query: topic + academicSuffix + ' filetype:pdf',
-            desc: `Locating strictly downloadable academic documents and archives.`
+            desc: `Locating strictly downloadable academic documents, archives, and PYQs.`
         },
         {
             label: 'Scientific Archives',
