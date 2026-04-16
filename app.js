@@ -124,7 +124,7 @@ function checkEnvironment() {
     if (token && expiry && Date.now() < parseInt(expiry) && user) {
         currentUser = JSON.parse(user);
         
-        // Unified Drive Naming Logic (v4.8)
+        // Unified Drive Naming Logic (v4.9)
         if (currentUser.email === 'chemistrydept@maldacollege.ac.in') {
             DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
         } else {
@@ -133,7 +133,7 @@ function checkEnvironment() {
         
         gapi.client.setToken({ access_token: token });
         
-        // v4.8 SECURITY FIX: Hide portal until identity is confirmed
+        // v4.9 SECURITY FIX: Hide portal until identity is confirmed
         document.getElementById('mainPortal').classList.add('hidden');
         handleAuthSuccess();
     } else {
@@ -209,7 +209,7 @@ function requestDriveAccess() {
                     .then(profile => {
                         currentUser = { name: profile.name, email: profile.email, image: profile.picture };
                         
-                        // Unified Drive Naming Logic (v4.8)
+                        // Unified Drive Naming Logic (v4.9)
                         if (profile.email === 'chemistrydept@maldacollege.ac.in') {
                             DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
                         } else {
@@ -218,7 +218,7 @@ function requestDriveAccess() {
                         
                         localStorage.setItem('google_user', JSON.stringify(currentUser));
                         
-                        // v4.8 SECURITY FIX: 
+                        // v4.9 SECURITY FIX: 
                         // Hide portal until identity is confirmed
                         document.getElementById('mainPortal').classList.add('hidden');
                         handleAuthSuccess();
@@ -250,7 +250,7 @@ function handleAuthSuccess() {
         document.getElementById('userAvatar').classList.remove('hidden');
     }
 
-    // Role Detection Logic - v4.8 Departmental
+    // Role Detection Logic - v4.9 Departmental
     document.getElementById('welcomeUserEmail').textContent = currentUser.email;
     document.getElementById('identityModal').classList.remove('hidden-section');
     
@@ -937,7 +937,7 @@ async function setupMainFolder(skipMaster = false) {
 async function getOrCreateInstructorFolder(instructorName) {
     if (!instructorsFolderId) throw new Error('Instructors folder not initialized');
 
-    // v4.8: Strict Name-Based Subfolder Isolation
+    // v4.9: Strict Name-Based Subfolder Isolation
     const targetName = (userRole === 'faculty' || (userRole === 'admin' && storageScope === 'departmental')) 
                        ? currentUser.facultyName 
                        : instructorName;
@@ -2049,7 +2049,7 @@ document.addEventListener('copy', e => { if (!document.getElementById('examInter
 window.addEventListener('blur', () => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) alert('Security Alert!'); });
 
 // ==========================================
-// ADMIN SETTINGS & REGISTRY (v4.8)
+// ADMIN SETTINGS & REGISTRY (v4.9)
 // ==========================================
 
 function renderAdminSettings() {
