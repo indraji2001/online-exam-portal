@@ -1479,3 +1479,46 @@ function renderLibraryUI() {
 document.addEventListener('contextmenu', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
 document.addEventListener('copy', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
 window.addEventListener('blur', () => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) alert('Security Alert!'); });
+
+// AI Mode & Manual Flow
+function toggleAiMode() {
+    const engine = document.getElementById('aiEngine').value;
+    const panel = document.getElementById('manualAiPanel');
+    
+    if (engine === 'manual') {
+        panel.classList.remove('hidden-section');
+    } else {
+        panel.classList.add('hidden-section');
+    }
+}
+
+async function processManualResponse() {
+    const rawData = document.getElementById('manualAiResponse').value;
+    if (!rawData.trim()) {
+        alert("Please paste the AI's JSON output first.");
+        return;
+    }
+
+    try {
+        // Clean markdown tags if user copied the whole code block
+        const cleanJson = rawData.replace(/```json|```/gi, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        
+        // Pass to the existing library/state handlers
+        if (Array.isArray(parsed)) {
+            // Store locally
+            localStorage.setItem('temp_manual_batch', JSON.stringify(parsed));
+            alert(`Succesfully parsed ${parsed.length} questions! Head to the "Import" tab to build your exam sets.`);
+            
+            // Populate the import textarea automatically
+            document.getElementById('aiOutputPaste').value = cleanJson;
+            showTab('import');
+        } else {
+            throw new Error("Pasted data is not a valid question array.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("JSON Error: The pasted data is not valid JSON. Please ensure you copied the entire code block from your AI.");
+    }
+}
+
