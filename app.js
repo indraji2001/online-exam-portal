@@ -269,7 +269,7 @@ async function confirmAdminEntry(scope) {
     await prepareDriveAndConfig();
     document.getElementById('identityModal').classList.add('hidden-section');
     document.getElementById('mainPortal').classList.remove('hidden');
-    document.getElementById('nav-settings').classList.remove('hidden');
+    document.getElementById('tab-settings').classList.remove('hidden');
     setupMainFolder(true);
 }
 
