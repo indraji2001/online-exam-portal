@@ -269,7 +269,7 @@ function verifyAdmin() {
         document.getElementById('mainPortal').classList.remove('hidden');
         
         // Show Admin Settings tab
-        document.getElementById('nav-settings').classList.remove('hidden');
+        document.getElementById('tab-settings').classList.remove('hidden');
         renderAdminSettings();
         
         // Finalize Folder structure & ENSURE config file exists
@@ -445,8 +445,8 @@ function showDriveFolder() {
 // ==========================================
 
 function showTab(tabName) {
-    const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish'];
-    const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'publish': '8. Publish' };
+    const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish', 'settings'];
+    const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'publish': '8. Publish', 'settings': '⚙️ Settings' };
     tabs.forEach(t => {
         document.getElementById(`content-${t}`).classList.add('hidden-section');
         const btn = document.getElementById(`tab-${t}`);
