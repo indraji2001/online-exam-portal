@@ -364,12 +364,11 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-slate-700 mb-2">Intensity / Difficulty</label>
-                                <div class="flex bg-slate-100 p-1 space-x-1 rounded-xl w-full h-[58px] border-2 border-slate-100">
-                                    <button type="button" onclick="setDifficulty('EASY')" id="diffBtn_EASY" class="flex-1 flex items-center justify-center text-sm font-bold rounded-lg text-slate-500 hover:bg-white hover:text-emerald-600 transition-all duration-300">Easy</button>
-                                    <button type="button" onclick="setDifficulty('MODERATE')" id="diffBtn_MODERATE" class="flex-1 flex items-center justify-center text-sm font-bold rounded-lg bg-indigo-600 text-white shadow-md transition-all duration-300">Moderate</button>
-                                    <button type="button" onclick="setDifficulty('HARD')" id="diffBtn_HARD" class="flex-1 flex items-center justify-center text-sm font-bold rounded-lg text-slate-500 hover:bg-white hover:text-rose-600 transition-all duration-300">Hard</button>
-                                </div>
-                                <input type="hidden" id="genDifficulty" value="MODERATE">
+                                <select id="genDifficulty" class="w-full p-4 border-2 rounded-xl font-black text-indigo-600 bg-indigo-50/30 focus:ring-4 focus:ring-indigo-100 outline-none">
+                                    <option value="EASY">☘️ Easy / Foundational</option>
+                                    <option value="MODERATE" selected>⚖️ Moderate / Standard</option>
+                                    <option value="HARD">🔥 Hard / Advanced</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-slate-700 mb-2">Duration (Min)</label>
@@ -1064,6 +1063,7 @@
 
     <!-- Load scripts in order -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="exam-intelligence.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
