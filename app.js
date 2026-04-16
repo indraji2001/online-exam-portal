@@ -238,18 +238,88 @@ async function confirmAdminEntry(scope) {
 
 async function confirmFacultyEntry() {
     const name = document.getElementById('facultyNameClaim').value.trim();
-    if (!name) { alert("Please enter your name to identify your folder."); return; }
+    const pin = document.getElementById('facultyPinClaim').value.trim();
+    
+    if (!name) { alert("Please enter your name."); return; }
+    if (!pin) { alert("Please enter your Faculty PIN."); return; }
+    
+    if (!systemConfig) {
+        // Try to load config if it failed during auth success
+        await initSystemConfig();
+    }
+    
+    if (!systemConfig) {
+        alert("System Configuration could not be loaded. Please ensure the admin has initialized the portal.");
+        return;
+    }
+
+    // Verify against registry
+    const faculty = systemConfig.faculty.find(f => 
+        f.name.toLowerCase() === name.toLowerCase() && f.pin === pin
+    );
+
+    if (!faculty) {
+        alert("Invalid Name or PIN. Please contact the administrator (Indrajit/Anindya) for authorization.");
+        return;
+    }
     
     userRole = 'faculty';
     storageScope = 'departmental';
-    currentUser.facultyName = name;
-    document.getElementById('genInstructor').value = name;
+    currentUser.facultyName = faculty.name;
+    document.getElementById('genInstructor').value = faculty.name;
     DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
 
+    // Show Loading State in Modal
+    document.getElementById('facultyNameStep').innerHTML = `
+        <div class="text-center py-10">
+            <div class="animate-spin text-4xl mb-4">⚙️</div>
+            <h3 class="text-xl font-bold">Initializing Private Vault...</h3>
+            <p class="text-slate-500 text-xs">Securing your departmental isolation zone</p>
+        </div>
+    `;
+
+    // 1. Initial Drive Prep (Master Folder)
     await prepareDriveAndConfig();
+    
+    // 2. Identify the Master 'Instructors' Folder
+    await setupInstructorsFolderOnly();
+
+    // 3. SECURE ISOLATION: Re-scope the root to the Instructor's specific vault
+    const facultyFolderId = await getOrCreateInstructorFolder(faculty.name);
+    
+    // THE MASTER LOCK: Redirect all future drive operations to this subfolder
+    driveFolderId = facultyFolderId; 
+    console.log("FACULTY LOCKED: Root re-scoped to Private Vault ID:", driveFolderId);
+
+    // Finalize UI
     document.getElementById('identityModal').classList.add('hidden-section');
     document.getElementById('mainPortal').classList.remove('hidden');
-    setupMainFolder(true);
+    
+    // Visual Confirmation Badge
+    const badge = document.createElement('div');
+    badge.className = "flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 shadow-sm ml-4";
+    badge.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">📂 Vault: ${faculty.name}</span>`;
+    document.getElementById('accountBar').insertBefore(badge, document.getElementById('accountBar').firstChild);
+    
+    // Refresh library from the new isolated root
+    loadLibrary();
+}
+
+async function setupInstructorsFolderOnly() {
+    const response = await gapi.client.drive.files.list({
+        q: `'${driveFolderId}' in parents and name='${DRIVE_CONFIG.instructorsFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        spaces: 'drive'
+    });
+    
+    if (response.result.files.length === 0) {
+        const folder = await gapi.client.drive.files.create({
+            resource: { name: DRIVE_CONFIG.instructorsFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] },
+            fields: 'id'
+        });
+        instructorsFolderId = folder.result.id;
+    } else {
+        instructorsFolderId = response.result.files[0].id;
+    }
 }
 
 // ==========================================
