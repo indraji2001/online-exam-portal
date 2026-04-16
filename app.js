@@ -1097,6 +1097,7 @@ function saveDraft() {
         course: document.getElementById('genCourse').value,
         topic: document.getElementById('genTopic').value,
         standard: document.getElementById('genStandard').value,
+        difficulty: document.getElementById('genDifficulty').value,
         duration: document.getElementById('genDuration').value,
         sets: document.getElementById('genSets').value,
         attempts: document.getElementById('genAttempts').value,
@@ -1117,7 +1118,8 @@ function loadDraft() {
         document.getElementById('genInstructor').value = draft.instructor || '';
         document.getElementById('genCourse').value = draft.course || '';
         document.getElementById('genTopic').value = draft.topic || '';
-        document.getElementById('genStandard').value = draft.standard || 'JEE Main';
+        document.getElementById('genStandard').value = draft.standard || 'UG';
+        if (document.getElementById('genDifficulty')) document.getElementById('genDifficulty').value = draft.difficulty || 'MODERATE';
         document.getElementById('genDuration').value = draft.duration || '180';
         document.getElementById('genSets').value = draft.sets || '4';
         document.getElementById('genAttempts').value = draft.attempts || '2';
@@ -1258,11 +1260,49 @@ function generatePrompt() {
     };
 
     const examProfile = examProfiles[standard] || examProfiles['UG'];
+
+    // --- DIFFICULTY INTENSITY ENGINE ---
+    const difficulty = document.getElementById('genDifficulty') ? document.getElementById('genDifficulty').value : 'MODERATE';
+    const difficultyProfiles = {
+        'EASY': {
+            label: '☘️ Easy / Foundational',
+            directive: `DIFFICULTY INTENSITY: EASY (Foundational)
+- Focus exclusively on core definitions, direct formula application, and standard textbook recall.
+- Questions should be solvable in under 2 minutes each. No conceptual traps.
+- Options should be clearly distinct — no close distractors.
+- Language: Simple, direct, and unambiguous.
+- Avoid: Multi-step chain problems, tricky edge cases, negative marking pressure.
+- Roughly 70% of questions should be rated "easy" in difficulty field.`
+        },
+        'MODERATE': {
+            label: '⚖️ Moderate / Standard',
+            directive: `DIFFICULTY INTENSITY: MODERATE (Standard Exam Level)
+- A balanced mix: 40% straightforward, 40% application-based, 20% analytical.
+- Questions require one or two reasoning steps. Occasional subtle distractors in options are fine.
+- Language: Clear but requires careful reading.
+- Include: Some numerical problems requiring formula manipulation, mechanism prediction, or data interpretation.
+- Distribute difficulty field evenly: "easy", "medium", "hard" across the set.`
+        },
+        'HARD': {
+            label: '🔥 Hard / Advanced',
+            directive: `DIFFICULTY INTENSITY: HARD (Advanced / Competitive)
+- Questions must challenge even well-prepared students. Multi-step reasoning is mandatory.
+- Include: Conceptual traps, close distractors, tricky edge cases, and non-trivial problem chains.
+- Language: Precise and demanding. Every word in the question matters.
+- At least 50% of questions should require 2+ reasoning steps or non-obvious conceptual connections.
+- Options: At least 2 options must appear plausible. Close numerical values or similar mechanisms as distractors.
+- Majority of questions should be rated "hard" in difficulty field.`
+        }
+    };
+    const difficultyProfile = difficultyProfiles[difficulty] || difficultyProfiles['MODERATE'];
+
     const examIntelligenceDirective = `
 EXAM INTELLIGENCE PROFILE — ${examProfile.label}:
 ${examProfile.directive}
 
-You MUST follow the exam profile above ABSOLUTELY. The difficulty, marking scheme, question types, and language complexity are MANDATORY requirements for this paper.`;
+${difficultyProfile.directive}
+
+You MUST follow BOTH the exam profile AND the difficulty intensity above ABSOLUTELY. They are MANDATORY requirements for this paper.`;
 
     // 4. Aggressive Local File Directive
     const localFiles = sources.filter(s => s.type === 'local' || s.type === 'drive');
