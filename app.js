@@ -14,6 +14,10 @@ let parsedQuestions = [], figureMappings = [], libraryData = [];
 let googleAuthToken = null, currentUser = null, driveFolderId = null, userRole = null, systemConfig = null;
 let instructorsFolderId = null, commonResourcesFolderId = null;
 let currentInstructorFolderId = null;
+let storageScope = 'personal'; // 'personal' or 'departmental'
+
+const AUTHORIZED_ADMINS = ['indraji2001@gmail.com', 'anindyaums@gmail.com'];
+const DEPARTMENTAL_ACCOUNT = 'chemistrydept@maldacollege.ac.in';
 
 const DRIVE_CONFIG = {
     mainFolder: null,
@@ -186,10 +190,66 @@ function handleAuthSuccess() {
         document.getElementById('userAvatar').classList.remove('hidden');
     }
 
-    // Role Detection Logic - v4.7
-    // Critical Fix: Start Drive/Config prep, then show pop-up.
-    // Dashboard stays HIDDEN until verifyAdmin() or verifyFaculty() is called.
-    prepareDriveAndConfig();
+    // Role Detection Logic - v4.8 Departmental
+    document.getElementById('welcomeUserEmail').textContent = currentUser.email;
+    document.getElementById('identityModal').classList.remove('hidden-section');
+    
+    // Auto-detect available roles for this email
+    const isAdmin = AUTHORIZED_ADMINS.includes(currentUser.email.toLowerCase());
+    const isDept = currentUser.email.toLowerCase() === DEPARTMENTAL_ACCOUNT;
+
+    if (isAdmin) document.getElementById('btnRoleAdmin').classList.remove('hidden');
+    if (isDept) document.getElementById('btnRoleFaculty').classList.remove('hidden');
+
+    // If neither, show warning
+    if (!isAdmin && !isDept) {
+        document.getElementById('wrongAccountWarning').classList.remove('hidden');
+    }
+}
+
+function selectRole(role) {
+    if (role === 'admin') {
+        document.getElementById('roleSelectionStep').classList.add('hidden-section');
+        document.getElementById('adminDriveStep').classList.remove('hidden-section');
+    } else {
+        document.getElementById('roleSelectionStep').classList.add('hidden-section');
+        document.getElementById('facultyNameStep').classList.remove('hidden-section');
+    }
+}
+
+async function confirmAdminEntry(scope) {
+    userRole = 'admin';
+    storageScope = scope;
+    
+    if (scope === 'departmental') {
+        DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
+        // In departmental mode, the Admin is identified by their name in the registry
+        currentUser.facultyName = currentUser.name; 
+    } else {
+        DRIVE_CONFIG.mainFolder = `Online Exam Portal (${currentUser.name})`;
+    }
+
+    await prepareDriveAndConfig();
+    document.getElementById('identityModal').classList.add('hidden-section');
+    document.getElementById('mainPortal').classList.remove('hidden');
+    document.getElementById('nav-settings').classList.remove('hidden');
+    setupMainFolder(true);
+}
+
+async function confirmFacultyEntry() {
+    const name = document.getElementById('facultyNameClaim').value.trim();
+    if (!name) { alert("Please enter your name to identify your folder."); return; }
+    
+    userRole = 'faculty';
+    storageScope = 'departmental';
+    currentUser.facultyName = name;
+    document.getElementById('genInstructor').value = name;
+    DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
+
+    await prepareDriveAndConfig();
+    document.getElementById('identityModal').classList.add('hidden-section');
+    document.getElementById('mainPortal').classList.remove('hidden');
+    setupMainFolder(true);
 }
 
 // ==========================================
@@ -255,15 +315,10 @@ async function prepareDriveAndConfig() {
             driveFolderId = response.result.files[0].id;
         }
 
-        // 2. Load or Create Security Config
-        await initSystemConfig();
-        
-        // 3. ONLY Now show the Identity Modal
-        document.getElementById('identityModal').classList.remove('hidden-section');
-        console.log("Drive & Security Initialized.");
+        console.log("Drive Initialized at:", DRIVE_CONFIG.mainFolder);
     } catch (err) {
         console.error("Initialization Error:", err);
-        alert("Criticial: Could not connect to Google Drive. Check your connection.");
+        alert("Critical: Could not connect to Google Drive. Check your connection.");
     }
 }
 
@@ -398,12 +453,10 @@ async function setupMainFolder(skipMaster = false) {
 async function getOrCreateInstructorFolder(instructorName) {
     if (!instructorsFolderId) throw new Error('Instructors folder not initialized');
 
-    // Privacy Lockdown (v4.6): If faculty, override the name with their verified identity
-    let targetName = instructorName;
-    if (userRole === 'faculty' && currentUser.facultyName) {
-        // Security Fix: Use Email for folder isolation to prevent identity spoofing
-        targetName = `Portal Data (${currentUser.email.replace(/[@.]/g, '_')})`;
-    }
+    // v4.8: Strict Name-Based Subfolder Isolation
+    const targetName = (userRole === 'faculty' || (userRole === 'admin' && storageScope === 'departmental')) 
+                       ? currentUser.facultyName 
+                       : instructorName;
 
     const sanitizedName = targetName.replace(/[\\/:*?"<>|]/g, '_').trim();
 
@@ -414,8 +467,6 @@ async function getOrCreateInstructorFolder(instructorName) {
 
         let instructorFolderId;
         if (response.result.files.length === 0) {
-            // Only Admin can create new folders if we want strict control,
-            // but for now let's allow faculty to create their first folder if name matches.
             const folder = await gapi.client.drive.files.create({
                 resource: { name: sanitizedName, mimeType: 'application/vnd.google-apps.folder', parents: [instructorsFolderId] }, fields: 'id'
             });
