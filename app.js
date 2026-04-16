@@ -96,8 +96,18 @@ function checkEnvironment() {
 
     if (token && expiry && Date.now() < parseInt(expiry) && user) {
         currentUser = JSON.parse(user);
-        DRIVE_CONFIG.mainFolder = `Online Exam Portal (${currentUser.name})`;
+        
+        // Unified Drive Naming Logic (v4.7)
+        if (currentUser.email === 'chemistrydept@maldacollege.ac.in') {
+            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
+        } else {
+            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; // Fixed name for everyone to prevent duplicate folders
+        }
+        
         gapi.client.setToken({ access_token: token });
+        
+        // v4.7 SECURITY FIX: Hide portal until identity is confirmed
+        document.getElementById('mainPortal').classList.add('hidden');
         handleAuthSuccess();
     } else {
         showAuthModal();
@@ -135,11 +145,11 @@ function requestDriveAccess() {
                     .then(profile => {
                         currentUser = { name: profile.name, email: profile.email, image: profile.picture };
                         
-                        // v4.6 Shared Drive Logic
+                        // Unified Drive Naming Logic (v4.7)
                         if (profile.email === 'chemistrydept@maldacollege.ac.in') {
                             DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
                         } else {
-                            DRIVE_CONFIG.mainFolder = `Online Exam Portal (${profile.name})`;
+                            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; // Fixed name for everyone
                         }
                         
                         localStorage.setItem('google_user', JSON.stringify(currentUser));
