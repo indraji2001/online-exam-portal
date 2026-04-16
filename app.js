@@ -2203,5 +2203,131 @@ function initInteractiveModals() {
 }
 
 // Initialize on load
-document.addEventListener('DOMContentLoaded', initInteractiveModals);
+document.addEventListener('DOMContentLoaded', () => {
+    initInteractiveModals();
+    
+    // Admin Intelligence Initialization
+    if (userRole === 'admin') {
+        const adminInput = document.getElementById('adminTopicInput');
+        if (adminInput) {
+            adminInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') runAcademicSearch();
+            });
+        }
+    }
+});
+
+/**
+ * ADMIN INTELLIGENCE: Academic Resource Discovery (v4.9.1)
+ * Strictly restricted to Admin role for internet-wide curated mapping.
+ */
+let currentSearchLevel = 'UG';
+
+function setSearchLevel(lvl) {
+    currentSearchLevel = lvl;
+    const ugBtn = document.getElementById('level-ug');
+    const pgBtn = document.getElementById('level-pg');
+    
+    if (lvl === 'UG') {
+        ugBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 bg-white text-indigo-600 shadow-sm border border-slate-200/50';
+        pgBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 text-slate-500 hover:text-indigo-600';
+    } else {
+        pgBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 bg-white text-indigo-600 shadow-sm border border-slate-200/50';
+        ugBtn.className = 'px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 text-slate-500 hover:text-indigo-600';
+    }
+}
+
+function runAcademicSearch() {
+    const topic = document.getElementById('adminTopicInput').value.trim();
+    if (!topic) {
+        alert("Please enter a topic to discover resources.");
+        return;
+    }
+
+    const resultsContainer = document.getElementById('adminSearchPortals');
+    resultsContainer.innerHTML = `
+        <div class="col-span-full py-12 text-center">
+            <div class="animate-spin text-4xl mb-4">🔮</div>
+            <h4 class="text-indigo-600 font-bold">Mapping Internet Resources...</h4>
+            <p class="text-slate-400 text-[10px] uppercase tracking-widest font-black mt-2">Level: ${currentSearchLevel === 'UG' ? 'Undergraduate' : 'Postgraduate'}</p>
+        </div>
+    `;
+    resultsContainer.className = 'mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-100 translate-y-0 transition-all duration-500';
+
+    // Academic Query Expansion Logic
+    const academicSuffix = currentSearchLevel === 'UG' 
+        ? ' "university lecture notes" "study materials" "solved problems"' 
+        : ' "postgraduate lecture series" "research papers" "advanced derivation" site:edu';
+
+    const portals = [
+        {
+            label: 'Lecture Intelligence',
+            icon: '🏫',
+            engine: 'google',
+            query: topic + academicSuffix,
+            desc: `Curated university materials and pedagogical structures for ${topic}.`
+        },
+        {
+            label: 'Video Repositories',
+            icon: '📺',
+            engine: 'youtube',
+            query: topic + (currentSearchLevel === 'UG' ? ' "university level"' : ' "advanced seminar"'),
+            desc: `Expert-led video series and visualized problem sets.`
+        },
+        {
+            label: 'Research Context',
+            icon: '🔬',
+            engine: 'scholar',
+            query: topic + (currentSearchLevel === 'UG' ? ' "introductory review"' : ' "recent advancements"'),
+            desc: `Direct mapping to Google Scholar for high-end academic rigor.`
+        },
+        {
+            label: 'Open Courseware',
+            icon: '🏛️',
+            engine: 'google',
+            query: `site:(mit.edu OR harvard.edu OR stanford.edu) "${topic}"`,
+            desc: `Tier-1 global repository search for Ivy League standards.`
+        },
+        {
+            label: 'PDF Deep-Scan',
+            icon: '📄',
+            engine: 'google',
+            query: topic + academicSuffix + ' filetype:pdf',
+            desc: `Locating strictly downloadable academic documents and archives.`
+        },
+        {
+            label: 'Scientific Archives',
+            icon: '📚',
+            engine: 'google',
+            query: `site:(researchgate.net OR academia.edu) "${topic}"`,
+            desc: `Mapping the community-led scientific discussion and paper databases.`
+        }
+    ];
+
+    setTimeout(() => {
+        resultsContainer.innerHTML = '';
+        portals.forEach(p => {
+            let searchUrl = '';
+            if (p.engine === 'google') searchUrl = `https://www.google.com/search?q=${encodeURIComponent(p.query)}`;
+            else if (p.engine === 'youtube') searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(p.query)}`;
+            else if (p.engine === 'scholar') searchUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(p.query)}`;
+
+            const tile = document.createElement('a');
+            tile.href = searchUrl;
+            tile.target = '_blank';
+            tile.className = 'group/tile bg-white/80 border border-indigo-50 p-7 rounded-[2rem] hover:border-indigo-300 hover:shadow-2xl hover:shadow-indigo-50 transition-all duration-500 hover:-translate-y-1 block';
+            tile.innerHTML = `
+                <div class="flex items-center gap-5 mb-4">
+                    <span class="text-3xl filter drop-shadow-lg scale-100 group-hover/tile:scale-110 transition-transform">${p.icon}</span>
+                    <h4 class="font-black text-slate-800 group-hover/tile:text-indigo-600 transition-colors leading-tight">${p.label}</h4>
+                </div>
+                <p class="text-[10px] font-bold text-slate-500 line-clamp-2 leading-relaxed mb-6">${p.desc}</p>
+                <div class="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest gap-2">
+                    Start Intelligence Scan <span class="group-hover/tile:translate-x-2 transition-transform">→</span>
+                </div>
+            `;
+            resultsContainer.appendChild(tile);
+        });
+    }, 800);
+}
 
