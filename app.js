@@ -172,10 +172,9 @@ function handleAuthSuccess() {
         document.getElementById('userAvatar').classList.remove('hidden');
     }
 
-    // Role Detection Logic - v4.6/4.7
-    // Always trigger the Hybrid Identity Modal for verification
-    document.getElementById('identityModal').classList.remove('hidden-section');
-    initSystemConfig(); // Pre-load config in background
+    // Role Detection Logic - v4.7
+    // Critical Fix: Prepare Drive and Config BEFORE showing identity pop-up
+    prepareDriveAndConfig();
 }
 
 // ==========================================
@@ -224,6 +223,35 @@ async function initSystemConfig() {
     }
 }
 
+async function prepareDriveAndConfig() {
+    try {
+        // 1. Find or Create Master Folder
+        const response = await gapi.client.drive.files.list({
+            q: `name='${DRIVE_CONFIG.mainFolder}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+            spaces: 'drive'
+        });
+
+        if (response.result.files.length === 0) {
+            const folder = await gapi.client.drive.files.create({
+                resource: { name: DRIVE_CONFIG.mainFolder, mimeType: 'application/vnd.google-apps.folder' }, fields: 'id'
+            });
+            driveFolderId = folder.result.id;
+        } else {
+            driveFolderId = response.result.files[0].id;
+        }
+
+        // 2. Load or Create Security Config
+        await initSystemConfig();
+        
+        // 3. ONLY Now show the Identity Modal
+        document.getElementById('identityModal').classList.remove('hidden-section');
+        console.log("Drive & Security Initialized.");
+    } catch (err) {
+        console.error("Initialization Error:", err);
+        alert("Criticial: Could not connect to Google Drive. Check your connection.");
+    }
+}
+
 function verifyAdmin() {
     const pwd = document.getElementById('adminPass').value;
     if (systemConfig && pwd === systemConfig.admin_password) {
@@ -235,9 +263,9 @@ function verifyAdmin() {
         document.getElementById('nav-settings').classList.remove('hidden');
         renderAdminSettings();
         
-        setupMainFolder();
+        setupMainFolder(true); // Complete the rest of the folder structure
     } else {
-        alert("Invalid Admin Password");
+        alert("Invalid Admin Password. Default is 'admin'.");
     }
 }
 
@@ -305,67 +333,45 @@ function signOut() {
 // DRIVE FOLDER MANAGEMENT
 // ==========================================
 
-async function setupMainFolder() {
+async function setupMainFolder(skipMaster = false) {
     try {
-        let retries = 0;
-        while ((typeof gapi === 'undefined' || !gapi.client || !gapi.client.drive) && retries < 10) {
-            await new Promise(r => setTimeout(r, 1000));
-            retries++;
+        if (!skipMaster) {
+            // This part is now handled by prepareDriveAndConfig
+            return; 
         }
 
-        if (!gapi.client || !gapi.client.drive) throw new Error('GAPI Drive client failed to load');
-
-        const token = gapi.client.getToken();
-        if (!token || !token.access_token) return;
-
+        // Search for subfolders inside the master folder
         const response = await gapi.client.drive.files.list({
-            q: `name='${DRIVE_CONFIG.mainFolder}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-            spaces: 'drive'
+            q: `'${driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
         });
+        
+        const existingFolders = response.result.files;
+        const findFolder = (name) => existingFolders.find(f => f.name === name);
 
-        if (response.result.files.length === 0) {
-            // 1. Create Master Folder
-            const folder = await gapi.client.drive.files.create({
-                resource: { name: DRIVE_CONFIG.mainFolder, mimeType: 'application/vnd.google-apps.folder' }, fields: 'id'
-            });
-            driveFolderId = folder.result.id;
-
-            // 2. Create Common Resources Folder
-            const commonFolder = await gapi.client.drive.files.create({
+        let commonFolder = findFolder(DRIVE_CONFIG.commonResourcesFolderName);
+        if (!commonFolder) {
+            commonFolder = await gapi.client.drive.files.create({
                 resource: { name: DRIVE_CONFIG.commonResourcesFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] }, fields: 'id'
             });
             commonResourcesFolderId = commonFolder.result.id;
+        } else {
+            commonResourcesFolderId = commonFolder.id;
+        }
 
-            // 3. Create the Syllabus, Templates, and Reference Materials Subfolders
-            const commonSubfolders = ['Syllabus', 'Templates', 'Reference_Materials'];
-            for (const sub of commonSubfolders) {
-                await gapi.client.drive.files.create({
-                    resource: { name: sub, mimeType: 'application/vnd.google-apps.folder', parents: [commonResourcesFolderId] }, fields: 'id'
-                });
-            }
-
-            // 4. Create Master Instructors Folder
-            const instructorsFolder = await gapi.client.drive.files.create({
+        let instructorsFolder = findFolder(DRIVE_CONFIG.instructorsFolderName);
+        if (!instructorsFolder) {
+            instructorsFolder = await gapi.client.drive.files.create({
                 resource: { name: DRIVE_CONFIG.instructorsFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] }, fields: 'id'
             });
             instructorsFolderId = instructorsFolder.result.id;
-
         } else {
-            driveFolderId = response.result.files[0].id;
-            const subfolders = await gapi.client.drive.files.list({
-                q: `'${driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
-            });
-            subfolders.result.files.forEach(file => {
-                if (file.name === DRIVE_CONFIG.commonResourcesFolderName) commonResourcesFolderId = file.id;
-                else if (file.name === DRIVE_CONFIG.instructorsFolderName) instructorsFolderId = file.id;
-            });
+            instructorsFolderId = instructorsFolder.id;
         }
 
-        await initSystemConfig();
         loadLibrary();
-        console.log("Drive Folders Setup Complete!");
+        console.log("Full Folder Structure Operational.");
     } catch (err) {
-        console.error('Drive setup error:', err);
+        console.error('Drive structure error:', err);
     }
 }
 async function getOrCreateInstructorFolder(instructorName) {
