@@ -108,9 +108,22 @@
             <!-- Faculty Name Claim -->
             <div id="facultyNameStep" class="hidden-section slide-in-up">
                 <h3 class="text-xl font-bold mb-2">Identify Yourself</h3>
-                <p class="text-xs text-slate-400 mb-4 uppercase font-black">Shared Dept. Account Login</p>
-                <input type="text" id="facultyNameClaim" placeholder="Enter Your Full Name" class="w-full p-4 border-2 rounded-xl text-center font-bold bg-slate-50 outline-none focus:border-blue-500 mb-4">
-                <button onclick="confirmFacultyEntry()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg">Open My Workspace</button>
+                <p class="text-xs text-slate-400 mb-6 uppercase font-black tracking-widest">Chemistry Dept. Authorized Faculty</p>
+                
+                <div class="space-y-4 mb-8">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Registered Full Name</label>
+                        <input type="text" id="facultyNameClaim" placeholder="e.g. Dr. Sen" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none focus:border-blue-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Personal Security PIN</label>
+                        <input type="password" id="facultyPinClaim" placeholder="••••" class="w-full p-4 border-2 rounded-xl text-center font-black !text-2xl tracking-[1em] bg-slate-50 outline-none focus:border-emerald-500 transition">
+                    </div>
+                </div>
+
+                <button onclick="confirmFacultyEntry()" class="pearl-btn pearl-btn-blue w-full py-5 rounded-2xl text-white font-bold shadow-xl shadow-blue-100 flex items-center justify-center gap-3">
+                    <span>🔐</span> Unlock My Private Vault
+                </button>
             </div>
         </div>
     </div>
