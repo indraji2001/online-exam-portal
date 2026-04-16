@@ -247,7 +247,9 @@ function handleAuthSuccess() {
 function resetAuthFlow() {
     // Hide the identity modal and return to main landing
     document.getElementById('identityModal').classList.add('hidden-section');
-    document.getElementById('authContainer').classList.remove('hidden');
+    
+    // Re-initialize and show the login screen with the button
+    showAuthModal();
     
     // Reset steps back to the first one for the next attempt
     document.getElementById('roleSelectionStep').classList.remove('hidden-section');
