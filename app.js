@@ -403,7 +403,7 @@ function verifyAdmin() {
         document.getElementById('identityModal').classList.add('hidden-section');
         document.getElementById('mainPortal').classList.remove('hidden');
         
-        // Show Admin Settings tab
+        // Correctly reveal the admin settings tab
         document.getElementById('tab-settings').classList.remove('hidden');
         renderAdminSettings();
         
@@ -412,6 +412,146 @@ function verifyAdmin() {
         saveSystemConfig(); // Force a save to Drive now that we are in!
     } else {
         alert("Access Denied. If this is a new setup, your default password is 'admin'.");
+    }
+}
+
+// ==========================================
+// ADMIN SETTINGS & REGISTRY LOGIC
+// ==========================================
+
+function renderAdminSettings() {
+    if (!systemConfig) return;
+    
+    // Update Password Field
+    document.getElementById('setAdminPass').value = systemConfig.admin_password;
+
+    // Render Faculty List
+    const list = document.getElementById('facultyRegistryList');
+    list.innerHTML = '';
+
+    if (!systemConfig.faculty || systemConfig.faculty.length === 0) {
+        list.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-400 italic">No faculty members registered</td></tr>';
+        return;
+    }
+
+    systemConfig.faculty.forEach((faculty, index) => {
+        const tr = document.createElement('tr');
+        tr.className = "group hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+            <td class="py-5 font-bold text-slate-900">${faculty.name}</td>
+            <td class="py-5 font-medium text-slate-500 text-sm">${faculty.email}</td>
+            <td class="py-5 text-center">
+                <span class="px-3 py-1 bg-slate-100 rounded-lg font-black text-xs tracking-widest text-slate-600">${faculty.pin}</span>
+            </td>
+            <td class="py-5 text-right">
+                <button onclick="removeFaculty(${index})" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
+            </td>
+        `;
+        list.appendChild(tr);
+    });
+}
+
+function showAddFacultyModal() {
+    const modal = document.getElementById('settingsModal');
+    const content = document.getElementById('settingsModalContent');
+    
+    content.innerHTML = `
+        <h3 class="text-2xl font-black mb-6">Register Faculty</h3>
+        <div class="space-y-4 mb-8">
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Display Name</label>
+                <input type="text" id="newFacName" placeholder="e.g. Dr. Sen" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Email Identity</label>
+                <input type="email" id="newFacEmail" placeholder="user@gmail.com" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Security PIN</label>
+                <input type="text" id="newFacPin" placeholder="1234" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none text-center tracking-[0.5em]">
+            </div>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="closeSettingsModal()" class="flex-1 py-4 bg-slate-100 rounded-xl font-bold">Cancel</button>
+            <button onclick="commitAddFaculty()" class="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-bold shadow-lg">Register Staff</button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.add('opacity-100');
+        content.classList.remove('scale-95');
+    }, 10);
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    const content = document.getElementById('settingsModalContent');
+    modal.classList.remove('opacity-100');
+    content.classList.add('scale-95');
+    setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+async function commitAddFaculty() {
+    const name = document.getElementById('newFacName').value.trim();
+    const email = document.getElementById('newFacEmail').value.trim().toLowerCase();
+    const pin = document.getElementById('newFacPin').value.trim();
+
+    if (!name || !email || !pin) { alert("All fields are required."); return; }
+
+    if (!systemConfig.faculty) systemConfig.faculty = [];
+    systemConfig.faculty.push({ name, email, pin });
+
+    await saveSystemConfig();
+    renderAdminSettings();
+    closeSettingsModal();
+}
+
+async function removeFaculty(index) {
+    if (!confirm("Are you sure you want to remove this faculty member? Their private folder will remain but they will lose access.")) return;
+    
+    systemConfig.faculty.splice(index, 1);
+    await saveSystemConfig();
+    renderAdminSettings();
+}
+
+async function updateAdminSecurity() {
+    const newPass = document.getElementById('setAdminPass').value.trim();
+    if (!newPass) { alert("Password cannot be empty."); return; }
+
+    systemConfig.admin_password = newPass;
+    await saveSystemConfig();
+    alert("Master Password Successfully Updated.");
+}
+
+async function saveSystemConfig() {
+    if (!driveFolderId) return;
+
+    try {
+        // Find existing config file
+        const response = await gapi.client.drive.files.list({
+            q: `name='system_config.json' and '${driveFolderId}' in parents and trashed=false`,
+            spaces: 'drive'
+        });
+
+        const metadata = { name: 'system_config.json' };
+        if (response.result.files.length > 0) {
+            // Update existing
+            const fileId = response.result.files[0].id;
+            await gapi.client.drive.files.update({
+                fileId: fileId,
+                media: { mimeType: 'application/json', body: JSON.stringify(systemConfig, null, 2) }
+            });
+        } else {
+            // Create new
+            await gapi.client.drive.files.create({
+                resource: { name: 'system_config.json', parents: [driveFolderId] },
+                media: { mimeType: 'application/json', body: JSON.stringify(systemConfig, null, 2) }
+            });
+        }
+        console.log("System Config Persisted to Drive.");
+    } catch (err) {
+        console.error('Error saving config:', err);
     }
 }
 
