@@ -809,17 +809,133 @@
         </div>
     </div>
 
-    <footer class="attribution-footer py-8">
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                Professional Multi-Modal Research Engine v4.8 | Department of Chemistry | Malda College
+    <!-- Premium Animated Footer (v4.8) -->
+    <footer id="siteFooter" class="relative w-full max-w-6xl mx-auto mt-12 flex flex-col items-center justify-center rounded-t-[3rem] border-t border-slate-200/80 bg-white px-6 py-12 lg:py-16 overflow-hidden">
+        <!-- Radial Gradient Glow on top border -->
+        <div style="position:absolute;top:0;left:50%;transform:translateX(-50%) translateY(-50%);width:33%;height:1px;background:rgba(99,102,241,0.5);filter:blur(6px);border-radius:9999px;"></div>
+
+        <div class="grid w-full gap-8 footer-grid">
+            <!-- Brand Column -->
+            <div class="footer-anim-item space-y-4" style="--delay:0.05s">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                        <span class="text-white text-lg">⚗️</span>
+                    </div>
+                    <span class="font-black text-slate-900 text-sm tracking-tight">Chem<span class="text-indigo-600">Portal</span></span>
+                </div>
+                <p class="text-slate-400 text-xs leading-relaxed max-w-xs font-medium">
+                    A Professional AI-powered Exam Management System for the Department of Chemistry, Malda College.
+                </p>
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-6 pt-6 border-t border-slate-100">
+                    © <span id="footerYear"></span> I. Chakraborty &amp; A. Chakraborty
+                </p>
             </div>
-            <div class="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200">
-                Developed by I. Chakraborty <span class="text-blue-500 mx-1">&</span> A. Chakraborty
+
+            <!-- Links Grid -->
+            <div class="footer-links-grid mt-4 xl:mt-0">
+                <!-- Portal -->
+                <div class="footer-anim-item" style="--delay:0.15s">
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800 mb-4">Portal</h3>
+                    <ul class="space-y-2.5">
+                        <li><a href="#" onclick="showTab('sources');return false;" class="footer-link">📤 Sources</a></li>
+                        <li><a href="#" onclick="showTab('generate');return false;" class="footer-link">✨ Generate</a></li>
+                        <li><a href="#" onclick="showTab('publish');return false;" class="footer-link">🌐 Publish</a></li>
+                        <li><a href="#" onclick="showTab('library');return false;" class="footer-link">📚 Library</a></li>
+                    </ul>
+                </div>
+                <!-- Department -->
+                <div class="footer-anim-item" style="--delay:0.25s">
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800 mb-4">Department</h3>
+                    <ul class="space-y-2.5">
+                        <li><a href="https://www.maldacollege.ac.in" target="_blank" class="footer-link">🏫 Malda College</a></li>
+                        <li><a href="mailto:chemistrydept@maldacollege.ac.in" class="footer-link">📧 Contact Us</a></li>
+                        <li><a href="#" class="footer-link">📜 Privacy Policy</a></li>
+                        <li><a href="#" class="footer-link">⚖️ Terms of Use</a></li>
+                    </ul>
+                </div>
+                <!-- Developers -->
+                <div class="footer-anim-item" style="--delay:0.35s">
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800 mb-4">Developers</h3>
+                    <ul class="space-y-2.5">
+                        <li><a href="mailto:indraji2001@gmail.com" class="footer-link">👑 I. Chakraborty</a></li>
+                        <li><a href="mailto:anindyaums@gmail.com" class="footer-link">👑 A. Chakraborty</a></li>
+                        <li><a href="https://github.com/indraji2001/online-exam-portal" target="_blank" class="footer-link">🐙 GitHub Repo</a></li>
+                        <li><span class="footer-link opacity-50 cursor-default">v4.8 · Departmental Edition</span></li>
+                    </ul>
+                </div>
+                <!-- System -->
+                <div class="footer-anim-item" style="--delay:0.45s">
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800 mb-4">System</h3>
+                    <ul class="space-y-2.5">
+                        <li><a href="https://console.cloud.google.com" target="_blank" class="footer-link">☁️ Cloud Console</a></li>
+                        <li><a href="https://drive.google.com" target="_blank" class="footer-link">📂 Google Drive</a></li>
+                        <li><a href="#" onclick="requestDriveAccess();return false;" class="footer-link">🔑 Re-Authenticate</a></li>
+                        <li>
+                            <span class="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-full">
+                                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                                System Online
+                            </span>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </footer>
+
+    <style>
+        .footer-grid {
+            grid-template-columns: 1fr;
+        }
+        @media (min-width: 1280px) {
+            .footer-grid { grid-template-columns: 1fr 2fr; }
+        }
+        .footer-links-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+        }
+        @media (min-width: 768px) {
+            .footer-links-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+        .footer-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.25s ease;
+        }
+        .footer-link:hover { color: #6366f1; }
+
+        /* Scroll-in Animation */
+        .footer-anim-item {
+            opacity: 0;
+            filter: blur(4px);
+            transform: translateY(-8px);
+            transition: opacity 0.8s ease var(--delay, 0s),
+                        filter 0.8s ease var(--delay, 0s),
+                        transform 0.8s ease var(--delay, 0s);
+        }
+        .footer-anim-item.footer-visible {
+            opacity: 1;
+            filter: blur(0px);
+            transform: translateY(0);
+        }
+    </style>
+
+    <script>
+        document.getElementById('footerYear').textContent = new Date().getFullYear();
+        const footerObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('footer-visible');
+                }
+            });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.footer-anim-item').forEach(el => footerObserver.observe(el));
+    </script>
 
     <!-- Load scripts in order -->
     <script src="app.js"></script>
