@@ -894,21 +894,23 @@
         }
         .footer-link:hover { color: #6366f1; }
 
-        /* High-End Scroll-in Animation (Matches React/Framer-Motion) */
+        /* Scroll-in Animation Base (Fast reset when hidden) */
         .footer-anim-item {
             opacity: 0;
             filter: blur(8px);
             transform: translateY(12px) scale(0.98);
-            transition: 
-                opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s),
-                filter 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s),
-                transform 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s);
+            transition: opacity 0.3s ease, filter 0.3s ease, transform 0.3s ease;
             will-change: transform, opacity, filter;
         }
+        /* High-End Transition when entering view */
         .footer-anim-item.footer-visible {
             opacity: 1;
             filter: blur(0px);
             transform: translateY(0) scale(1);
+            transition: 
+                opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s),
+                filter 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s),
+                transform 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s);
         }
     </style>
 
@@ -918,13 +920,13 @@
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('footer-visible');
-                    // Unobserve after it's shown to save performance
-                    footerObserver.unobserve(entry.target);
+                } else {
+                    // Reset animation when scrolled away (like framer-motion whileInView)
+                    entry.target.classList.remove('footer-visible');
                 }
             });
         }, { 
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px' // Triggers slightly before it fully enters
+            threshold: 0.1
         });
         document.querySelectorAll('.footer-anim-item').forEach(el => footerObserver.observe(el));
     </script>
