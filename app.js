@@ -244,6 +244,17 @@ function handleAuthSuccess() {
     }
 }
 
+function resetAuthFlow() {
+    // Hide the identity modal and return to main landing
+    document.getElementById('identityModal').classList.add('hidden-section');
+    document.getElementById('authContainer').classList.remove('hidden');
+    
+    // Reset steps back to the first one for the next attempt
+    document.getElementById('roleSelectionStep').classList.remove('hidden-section');
+    document.getElementById('adminDriveStep').classList.add('hidden-section');
+    document.getElementById('facultyNameStep').classList.add('hidden-section');
+}
+
 function selectRole(role) {
     if (role === 'admin') {
         document.getElementById('roleSelectionStep').classList.add('hidden-section');
