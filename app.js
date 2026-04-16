@@ -172,21 +172,10 @@ function handleAuthSuccess() {
         document.getElementById('userAvatar').classList.remove('hidden');
     }
 
-    // Role Detection Logic (v4.6)
-    // The Super-Admin (indraji2001) gets instant access.
-    // The Departmental account triggers the Identity Verification Modal.
-    if (currentUser.email === 'indraji2001@gmail.com') {
-        userRole = 'admin';
-        document.getElementById('mainPortal').classList.remove('hidden');
-        setupMainFolder();
-    } else if (currentUser.email === 'chemistrydept@maldacollege.ac.in') {
-        document.getElementById('identityModal').classList.remove('hidden-section');
-    } else {
-        // Any other account behaves like a personal portal
-        userRole = 'admin';
-        document.getElementById('mainPortal').classList.remove('hidden');
-        setupMainFolder();
-    }
+    // Role Detection Logic - v4.6/4.7
+    // Always trigger the Hybrid Identity Modal for verification
+    document.getElementById('identityModal').classList.remove('hidden-section');
+    initSystemConfig(); // Pre-load config in background
 }
 
 // ==========================================
@@ -236,7 +225,7 @@ async function initSystemConfig() {
 }
 
 function verifyAdmin() {
-    const pwd = document.querySelector('#adminForm input').value;
+    const pwd = document.getElementById('adminPass').value;
     if (systemConfig && pwd === systemConfig.admin_password) {
         userRole = 'admin';
         document.getElementById('identityModal').classList.add('hidden-section');
@@ -248,7 +237,7 @@ function verifyAdmin() {
 }
 
 function verifyFaculty() {
-    const pin = document.querySelector('#facultyForm input').value;
+    const pin = document.getElementById('facultyPin').value;
     if (!systemConfig) { alert("System configuration not loaded. Please wait."); return; }
 
     const professor = systemConfig.faculty.find(f => f.pin === pin);
