@@ -143,6 +143,10 @@ function requestDriveAccess() {
                         }
                         
                         localStorage.setItem('google_user', JSON.stringify(currentUser));
+                        
+                        // v4.7 SECURITY FIX: 
+                        // Hide portal until identity is confirmed
+                        document.getElementById('mainPortal').classList.add('hidden');
                         handleAuthSuccess();
                     });
             }
@@ -173,7 +177,8 @@ function handleAuthSuccess() {
     }
 
     // Role Detection Logic - v4.7
-    // Critical Fix: Prepare Drive and Config BEFORE showing identity pop-up
+    // Critical Fix: Start Drive/Config prep, then show pop-up.
+    // Dashboard stays HIDDEN until verifyAdmin() or verifyFaculty() is called.
     prepareDriveAndConfig();
 }
 
