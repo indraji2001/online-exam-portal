@@ -33,40 +33,41 @@
         </div>
     </div>
 
-    <!-- Identity Verification Modal (Point #2 & #3 Integration) -->
-    <div id="identityModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-lg hidden-section">
-        <div class="glass w-full max-w-lg p-10 rounded-3xl shadow-2xl text-center border-4 border-blue-500 modal-animate">
-            <h2 class="text-3xl font-bold text-slate-800 mb-2">Who is Logging In?</h2>
-            <p class="text-slate-500 mb-8">Please verify your role within the Chemistry Department</p>
+    <!-- Hybrid Identity Pop-up (Point #2 & #3 Integration) -->
+    <div id="identityModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm hidden-section">
+        <div class="glass w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl text-center border-2 border-white modal-animate">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-12 mx-auto mb-6">
+                <span class="text-white text-3xl">🛡️</span>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900 mb-1">Hybrid Security</h2>
+            <p class="text-[10px] font-black uppercase text-blue-600 tracking-widest mb-6">Select your Departmental Role</p>
             
-            <div class="grid grid-cols-2 gap-6 mb-8">
-                <!-- Admin Path -->
-                <button onclick="selectAccountType('admin')" class="flex flex-col items-center p-6 bg-blue-50 border-2 border-blue-200 rounded-2xl hover:bg-blue-100 hover:border-blue-400 transition group">
-                    <div class="text-4xl mb-4 group-hover:scale-110 transition">👑</div>
-                    <span class="font-bold text-blue-900">I am the Admin</span>
-                    <span class="text-xs text-blue-600 mt-2 font-medium">(Full Drive Access)</span>
+            <div class="space-y-3 mb-6">
+                <button onclick="selectAccountType('admin')" class="w-full flex items-center gap-4 p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition group">
+                    <span class="text-2xl group-hover:scale-125 transition">👑</span>
+                    <div class="text-left">
+                        <span class="block font-bold text-slate-800 text-sm">Main Administrator</span>
+                        <span class="block text-[10px] text-slate-400 font-bold uppercase">Full Master Access</span>
+                    </div>
                 </button>
                 
-                <!-- Faculty Path -->
-                <button onclick="selectAccountType('faculty')" class="flex flex-col items-center p-6 bg-emerald-50 border-2 border-emerald-200 rounded-2xl hover:bg-emerald-100 hover:border-emerald-400 transition group">
-                    <div class="text-4xl mb-4 group-hover:scale-110 transition">🧑‍🏫</div>
-                    <span class="font-bold text-emerald-900">Faculty Member</span>
-                    <span class="text-xs text-emerald-600 mt-2 font-medium">(Private Folder Access)</span>
+                <button onclick="selectAccountType('faculty')" class="w-full flex items-center gap-4 p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition group">
+                    <span class="text-2xl group-hover:scale-125 transition">🧑‍🏫</span>
+                    <div class="text-left">
+                        <span class="block font-bold text-slate-800 text-sm">Faculty Member</span>
+                        <span class="block text-[10px] text-slate-400 font-bold uppercase">Locked Private Folder</span>
+                    </div>
                 </button>
             </div>
             
-            <!-- Hidden Faculty Selection Form -->
-            <div id="facultyForm" class="hidden-section slide-in-up mt-4 text-left p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                <label class="block text-sm font-bold text-slate-700 mb-2">Access PIN (Locked to your Name)</label>
-                <input type="password" maxlength="4" placeholder="Enter your 4-digit PIN" class="w-full p-4 border-2 rounded-xl text-center text-2xl tracking-widest font-bold">
-                <button onclick="verifyFaculty()" class="w-full pearl-btn pearl-btn-green py-4 rounded-xl text-white font-bold text-lg mt-4">Unlock My Drive Profile</button>
+            <!-- Hidden Input Forms -->
+            <div id="facultyForm" class="hidden-section slide-in-up mt-2">
+                <input type="password" id="facultyPin" maxlength="4" placeholder="Enter your 4-digit PIN" class="w-full p-4 border-2 rounded-xl text-center text-2xl tracking-widest font-black bg-slate-50 outline-none focus:border-emerald-500">
+                <button onclick="verifyFaculty()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg shadow-emerald-100">Unlock My Sync Folder</button>
             </div>
-            
-            <!-- Hidden Admin Password Form -->
-            <div id="adminForm" class="hidden-section slide-in-up mt-4 text-left p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                <label class="block text-sm font-bold text-slate-700 mb-2">Master Administrator Key</label>
-                <input type="password" placeholder="Enter Admin Password" class="w-full p-4 border-2 rounded-xl font-bold">
-                <button onclick="verifyAdmin()" class="w-full pearl-btn pearl-btn-blue py-4 rounded-xl text-white font-bold text-lg mt-4">Enter Master Terminal</button>
+            <div id="adminForm" class="hidden-section slide-in-up mt-2">
+                <input type="password" id="adminPass" placeholder="Enter Master Password" class="w-full p-4 border-2 rounded-xl text-center font-bold bg-slate-50 outline-none focus:border-blue-500">
+                <button onclick="verifyAdmin()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg shadow-blue-100">Enter Terminal</button>
             </div>
         </div>
     </div>
