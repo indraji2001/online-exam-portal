@@ -230,6 +230,11 @@ function verifyAdmin() {
         userRole = 'admin';
         document.getElementById('identityModal').classList.add('hidden-section');
         document.getElementById('mainPortal').classList.remove('hidden');
+        
+        // Show Admin Settings tab
+        document.getElementById('nav-settings').classList.remove('hidden');
+        renderAdminSettings();
+        
         setupMainFolder();
     } else {
         alert("Invalid Admin Password");
@@ -241,10 +246,19 @@ function verifyFaculty() {
     if (!systemConfig) { alert("System configuration not loaded. Please wait."); return; }
 
     // Security Fix: Cross-check the current logged-in email with the PIN
-    const professor = systemConfig.faculty.find(f => f.email && f.email.toLowerCase() === currentUser.email.toLowerCase() && f.pin === pin);
+    const professorIndex = systemConfig.faculty.findIndex(f => f.email && f.email.toLowerCase() === currentUser.email.toLowerCase() && f.pin === pin);
     
-    if (professor) {
+    if (professorIndex !== -1) {
+        const professor = systemConfig.faculty[professorIndex];
         userRole = 'faculty';
+        
+        // Auto-Sync Name (Point #1): If they changed their name on Google, update the registry
+        if (currentUser.name && currentUser.name !== professor.name) {
+            console.log(`Auto-Syncing Name: ${professor.name} -> ${currentUser.name}`);
+            systemConfig.faculty[professorIndex].name = currentUser.name;
+            saveSystemConfig(); // Silently save in background
+        }
+
         currentUser.facultyName = professor.name; 
         document.getElementById('genInstructor').value = professor.name;
         
@@ -1471,6 +1485,70 @@ function renderLibraryUI() {
 document.addEventListener('contextmenu', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
 document.addEventListener('copy', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
 window.addEventListener('blur', () => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) alert('Security Alert!'); });
+
+// ==========================================
+// ADMIN SETTINGS & REGISTRY (v4.7)
+// ==========================================
+
+function renderAdminSettings() {
+    if (!systemConfig) return;
+    
+    document.getElementById('settingAdminPass').value = systemConfig.admin_password;
+    const list = document.getElementById('facultyRegistryList');
+    list.innerHTML = systemConfig.faculty.map((f, i) => `
+        <div class="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
+            <input type="email" placeholder="Email" value="${f.email}" class="flex-1 p-2 bg-slate-50 border rounded-lg text-xs font-bold" onchange="updateFacultyRecord(${i}, 'email', this.value)">
+            <input type="text" placeholder="PIN" value="${f.pin}" maxlength="4" class="w-20 p-2 bg-slate-50 border rounded-lg text-xs text-center font-black tracking-widest" onchange="updateFacultyRecord(${i}, 'pin', this.value)">
+            <button onclick="removeFacultyRow(${i})" class="w-8 h-8 rounded-lg text-rose-400 hover:bg-rose-50 transition">✕</button>
+        </div>
+    `).join('');
+}
+
+function updateFacultyRecord(index, field, value) {
+    if (field === 'pin' && !/^\d{4}$/.test(value)) {
+        alert("PIN must be exactly 4 digits.");
+        return;
+    }
+    systemConfig.faculty[index][field] = value;
+}
+
+function addNewFacultyRow() {
+    systemConfig.faculty.push({ email: "", pin: "0000", name: "Pending Login" });
+    renderAdminSettings();
+}
+
+function removeFacultyRow(index) {
+    if (confirm("Revoke access for this account?")) {
+        systemConfig.faculty.splice(index, 1);
+        renderAdminSettings();
+    }
+}
+
+async function saveSystemConfig(manual = false) {
+    if (!driveFolderId || !systemConfig) return;
+    
+    // Update admin pass from UI if manual save
+    if (manual) {
+        systemConfig.admin_password = document.getElementById('settingAdminPass').value;
+    }
+
+    try {
+        const response = await gapi.client.drive.files.list({
+            q: `name='system_config.json' and '${driveFolderId}' in parents and trashed=false`,
+            spaces: 'drive'
+        });
+
+        const fileId = response.result.files[0].id;
+        await gapi.client.drive.files.update({
+            fileId: fileId,
+            media: { mimeType: 'application/json', body: JSON.stringify(systemConfig, null, 2) }
+        });
+        
+        if (manual) alert("✅ System Records Securely Updated on Drive!");
+    } catch (err) {
+        console.error('Error saving system config:', err);
+    }
+}
 
 // AI Mode & Manual Flow
 function toggleAiMode() {
