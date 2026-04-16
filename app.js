@@ -207,7 +207,7 @@ async function initSystemConfig() {
             systemConfig = {
                 admin_password: "admin", 
                 faculty: [
-                    { name: "Sample Professor", pin: "1234" }
+                    { email: "faculty@example.com", pin: "1234", name: "Sample Professor" }
                 ]
             };
             await gapi.client.drive.files.create({
@@ -240,7 +240,9 @@ function verifyFaculty() {
     const pin = document.getElementById('facultyPin').value;
     if (!systemConfig) { alert("System configuration not loaded. Please wait."); return; }
 
-    const professor = systemConfig.faculty.find(f => f.pin === pin);
+    // Security Fix: Cross-check the current logged-in email with the PIN
+    const professor = systemConfig.faculty.find(f => f.email && f.email.toLowerCase() === currentUser.email.toLowerCase() && f.pin === pin);
+    
     if (professor) {
         userRole = 'faculty';
         currentUser.facultyName = professor.name; 
@@ -251,7 +253,7 @@ function verifyFaculty() {
         document.getElementById('mainPortal').classList.remove('hidden');
         setupMainFolder();
     } else {
-        alert("Invalid PIN. Access Denied.");
+        alert("Access Denied: This PIN does not match your authorized email account.");
     }
 }
 
@@ -358,7 +360,8 @@ async function getOrCreateInstructorFolder(instructorName) {
     // Privacy Lockdown (v4.6): If faculty, override the name with their verified identity
     let targetName = instructorName;
     if (userRole === 'faculty' && currentUser.facultyName) {
-        targetName = currentUser.facultyName;
+        // Security Fix: Use Email for folder isolation to prevent identity spoofing
+        targetName = `Portal Data (${currentUser.email.replace(/[@.]/g, '_')})`;
     }
 
     const sanitizedName = targetName.replace(/[\\/:*?"<>|]/g, '_').trim();
