@@ -35,6 +35,8 @@ let googleAuthToken = null, currentUser = null, driveFolderId = null, userRole =
 let instructorsFolderId = null, commonResourcesFolderId = null;
 let currentInstructorFolderId = null;
 let storageScope = 'personal'; // 'personal' or 'departmental'
+let currentAuthMode = 'returning'; // 'returning' or 'new'
+let pendingFaculty = null;
 
 const AUTHORIZED_ADMINS = ['indraji2001@gmail.com', 'anindyaums@gmail.com'];
 const DEPARTMENTAL_ACCOUNT = 'chemistrydept@maldacollege.ac.in';
@@ -307,15 +309,49 @@ async function confirmAdminEntry(scope) {
     setupMainFolder(true);
 }
 
+function setAuthMode(mode) {
+    currentAuthMode = mode;
+    const btnReturning = document.getElementById('authModeReturning');
+    const btnNew = document.getElementById('authModeNew');
+    const pinContainer = document.getElementById('pinContainer');
+    const newInfo = document.getElementById('newInfoContainer');
+    const entryBtn = document.getElementById('facultyEntryBtn');
+
+    if (mode === 'returning') {
+        btnReturning.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
+        btnReturning.classList.remove('text-slate-400');
+        btnNew.classList.remove('bg-white', 'shadow-sm', 'text-blue-600');
+        btnNew.classList.add('text-slate-400');
+        pinContainer.classList.remove('hidden-section');
+        newInfo.classList.add('hidden-section');
+        entryBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault';
+    } else {
+        btnNew.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
+        btnNew.classList.remove('text-slate-400');
+        btnReturning.classList.remove('bg-white', 'shadow-sm', 'text-blue-600');
+        btnReturning.classList.add('text-slate-400');
+        pinContainer.classList.add('hidden-section');
+        newInfo.classList.remove('hidden-section');
+        entryBtn.innerHTML = '<span>✨</span> Register & Enter Vault';
+    }
+}
+
 async function confirmFacultyEntry() {
     const name = document.getElementById('facultyNameClaim').value.trim();
     const pin = document.getElementById('facultyPinClaim').value.trim();
     
     if (!name) { alert("Please enter your name."); return; }
-    if (!pin) { alert("Please enter your Faculty PIN."); return; }
+    
+    if (currentAuthMode === 'returning') {
+        if (!pin) { alert("Please enter your Faculty PIN."); return; }
+        await verifyFacultyLogin(name, pin);
+    } else {
+        await registerNewFaculty(name);
+    }
+}
 
-    // Show loading state on button
-    const verifyBtn = document.querySelector('#facultyNameStep button[onclick*="verifyFaculty"]');
+async function verifyFacultyLogin(name, pin) {
+    const verifyBtn = document.getElementById('facultyEntryBtn');
     if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
 
     // Verify against Supabase cloud registry
@@ -331,7 +367,7 @@ async function confirmFacultyEntry() {
         if (error) {
             console.error('Supabase verify error:', error);
             alert('A network error occurred. Please try again.');
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify & Enter'; }
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault'; }
             return;
         }
         faculty = data;
@@ -344,13 +380,71 @@ async function confirmFacultyEntry() {
         }
     }
 
-    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify & Enter'; }
+    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault'; }
 
     if (!faculty) {
         alert("❌ Invalid Name or PIN. Please contact the administrator for your registered name and PIN.");
         return;
     }
+
+    await initializeFacultyPortal(faculty);
+}
+
+async function registerNewFaculty(name) {
+    const verifyBtn = document.getElementById('facultyEntryBtn');
+    if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Registering...'; }
+
+    if (supabaseClient) {
+        // Check if name is already taken
+        const { data: existing } = await supabaseClient
+            .from('faculty_registry')
+            .select('id')
+            .ilike('name', name)
+            .maybeSingle();
+
+        if (existing) {
+            alert(`⚠️ "${name}" is already registered. If this is you, please use "Returning User" mode and enter your PIN.`);
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
+            return;
+        }
+
+        const newPin = generatePin();
+        const { data, error } = await supabaseClient
+            .from('faculty_registry')
+            .insert([{ name, pin: newPin }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Registration failed:', error);
+            alert('Cloud registration failed. Please check your connection.');
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
+            return;
+        }
+
+        pendingFaculty = data;
+        revealSuccessScreen(newPin);
+    } else {
+        alert("Cloud registry unavailable. Admin must register you manually via Settings.");
+        if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
+    }
+}
+
+function revealSuccessScreen(pin) {
+    document.getElementById('facultyNameStep').classList.add('hidden-section');
+    document.getElementById('generatedPinDisplay').textContent = pin;
     
+    setTimeout(() => {
+        document.getElementById('facultySuccessStep').classList.remove('hidden-section');
+    }, 400);
+}
+
+async function finalizeNewUserEntry() {
+    if (!pendingFaculty) return;
+    await initializeFacultyPortal(pendingFaculty);
+}
+
+async function initializeFacultyPortal(faculty) {
     userRole = 'faculty';
     storageScope = 'departmental';
     currentUser.facultyName = faculty.name;
@@ -358,13 +452,22 @@ async function confirmFacultyEntry() {
     DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
 
     // Show Loading State in Modal
-    document.getElementById('facultyNameStep').innerHTML = `
+    const loadingHtml = `
         <div class="text-center py-10">
             <div class="animate-spin text-4xl mb-4">⚙️</div>
             <h3 class="text-xl font-bold">Initializing Private Vault...</h3>
             <p class="text-slate-500 text-xs">Securing your departmental isolation zone</p>
         </div>
     `;
+
+    const successStep = document.getElementById('facultySuccessStep');
+    const nameStep = document.getElementById('facultyNameStep');
+
+    if (!successStep.classList.contains('hidden-section')) {
+        successStep.innerHTML = loadingHtml;
+    } else {
+        nameStep.innerHTML = loadingHtml;
+    }
 
     // 1. Initial Drive Prep (Master Folder)
     await prepareDriveAndConfig();
