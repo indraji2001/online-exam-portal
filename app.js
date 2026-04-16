@@ -480,7 +480,7 @@ function renderAdminSettings() {
     list.innerHTML = '';
 
     if (!systemConfig.faculty || systemConfig.faculty.length === 0) {
-        list.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-400 italic">No faculty members registered</td></tr>';
+        list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered</td></tr>';
         return;
     }
 
@@ -489,7 +489,6 @@ function renderAdminSettings() {
         tr.className = "group hover:bg-slate-50 transition-colors";
         tr.innerHTML = `
             <td class="py-5 font-bold text-slate-900">${faculty.name}</td>
-            <td class="py-5 font-medium text-slate-500 text-sm">${faculty.email}</td>
             <td class="py-5 text-center">
                 <span class="px-3 py-1 bg-slate-100 rounded-lg font-black text-xs tracking-widest text-slate-600">${faculty.pin}</span>
             </td>
@@ -511,10 +510,6 @@ function showAddFacultyModal() {
             <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Display Name</label>
                 <input type="text" id="newFacName" placeholder="e.g. Dr. Sen" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none">
-            </div>
-            <div>
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Email Identity</label>
-                <input type="email" id="newFacEmail" placeholder="user@gmail.com" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none">
             </div>
             <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Security PIN</label>
@@ -544,13 +539,12 @@ function closeSettingsModal() {
 
 async function commitAddFaculty() {
     const name = document.getElementById('newFacName').value.trim();
-    const email = document.getElementById('newFacEmail').value.trim().toLowerCase();
     const pin = document.getElementById('newFacPin').value.trim();
 
-    if (!name || !email || !pin) { alert("All fields are required."); return; }
+    if (!name || !pin) { alert("All fields are required."); return; }
 
     if (!systemConfig.faculty) systemConfig.faculty = [];
-    systemConfig.faculty.push({ name, email, pin });
+    systemConfig.faculty.push({ name, pin });
 
     await saveSystemConfig();
     renderAdminSettings();
