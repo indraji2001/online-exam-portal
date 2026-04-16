@@ -721,9 +721,14 @@
                                     <p class="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-2 ml-14">Smart Internet Resource Discovery (Curated for QP Level)</p>
                                 </div>
                                 
-                                <div class="flex bg-slate-100 p-1.5 rounded-2xl border shadow-inner">
-                                    <button id="level-ug" onclick="setSearchLevel('UG')" class="px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 bg-white text-indigo-600 shadow-sm border border-slate-200/50">Undergraduate</button>
-                                    <button id="level-pg" onclick="setSearchLevel('PG')" class="px-8 py-3 rounded-xl font-black text-xs transition-all duration-300 text-slate-500 hover:text-indigo-600">Postgraduate</button>
+                                <div class="flex flex-wrap gap-2 max-w-2xl justify-start lg:justify-end">
+                                    <button onclick="setSearchLevel('UG')" id="btn-UG" class="search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-indigo-600 text-white shadow-lg shadow-indigo-100">Undergraduate</button>
+                                    <button onclick="setSearchLevel('PG')" id="btn-PG" class="search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-white text-slate-500 hover:text-indigo-600 border border-slate-100">Postgraduate</button>
+                                    <button onclick="setSearchLevel('JEE_MAINS')" id="btn-JEE_MAINS" class="search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-white text-slate-500 hover:text-indigo-600 border border-slate-100">JEE Mains</button>
+                                    <button onclick="setSearchLevel('JEE_ADV')" id="btn-JEE_ADV" class="search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-white text-slate-500 hover:text-indigo-600 border border-slate-100">JEE Advanced</button>
+                                    <button onclick="setSearchLevel('GATE')" id="btn-GATE" class="search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-white text-slate-500 hover:text-indigo-600 border border-slate-100">GATE</button>
+                                    <button onclick="setSearchLevel('NET')" id="btn-NET" class="search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-white text-slate-500 hover:text-indigo-600 border border-slate-100">NET</button>
+                                    <button onclick="setSearchLevel('JAM')" id="btn-JAM" class="search-level-btn px-5 py-2 rounded-full font-black text-[10px] transition-all duration-300 bg-white text-slate-500 hover:text-indigo-600 border border-slate-100">JAM</button>
                                 </div>
                             </div>
 
