@@ -272,7 +272,9 @@ function verifyAdmin() {
         document.getElementById('nav-settings').classList.remove('hidden');
         renderAdminSettings();
         
-        setupMainFolder(true); // Complete the rest of the folder structure
+        // Finalize Folder structure & ENSURE config file exists
+        setupMainFolder(true); 
+        saveSystemConfig(); // Force a save to Drive now that we are in!
     } else {
         alert("Access Denied. If this is a new setup, your default password is 'admin'.");
     }
