@@ -121,7 +121,7 @@ function requestDriveAccess() {
 
     const client = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+        scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
         callback: (tokenResponse) => {
             if (tokenResponse && tokenResponse.access_token) {
                 gapi.client.setToken({ access_token: tokenResponse.access_token });
@@ -254,7 +254,11 @@ async function prepareDriveAndConfig() {
 
 function verifyAdmin() {
     const pwd = document.getElementById('adminPass').value;
-    if (systemConfig && pwd === systemConfig.admin_password) {
+    
+    // Fallback: If the config file hasn't loaded yet, use the emergency 'admin' password
+    const masterPass = (systemConfig && systemConfig.admin_password) ? systemConfig.admin_password : "admin";
+    
+    if (pwd === masterPass) {
         userRole = 'admin';
         document.getElementById('identityModal').classList.add('hidden-section');
         document.getElementById('mainPortal').classList.remove('hidden');
@@ -265,7 +269,7 @@ function verifyAdmin() {
         
         setupMainFolder(true); // Complete the rest of the folder structure
     } else {
-        alert("Invalid Admin Password. Default is 'admin'.");
+        alert("Access Denied. If this is a new setup, your default password is 'admin'.");
     }
 }
 
