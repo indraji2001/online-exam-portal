@@ -2,8 +2,28 @@
 // USER CONFIGURATION - PASTE YOUR KEYS HERE!
 // ==========================================
 
-const GOOGLE_CLIENT_ID = '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com'; // <--- REPLACE THIS 
-const GOOGLE_API_KEY = 'AIzaSyDdUDx1O499R5H2Ikai2Hl-rDq_wYKcyC0';                                // <--- REPLACE THIS
+const GOOGLE_CLIENT_ID = '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com';
+const GOOGLE_API_KEY = 'AIzaSyDdUDx1O499R5H2Ikai2Hl-rDq_wYKcyC0';
+
+// ==========================================
+// SUPABASE CONFIGURATION
+// ==========================================
+const SUPABASE_URL = 'https://epdnzakxmdmvldrwmkcf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_EUDjItmGuijXnXpPJD25Wg_npHA4Lu9';
+let supabaseClient = null;
+
+function initSupabase() {
+    try {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log('✅ Supabase connected: Chemistry Exam Portal DB');
+    } catch(e) {
+        console.error('❌ Supabase init failed:', e);
+    }
+}
+
+function generatePin() {
+    return String(Math.floor(1000 + Math.random() * 9000));
+}
 
 // ==========================================
 // GLOBAL STATE & CONFIGURATION
@@ -44,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('linkStartTime').value = now.toISOString().slice(0, 16);
     document.getElementById('linkEndTime').value = later.toISOString().slice(0, 16);
 
+    initSupabase();
     initGoogleApi();
     checkEnvironment();
     checkStudentMode();
@@ -292,24 +313,41 @@ async function confirmFacultyEntry() {
     
     if (!name) { alert("Please enter your name."); return; }
     if (!pin) { alert("Please enter your Faculty PIN."); return; }
-    
-    if (!systemConfig) {
-        // Try to load config if it failed during auth success
-        await initSystemConfig();
-    }
-    
-    if (!systemConfig) {
-        alert("System Configuration could not be loaded. Please ensure the admin has initialized the portal.");
-        return;
+
+    // Show loading state on button
+    const verifyBtn = document.querySelector('#facultyNameStep button[onclick*="verifyFaculty"]');
+    if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
+
+    // Verify against Supabase cloud registry
+    let faculty = null;
+    if (supabaseClient) {
+        const { data, error } = await supabaseClient
+            .from('faculty_registry')
+            .select('*')
+            .ilike('name', name)
+            .eq('pin', pin)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Supabase verify error:', error);
+            alert('A network error occurred. Please try again.');
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify & Enter'; }
+            return;
+        }
+        faculty = data;
+    } else {
+        // Fallback: check local config if Supabase not available
+        if (systemConfig && systemConfig.faculty) {
+            faculty = systemConfig.faculty.find(f =>
+                f.name.toLowerCase() === name.toLowerCase() && f.pin === pin
+            );
+        }
     }
 
-    // Verify against registry
-    const faculty = systemConfig.faculty.find(f => 
-        f.name.toLowerCase() === name.toLowerCase() && f.pin === pin
-    );
+    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify & Enter'; }
 
     if (!faculty) {
-        alert("Invalid Name or PIN. Please contact the administrator (Indrajit/Anindya) for authorization.");
+        alert("❌ Invalid Name or PIN. Please contact the administrator for your registered name and PIN.");
         return;
     }
     
@@ -469,56 +507,94 @@ function verifyAdmin() {
 // ADMIN SETTINGS & REGISTRY LOGIC
 // ==========================================
 
-function renderAdminSettings() {
-    if (!systemConfig) return;
-    
+async function renderAdminSettings() {
     // Update Password Field
-    document.getElementById('setAdminPass').value = systemConfig.admin_password;
+    if (systemConfig) document.getElementById('setAdminPass').value = systemConfig.admin_password;
 
-    // Render Faculty List
+    // Render Faculty List from Supabase
     const list = document.getElementById('facultyRegistryList');
-    list.innerHTML = '';
+    list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Loading from cloud...</td></tr>';
 
-    if (!systemConfig.faculty || systemConfig.faculty.length === 0) {
-        list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered</td></tr>';
-        return;
+    if (supabaseClient) {
+        const { data: faculty, error } = await supabaseClient
+            .from('faculty_registry')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-rose-400">❌ Failed to load registry from cloud.</td></tr>';
+            return;
+        }
+
+        if (!faculty || faculty.length === 0) {
+            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered yet.</td></tr>';
+            return;
+        }
+
+        list.innerHTML = '';
+        faculty.forEach((member) => {
+            const tr = document.createElement('tr');
+            tr.className = "group hover:bg-slate-50 transition-colors";
+            const joinDate = new Date(member.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+            tr.innerHTML = `
+                <td class="py-5">
+                    <div class="font-bold text-slate-900">${member.name}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">Joined: ${joinDate}</div>
+                </td>
+                <td class="py-5 text-center">
+                    <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin}</span>
+                </td>
+                <td class="py-5 text-right">
+                    <button onclick="removeFacultyById('${member.id}', '${member.name}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
+                </td>
+            `;
+            list.appendChild(tr);
+        });
+    } else {
+        // Fallback to local config
+        if (!systemConfig || !systemConfig.faculty || systemConfig.faculty.length === 0) {
+            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered.</td></tr>';
+            return;
+        }
+        list.innerHTML = '';
+        systemConfig.faculty.forEach((member, index) => {
+            const tr = document.createElement('tr');
+            tr.className = "group hover:bg-slate-50 transition-colors";
+            tr.innerHTML = `
+                <td class="py-5 font-bold text-slate-900">${member.name}</td>
+                <td class="py-5 text-center"><span class="px-3 py-1 bg-slate-100 rounded-lg font-black text-xs tracking-widest text-slate-600">${member.pin}</span></td>
+                <td class="py-5 text-right"><button onclick="removeFaculty(${index})" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button></td>
+            `;
+            list.appendChild(tr);
+        });
     }
-
-    systemConfig.faculty.forEach((faculty, index) => {
-        const tr = document.createElement('tr');
-        tr.className = "group hover:bg-slate-50 transition-colors";
-        tr.innerHTML = `
-            <td class="py-5 font-bold text-slate-900">${faculty.name}</td>
-            <td class="py-5 text-center">
-                <span class="px-3 py-1 bg-slate-100 rounded-lg font-black text-xs tracking-widest text-slate-600">${faculty.pin}</span>
-            </td>
-            <td class="py-5 text-right">
-                <button onclick="removeFaculty(${index})" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
-            </td>
-        `;
-        list.appendChild(tr);
-    });
 }
 
 function showAddFacultyModal() {
     const modal = document.getElementById('settingsModal');
     const content = document.getElementById('settingsModalContent');
     
+    const autoPin = generatePin();
     content.innerHTML = `
-        <h3 class="text-2xl font-black mb-6">Register Faculty</h3>
+        <h3 class="text-2xl font-black mb-2">Register Faculty</h3>
+        <p class="text-xs text-slate-400 mb-6">A unique PIN will be auto-generated and saved to the cloud registry.</p>
         <div class="space-y-4 mb-8">
             <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Display Name</label>
-                <input type="text" id="newFacName" placeholder="e.g. Dr. Sen" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none">
+                <input type="text" id="newFacName" placeholder="e.g. Dr. Sen" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none focus:border-blue-400 transition">
             </div>
             <div>
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Security PIN</label>
-                <input type="text" id="newFacPin" placeholder="1234" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none text-center tracking-[0.5em]">
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Auto-Generated PIN</label>
+                <div class="flex gap-3 items-center">
+                    <input type="text" id="newFacPin" value="${autoPin}" maxlength="4" class="flex-1 p-4 border-2 rounded-xl font-black text-2xl bg-emerald-50 border-emerald-200 outline-none text-center tracking-[0.5em] text-emerald-700">
+                    <button onclick="document.getElementById('newFacPin').value=generatePin()" class="px-4 py-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-600 text-sm transition whitespace-nowrap">🔄 New PIN</button>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2 ml-2">Share this PIN privately with the faculty member. It cannot be recovered later.</p>
             </div>
         </div>
         <div class="flex gap-4">
             <button onclick="closeSettingsModal()" class="flex-1 py-4 bg-slate-100 rounded-xl font-bold">Cancel</button>
-            <button onclick="commitAddFaculty()" class="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-bold shadow-lg">Register Staff</button>
+            <button onclick="commitAddFaculty()" class="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition">✅ Register to Cloud</button>
         </div>
     `;
 
@@ -542,13 +618,45 @@ async function commitAddFaculty() {
     const pin = document.getElementById('newFacPin').value.trim();
 
     if (!name || !pin) { alert("All fields are required."); return; }
+    if (pin.length !== 4 || isNaN(pin)) { alert("PIN must be exactly 4 digits."); return; }
 
-    if (!systemConfig.faculty) systemConfig.faculty = [];
-    systemConfig.faculty.push({ name, pin });
+    const commitBtn = document.querySelector('#settingsModalContent button[onclick="commitAddFaculty()"]');
+    if (commitBtn) { commitBtn.disabled = true; commitBtn.textContent = 'Saving...'; }
 
-    await saveSystemConfig();
-    renderAdminSettings();
+    if (supabaseClient) {
+        // Check if name already exists
+        const { data: existing } = await supabaseClient
+            .from('faculty_registry')
+            .select('id')
+            .ilike('name', name)
+            .maybeSingle();
+
+        if (existing) {
+            alert(`"${name}" is already registered. Each faculty member must have a unique name.`);
+            if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = '✅ Register to Cloud'; }
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('faculty_registry')
+            .insert([{ name, pin }]);
+
+        if (error) {
+            console.error('Supabase insert error:', error);
+            alert('Failed to save to cloud. Please try again.');
+            if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = '✅ Register to Cloud'; }
+            return;
+        }
+    } else {
+        // Fallback to local config
+        if (!systemConfig.faculty) systemConfig.faculty = [];
+        systemConfig.faculty.push({ name, pin });
+        await saveSystemConfig();
+    }
+
     closeSettingsModal();
+    renderAdminSettings();
+    alert(`✅ ${name} has been registered!\n\nTheir PIN is: ${pin}\n\nPlease share this with them privately.`);
 }
 
 async function removeFaculty(index) {
@@ -556,6 +664,25 @@ async function removeFaculty(index) {
     
     systemConfig.faculty.splice(index, 1);
     await saveSystemConfig();
+    renderAdminSettings();
+}
+
+async function removeFacultyById(id, name) {
+    if (!confirm(`Are you sure you want to remove "${name}" from the registry?\n\nTheir private Drive folder will remain, but they will lose portal access.`)) return;
+
+    if (supabaseClient) {
+        const { error } = await supabaseClient
+            .from('faculty_registry')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Supabase delete error:', error);
+            alert('Failed to remove from cloud registry. Please try again.');
+            return;
+        }
+    }
+
     renderAdminSettings();
 }
 
