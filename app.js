@@ -993,7 +993,7 @@ window.setDifficulty = function(level) {
     ['EASY', 'MODERATE', 'HARD'].forEach(l => {
         const btn = document.getElementById(`diffBtn_${l}`);
         if(btn) {
-            btn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg text-slate-500 hover:bg-white hover:shadow-sm transition-all duration-300";
+            btn.className = "flex-1 flex items-center justify-center text-sm font-bold rounded-lg text-slate-500 hover:bg-white hover:shadow-sm transition-all duration-300";
         }
     });
 
@@ -1001,11 +1001,11 @@ window.setDifficulty = function(level) {
     const activeBtn = document.getElementById(`diffBtn_${level}`);
     if (activeBtn) {
         if (level === 'EASY') {
-            activeBtn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-emerald-500 text-white shadow-md transition-all duration-300";
+            activeBtn.className = "flex-1 flex items-center justify-center text-sm font-bold rounded-lg bg-emerald-500 text-white shadow-md transition-all duration-300";
         } else if (level === 'MODERATE') {
-            activeBtn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 text-white shadow-md transition-all duration-300";
+            activeBtn.className = "flex-1 flex items-center justify-center text-sm font-bold rounded-lg bg-indigo-600 text-white shadow-md transition-all duration-300";
         } else if (level === 'HARD') {
-            activeBtn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-rose-500 text-white shadow-md transition-all duration-300";
+            activeBtn.className = "flex-1 flex items-center justify-center text-sm font-bold rounded-lg bg-rose-500 text-white shadow-md transition-all duration-300";
         }
     }
     saveDraft();
