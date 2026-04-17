@@ -63,7 +63,7 @@ function showAuthModal() {
     document.getElementById('authContainer').classList.remove('hidden');
     document.getElementById('googleSignInButton').innerHTML = `
         <button onclick="requestDriveAccess()" class="pearl-btn pearl-btn-blue w-full py-4 rounded-xl font-bold text-lg text-white mt-4">
-            âœ§ Sign in with Google
+            ✧ Sign in with Google
         </button>
     `;
 }
