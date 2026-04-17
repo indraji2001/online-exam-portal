@@ -144,7 +144,7 @@ function setAuthMode(mode) {
         btnNew.classList.add('text-slate-400');
         pinContainer.classList.remove('hidden-section');
         newInfo.classList.add('hidden-section');
-        entryBtn.innerHTML = '<span>ðŸ” </span> Unlock My Private Vault';
+        entryBtn.innerHTML = '<span>🔓</span> Unlock My Private Vault';
     } else {
         btnNew.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
         btnNew.classList.remove('text-slate-400');
@@ -152,7 +152,7 @@ function setAuthMode(mode) {
         btnReturning.classList.add('text-slate-400');
         pinContainer.classList.add('hidden-section');
         newInfo.classList.remove('hidden-section');
-        entryBtn.innerHTML = '<span>âœ¨</span> Register & Enter Vault';
+        entryBtn.innerHTML = '<span>✨</span> Register & Enter Vault';
     }
 }
 
