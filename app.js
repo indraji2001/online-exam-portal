@@ -3,19 +3,6 @@
  * Online Exam Portal v4.9.5
  */
 
-function showTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden-section'));
-    document.getElementById('content-' + tabId).classList.remove('hidden-section');
-    document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('active', 'border-blue-600', 'text-blue-600');
-        b.classList.add('text-gray-500', 'border-transparent');
-    });
-    const activeBtn = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
-    if (activeBtn) {
-        activeBtn.classList.add('active', 'border-blue-600', 'text-blue-600');
-        activeBtn.classList.remove('text-gray-500', 'border-transparent');
-    }
-
     if (tabId === 'library') renderLibraryUI();
     if (tabId === 'images') renderImageQueue();
     if (tabId === 'generate') updateAiBridgeSources();
@@ -46,7 +33,7 @@ function renderSources() {
                 <span class="font-bold text-blue-700 text-sm">[${s.type.toUpperCase()}]</span>
                 <span class="ml-2 text-gray-800 font-medium">${s.name}</span>
             </div>
-            <button onclick="removeSource(${s.id})" class="text-red-500 hover:text-red-700 font-bold">ðŸ—‘ï¸ </button>
+            <button onclick="removeSource(${s.id})" class="text-red-500 hover:text-red-700 font-bold">🗑️</button>
         </div>
     `).join('');
     updateAiBridgeSources();
