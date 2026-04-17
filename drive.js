@@ -1,4 +1,4 @@
-﻿// ==========================================
+// ==========================================
 // DRIVE FOLDER MANAGEMENT
 // ==========================================
 
@@ -124,7 +124,7 @@ async function loadLibrary() {
         container.innerHTML = folders.map(f => `
             <div class="library-card flex justify-between items-center group">
                 <div class="flex items-center gap-4">
-                    <div class="text-3xl">ðŸ“</div>
+                    <div class="text-3xl">📂</div>
                     <div>
                         <h4 class="font-bold text-slate-800 text-lg">${f.name}</h4>
                         <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Chemistry Faculty</p>
@@ -238,7 +238,7 @@ async function publishExam() {
         document.getElementById('pubAttempts').textContent = cfg.attempts;
 
         localStorage.removeItem('exam_draft');
-        alert(`âœ… Exam Published Successfully!`);
+        alert(`✅ Exam Published Successfully!`);
     } catch (err) {
         console.error('Publish error:', err);
         alert('Error: ' + err.message);
@@ -260,4 +260,3 @@ async function saveExamToDrive(data, folderId, fileName, mimeType, isBlob = fals
     return await response.json();
 }
 function copyStudentUrl() { navigator.clipboard.writeText(document.getElementById('studentUrl').textContent); alert('Copied!'); }
-
