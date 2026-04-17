@@ -501,7 +501,7 @@
                             <h4 class="font-black text-orange-900 uppercase tracking-wide">JSON Repair Required</h4>
                         </div>
                         <p class="text-xs text-orange-700 font-bold mb-4">The AI output contained errors. Paste this repair command back to fix it:</p>
-                        <textarea id="repairPrompt" class="w-full h-24 p-3 bg-white border border-orange-300 rounded-xl font-mono text-[10px] mb-3" readonly>CRITICAL ERROR: Your last JSON output was malformed (likely contains physical line breaks within string values). FIX THIS: Rewrite the JSON ensuring EVERY new line within a string (text/explanation) is replaced with an HTML <br> tag. Output ONLY the raw JSON block.</textarea>
+                        <textarea id="repairPrompt" class="w-full h-24 p-3 bg-white border border-orange-300 rounded-xl font-mono text-[10px] mb-3" readonly>The previous JSON block was invalid (likely due to structural errors or unescaped characters). PLEASE REGENERATE strictly valid JSON. Ensure all quotes are escaped, no commas are missing, and no physical line breaks exist within string values. Output ONLY the JSON object.</textarea>
                         <button onclick="copyRepair()" class="w-full bg-orange-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-orange-200">Copy Repair Command</button>
                     </div>
                 </div>
