@@ -36,8 +36,11 @@ function checkExistingToken() {
         if (user.name) {
             currentUser = user;
             handleAuthSuccess();
+            return;
         }
     }
+    // No valid token found — show the sign-in screen
+    showAuthModal();
 }
 
 function checkEnvironment() {
