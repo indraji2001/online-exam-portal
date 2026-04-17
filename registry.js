@@ -23,7 +23,7 @@ async function verifyFacultyLogin(name, pin) {
         if (error) {
             console.error('Supabase verify error:', error);
             alert('A network error occurred.');
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>ðŸ” </span> Unlock My Private Vault'; }
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔓</span> Unlock My Private Vault'; }
             return;
         }
         faculty = data;
@@ -38,7 +38,7 @@ async function verifyFacultyLogin(name, pin) {
     if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>ðŸ” </span> Unlock My Private Vault'; }
 
     if (!faculty) {
-        alert("â Œ Invalid Name or PIN.");
+        alert("❌ Invalid Name or PIN.");
         return;
     }
 
