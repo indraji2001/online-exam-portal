@@ -15,9 +15,9 @@ let supabaseClient = null;
 function initSupabase() {
     try {
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log('✅ Supabase connected: Chemistry Exam Portal DB');
+        console.log('âœ… Supabase connected: Chemistry Exam Portal DB');
     } catch(e) {
-        console.error('❌ Supabase init failed:', e);
+        console.error('âŒ Supabase init failed:', e);
     }
 }
 
@@ -76,945 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// GOOGLE API & AUTHENTICATION (FIXED)
-// ==========================================
-
-function initGoogleApi() {
-    gapi.load('client', {
-        callback: function () {
-            gapi.client.init({
-                apiKey: GOOGLE_API_KEY,
-                discoveryDocs: [
-                    "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
-                    "https://sheets.googleapis.com/$discovery/rest?version=v4"
-                ],
-            }).then(function () {
-                console.log('GAPI client initialized successfully');
-                if (google && google.accounts && google.accounts.oauth2) {
-                    checkExistingToken();
-                }
-            }).catch(function (error) {
-                console.error('Error initializing GAPI client:', error);
-            });
-        },
-        onerror: function () {
-            console.error('Failed to load GAPI client');
-        }
-    });
-}
-
-function checkExistingToken() {
-    const token = localStorage.getItem('google_access_token');
-    const expiry = localStorage.getItem('google_token_expiry');
-    if (token && expiry && Date.now() < parseInt(expiry)) {
-        gapi.client.setToken({ access_token: token });
-        const user = JSON.parse(localStorage.getItem('google_user') || '{}');
-        if (user.name) {
-            currentUser = user;
-            handleAuthSuccess();
-        }
-    }
-}
-
-function checkEnvironment() {
-    const token = localStorage.getItem('google_access_token');
-    const expiry = localStorage.getItem('google_token_expiry');
-    const user = localStorage.getItem('google_user');
-
-    if (token && expiry && Date.now() < parseInt(expiry) && user) {
-        currentUser = JSON.parse(user);
-        
-        // Unified Drive Naming Logic (v4.9)
-        if (currentUser.email === 'chemistrydept@maldacollege.ac.in') {
-            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
-        } else {
-            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; // Fixed name for everyone to prevent duplicate folders
-        }
-        
-        gapi.client.setToken({ access_token: token });
-        
-        // v4.9 SECURITY FIX: Hide portal until identity is confirmed
-        document.getElementById('mainPortal').classList.add('hidden');
-        handleAuthSuccess();
-    } else {
-        showAuthModal();
-    }
-}
-
-function showAuthModal() {
-    document.getElementById('authContainer').classList.remove('hidden');
-
-    // Bypass the popup blocker by binding the flow directly to a custom button
-    document.getElementById('googleSignInButton').innerHTML = `
-        <button onclick="requestDriveAccess()" class="pearl-btn pearl-btn-blue w-full py-4 rounded-xl font-bold text-lg text-white mt-4">
-            ✧ Sign in with Google
-        </button>
-    `;
-}
-
-// ==========================================
-// NAVIGATION & CORE UI
-// ==========================================
-
-function showTab(tabId) {
-    // Hide all sections
-    document.querySelectorAll('section').forEach(el => {
-        if (el.id.startsWith('content-')) {
-            el.classList.add('hidden-section');
-            el.classList.add('hidden'); // Double safety
-        }
-    });
-
-    // Show target section
-    const target = document.getElementById('content-' + tabId);
-    if (target) {
-        target.classList.remove('hidden-section');
-        target.classList.remove('hidden');
-    }
-
-    // Update Tab Buttons
-    document.querySelectorAll('nav button').forEach(btn => {
-        if (btn.id && btn.id.startsWith('tab-')) {
-            btn.className = 'flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl';
-        }
-    });
-    
-    const activeBtn = document.getElementById('tab-' + tabId);
-    if (activeBtn) {
-        activeBtn.className = 'flex-1 py-4 px-4 font-semibold tab-active rounded-xl';
-    }
-
-    // Special Rendering for dynamic tabs
-    if (tabId === 'library') renderLibraryUI();
-    if (tabId === 'settings') renderAdminSettings();
-}
-
-function requestDriveAccess() {
-    // Clear any stuck tokens in memory before requesting a new one
-    gapi.client.setToken(null);
-
-    const client = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-        callback: (tokenResponse) => {
-            if (tokenResponse && tokenResponse.access_token) {
-                gapi.client.setToken({ access_token: tokenResponse.access_token });
-                localStorage.setItem('google_access_token', tokenResponse.access_token);
-                localStorage.setItem('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
-
-                fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                })
-                    .then(res => res.json())
-                    .then(profile => {
-                        currentUser = { name: profile.name, email: profile.email, image: profile.picture };
-                        
-                        // Unified Drive Naming Logic (v4.9)
-                        if (profile.email === 'chemistrydept@maldacollege.ac.in') {
-                            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
-                        } else {
-                            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; // Fixed name for everyone
-                        }
-                        
-                        localStorage.setItem('google_user', JSON.stringify(currentUser));
-                        
-                        // v4.9 SECURITY FIX: 
-                        // Hide portal until identity is confirmed
-                        document.getElementById('mainPortal').classList.add('hidden');
-                        handleAuthSuccess();
-                    });
-            }
-        },
-        error_callback: (err) => {
-            console.error('Google Auth Error Scope:', err);
-            if (err.type === 'popup_blocked_by_browser') {
-                alert('Please allow popups for this site to sign in.');
-            } else {
-                alert('Sign-in Error: ' + (err.message || 'Check browser console for details. Ensure you are running on http://localhost'));
-            }
-        }
-    });
-
-    // Forced account selection
-    client.requestAccessToken({ prompt: 'select_account' });
-}
-
-function handleAuthSuccess() {
-    document.getElementById('authContainer').classList.add('hidden');
-    document.getElementById('accountBar').classList.remove('hidden');
-    document.getElementById('userName').textContent = currentUser.name;
-    document.getElementById('userEmail').textContent = currentUser.email;
-
-    if (currentUser.image) {
-        document.getElementById('userAvatar').src = currentUser.image;
-        document.getElementById('userAvatar').classList.remove('hidden');
-    }
-
-    // Role Detection Logic - v4.9 Departmental
-    document.getElementById('welcomeUserEmail').textContent = currentUser.email;
-    document.getElementById('identityModal').classList.remove('hidden-section');
-    
-    // Auto-detect available roles for this email
-    const isAdmin = AUTHORIZED_ADMINS.includes(currentUser.email.toLowerCase());
-    const isDept = currentUser.email.toLowerCase() === DEPARTMENTAL_ACCOUNT;
-
-    if (isAdmin) document.getElementById('btnRoleAdmin').classList.remove('hidden');
-    if (isDept) document.getElementById('btnRoleFaculty').classList.remove('hidden');
-
-    // If neither, show warning
-    if (!isAdmin && !isDept) {
-        document.getElementById('wrongAccountWarning').classList.remove('hidden');
-    }
-}
-
-function resetAuthFlow() {
-    // Hide the identity modal and return to main landing
-    document.getElementById('identityModal').classList.add('hidden-section');
-    
-    // Re-initialize and show the login screen with the button
-    showAuthModal();
-    
-    // Reset steps back to the first one for the next attempt
-    document.getElementById('roleSelectionStep').classList.remove('hidden-section');
-    document.getElementById('adminDriveStep').classList.add('hidden-section');
-    document.getElementById('facultyNameStep').classList.add('hidden-section');
-}
-
-function selectRole(role) {
-    if (role === 'admin') {
-        document.getElementById('roleSelectionStep').classList.add('hidden-section');
-        document.getElementById('adminDriveStep').classList.remove('hidden-section');
-    } else {
-        document.getElementById('roleSelectionStep').classList.add('hidden-section');
-        document.getElementById('facultyNameStep').classList.remove('hidden-section');
-    }
-}
-
-async function confirmAdminEntry(scope) {
-    userRole = 'admin';
-    storageScope = scope;
-    
-    if (scope === 'departmental') {
-        DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
-        // In departmental mode, the Admin is identified by their name in the registry
-        currentUser.facultyName = currentUser.name; 
-    } else {
-        DRIVE_CONFIG.mainFolder = `Online Exam Portal (${currentUser.name})`;
-    }
-
-    await prepareDriveAndConfig();
-    document.getElementById('identityModal').classList.add('hidden-section');
-    document.getElementById('mainPortal').classList.remove('hidden');
-    document.getElementById('tab-settings').classList.remove('hidden');
-    setupMainFolder(true);
-}
-
-function setAuthMode(mode) {
-    currentAuthMode = mode;
-    const btnReturning = document.getElementById('authModeReturning');
-    const btnNew = document.getElementById('authModeNew');
-    const pinContainer = document.getElementById('pinContainer');
-    const newInfo = document.getElementById('newInfoContainer');
-    const entryBtn = document.getElementById('facultyEntryBtn');
-
-    if (mode === 'returning') {
-        btnReturning.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
-        btnReturning.classList.remove('text-slate-400');
-        btnNew.classList.remove('bg-white', 'shadow-sm', 'text-blue-600');
-        btnNew.classList.add('text-slate-400');
-        pinContainer.classList.remove('hidden-section');
-        newInfo.classList.add('hidden-section');
-        entryBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault';
-    } else {
-        btnNew.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
-        btnNew.classList.remove('text-slate-400');
-        btnReturning.classList.remove('bg-white', 'shadow-sm', 'text-blue-600');
-        btnReturning.classList.add('text-slate-400');
-        pinContainer.classList.add('hidden-section');
-        newInfo.classList.remove('hidden-section');
-        entryBtn.innerHTML = '<span>✨</span> Register & Enter Vault';
-    }
-}
-
-async function confirmFacultyEntry() {
-    const name = document.getElementById('facultyNameClaim').value.trim();
-    const pin = document.getElementById('facultyPinClaim').value.trim();
-    
-    if (!name) { alert("Please enter your name."); return; }
-    
-    if (currentAuthMode === 'returning') {
-        if (!pin) { alert("Please enter your Faculty PIN."); return; }
-        await verifyFacultyLogin(name, pin);
-    } else {
-        await registerNewFaculty(name);
-    }
-}
-
-async function verifyFacultyLogin(name, pin) {
-    const verifyBtn = document.getElementById('facultyEntryBtn');
-    if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
-
-    // Verify against Supabase cloud registry
-    let faculty = null;
-    if (supabaseClient) {
-        const { data, error } = await supabaseClient
-            .from('faculty_registry')
-            .select('*')
-            .ilike('name', name)
-            .eq('pin', pin)
-            .maybeSingle();
-
-        if (error) {
-            console.error('Supabase verify error:', error);
-            alert('A network error occurred. Please try again.');
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault'; }
-            return;
-        }
-        faculty = data;
-    } else {
-        // Fallback: check local config if Supabase not available
-        if (systemConfig && systemConfig.faculty) {
-            faculty = systemConfig.faculty.find(f =>
-                f.name.toLowerCase() === name.toLowerCase() && f.pin === pin
-            );
-        }
-    }
-
-    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault'; }
-
-    if (!faculty) {
-        alert("❌ Invalid Name or PIN. Please contact the administrator for your registered name and PIN.");
-        return;
-    }
-
-    await initializeFacultyPortal(faculty);
-}
-
-async function registerNewFaculty(name) {
-    const verifyBtn = document.getElementById('facultyEntryBtn');
-    if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Registering...'; }
-
-    if (supabaseClient) {
-        // Check if name is already taken
-        const { data: existing } = await supabaseClient
-            .from('faculty_registry')
-            .select('id')
-            .ilike('name', name)
-            .maybeSingle();
-
-        if (existing) {
-            alert(`⚠️ "${name}" is already registered. If this is you, please use "Returning User" mode and enter your PIN.`);
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
-            return;
-        }
-
-        const newPin = generatePin();
-        const { data, error } = await supabaseClient
-            .from('faculty_registry')
-            .insert([{ name, pin: newPin }])
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Registration failed:', error);
-            alert('Cloud registration failed. Please check your connection.');
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
-            return;
-        }
-
-        pendingFaculty = data;
-        revealSuccessScreen(newPin);
-    } else {
-        alert("Cloud registry unavailable. Admin must register you manually via Settings.");
-        if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
-    }
-}
-
-function revealSuccessScreen(pin) {
-    document.getElementById('facultyNameStep').classList.add('hidden-section');
-    document.getElementById('generatedPinDisplay').textContent = pin;
-    
-    setTimeout(() => {
-        document.getElementById('facultySuccessStep').classList.remove('hidden-section');
-    }, 400);
-}
-
-async function finalizeNewUserEntry() {
-    if (!pendingFaculty) return;
-    await initializeFacultyPortal(pendingFaculty);
-}
-
-async function initializeFacultyPortal(faculty) {
-    userRole = 'faculty';
-    storageScope = 'departmental';
-    currentUser.facultyName = faculty.name;
-    document.getElementById('genInstructor').value = faculty.name;
-    DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
-
-    // Show Loading State in Modal
-    const loadingHtml = `
-        <div class="text-center py-10">
-            <div class="animate-spin text-4xl mb-4">⚙️</div>
-            <h3 class="text-xl font-bold">Initializing Private Vault...</h3>
-            <p class="text-slate-500 text-xs">Securing your departmental isolation zone</p>
-        </div>
-    `;
-
-    const successStep = document.getElementById('facultySuccessStep');
-    const nameStep = document.getElementById('facultyNameStep');
-
-    if (!successStep.classList.contains('hidden-section')) {
-        successStep.innerHTML = loadingHtml;
-    } else {
-        nameStep.innerHTML = loadingHtml;
-    }
-
-    // 1. Initial Drive Prep (Master Folder)
-    await prepareDriveAndConfig();
-    
-    // 2. Identify the Master 'Instructors' Folder
-    await setupInstructorsFolderOnly();
-
-    // 3. SECURE ISOLATION: Re-scope the root to the Instructor's specific vault
-    const facultyFolderId = await getOrCreateInstructorFolder(faculty.name);
-    
-    // THE MASTER LOCK: Redirect all future drive operations to this subfolder
-    driveFolderId = facultyFolderId; 
-    console.log("FACULTY LOCKED: Root re-scoped to Private Vault ID:", driveFolderId);
-
-    // Finalize UI
-    document.getElementById('identityModal').classList.add('hidden-section');
-    document.getElementById('mainPortal').classList.remove('hidden');
-    
-    // Visual Confirmation Badge
-    const badge = document.createElement('div');
-    badge.className = "flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 shadow-sm ml-4";
-    badge.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">📂 Vault: ${faculty.name}</span>`;
-    document.getElementById('accountBar').insertBefore(badge, document.getElementById('accountBar').firstChild);
-    
-    // Refresh library from the new isolated root
-    loadLibrary();
-}
-
-async function setupInstructorsFolderOnly() {
-    const response = await gapi.client.drive.files.list({
-        q: `'${driveFolderId}' in parents and name='${DRIVE_CONFIG.instructorsFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-        spaces: 'drive'
-    });
-    
-    if (response.result.files.length === 0) {
-        const folder = await gapi.client.drive.files.create({
-            resource: { name: DRIVE_CONFIG.instructorsFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] },
-            fields: 'id'
-        });
-        instructorsFolderId = folder.result.id;
-    } else {
-        instructorsFolderId = response.result.files[0].id;
-    }
-}
-
-// ==========================================
-// v4.6 IDENTITY & ROLE MANAGEMENT
-// ==========================================
-
-function selectAccountType(role) {
-    document.getElementById('facultyForm').classList.add('hidden-section');
-    document.getElementById('adminForm').classList.add('hidden-section');
-
-    if (role === 'admin') {
-        document.getElementById('adminForm').classList.remove('hidden-section');
-    } else {
-        document.getElementById('facultyForm').classList.remove('hidden-section');
-    }
-}
-
-async function initSystemConfig() {
-    if (!driveFolderId) return;
-
-    try {
-        const response = await gapi.client.drive.files.list({
-            q: `name='system_config.json' and '${driveFolderId}' in parents and trashed=false`,
-            spaces: 'drive'
-        });
-
-        if (response.result.files.length === 0) {
-            // Create default config if not exists
-            systemConfig = {
-                admin_password: "admin", 
-                faculty: [
-                    { email: "faculty@example.com", pin: "1234", name: "Sample Professor" }
-                ]
-            };
-            await gapi.client.drive.files.create({
-                resource: { name: 'system_config.json', parents: [driveFolderId] },
-                media: { mimeType: 'application/json', body: JSON.stringify(systemConfig, null, 2) }
-            });
-        } else {
-            const fileId = response.result.files[0].id;
-            const content = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' });
-            systemConfig = typeof content.result === 'string' ? JSON.parse(content.result) : content.result;
-        }
-    } catch (err) {
-        console.error('Error loading system config:', err);
-    }
-}
-
-async function prepareDriveAndConfig() {
-    try {
-        // 1. Find or Create Master Folder
-        const response = await gapi.client.drive.files.list({
-            q: `name='${DRIVE_CONFIG.mainFolder}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-            spaces: 'drive'
-        });
-
-        if (response.result.files.length === 0) {
-            const folder = await gapi.client.drive.files.create({
-                resource: { name: DRIVE_CONFIG.mainFolder, mimeType: 'application/vnd.google-apps.folder' }, fields: 'id'
-            });
-            driveFolderId = folder.result.id;
-        } else {
-            driveFolderId = response.result.files[0].id;
-        }
-
-        console.log("Drive Initialized at:", DRIVE_CONFIG.mainFolder);
-    } catch (err) {
-        console.error("Initialization Error:", err);
-        alert("Critical: Could not connect to Google Drive. Check your connection.");
-    }
-}
-
-function verifyAdmin() {
-    const pwd = document.getElementById('adminPass').value;
-    
-    // Fallback: If the config file hasn't loaded yet, use the emergency 'admin' password
-    const masterPass = (systemConfig && systemConfig.admin_password) ? systemConfig.admin_password : "admin";
-    
-    if (pwd === masterPass) {
-        userRole = 'admin';
-        document.getElementById('identityModal').classList.add('hidden-section');
-        document.getElementById('mainPortal').classList.remove('hidden');
-        
-        // Correctly reveal the admin settings tab
-        document.getElementById('tab-settings').classList.remove('hidden');
-        renderAdminSettings();
-        
-        // Finalize Folder structure & ENSURE config file exists
-        setupMainFolder(true); 
-        saveSystemConfig(); // Force a save to Drive now that we are in!
-    } else {
-        alert("Access Denied. If this is a new setup, your default password is 'admin'.");
-    }
-}
-
-// ==========================================
-// ADMIN SETTINGS & REGISTRY LOGIC
-// ==========================================
-
-async function renderAdminSettings() {
-    // Update Password Field
-    if (systemConfig) document.getElementById('setAdminPass').value = systemConfig.admin_password;
-
-    // Render Faculty List from Supabase
-    const list = document.getElementById('facultyRegistryList');
-    list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Loading from cloud...</td></tr>';
-
-    if (supabaseClient) {
-        const { data: faculty, error } = await supabaseClient
-            .from('faculty_registry')
-            .select('*')
-            .order('created_at', { ascending: true });
-
-        if (error) {
-            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-rose-400">❌ Failed to load registry from cloud.</td></tr>';
-            return;
-        }
-
-        if (!faculty || faculty.length === 0) {
-            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered yet.</td></tr>';
-            return;
-        }
-
-        list.innerHTML = '';
-        faculty.forEach((member) => {
-            const tr = document.createElement('tr');
-            tr.className = "group hover:bg-slate-50 transition-colors";
-            const joinDate = new Date(member.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-            tr.innerHTML = `
-                <td class="py-5">
-                    <div class="font-bold text-slate-900">${member.name}</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">Joined: ${joinDate}</div>
-                </td>
-                <td class="py-5 text-center">
-                    <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin}</span>
-                </td>
-                <td class="py-5 text-right">
-                    <button onclick="removeFacultyById('${member.id}', '${member.name}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
-                </td>
-            `;
-            list.appendChild(tr);
-        });
-    } else {
-        // Fallback to local config
-        if (!systemConfig || !systemConfig.faculty || systemConfig.faculty.length === 0) {
-            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered.</td></tr>';
-            return;
-        }
-        list.innerHTML = '';
-        systemConfig.faculty.forEach((member, index) => {
-            const tr = document.createElement('tr');
-            tr.className = "group hover:bg-slate-50 transition-colors";
-            tr.innerHTML = `
-                <td class="py-5 font-bold text-slate-900">${member.name}</td>
-                <td class="py-5 text-center"><span class="px-3 py-1 bg-slate-100 rounded-lg font-black text-xs tracking-widest text-slate-600">${member.pin}</span></td>
-                <td class="py-5 text-right"><button onclick="removeFaculty(${index})" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button></td>
-            `;
-            list.appendChild(tr);
-        });
-    }
-}
-
-function showAddFacultyModal() {
-    const modal = document.getElementById('settingsModal');
-    const content = document.getElementById('settingsModalContent');
-    
-    const autoPin = generatePin();
-    content.innerHTML = `
-        <h3 class="text-2xl font-black mb-2">Register Faculty</h3>
-        <p class="text-xs text-slate-400 mb-6">A unique PIN will be auto-generated and saved to the cloud registry.</p>
-        <div class="space-y-4 mb-8">
-            <div>
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Display Name</label>
-                <input type="text" id="newFacName" placeholder="e.g. Dr. Sen" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none focus:border-blue-400 transition">
-            </div>
-            <div>
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Auto-Generated PIN</label>
-                <div class="flex gap-3 items-center">
-                    <input type="text" id="newFacPin" value="${autoPin}" maxlength="4" class="flex-1 p-4 border-2 rounded-xl font-black text-2xl bg-emerald-50 border-emerald-200 outline-none text-center tracking-[0.5em] text-emerald-700">
-                    <button onclick="document.getElementById('newFacPin').value=generatePin()" class="px-4 py-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-600 text-sm transition whitespace-nowrap">🔄 New PIN</button>
-                </div>
-                <p class="text-[10px] text-slate-400 mt-2 ml-2">Share this PIN privately with the faculty member. It cannot be recovered later.</p>
-            </div>
-        </div>
-        <div class="flex gap-4">
-            <button onclick="closeSettingsModal()" class="flex-1 py-4 bg-slate-100 rounded-xl font-bold">Cancel</button>
-            <button onclick="commitAddFaculty()" class="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition">✅ Register to Cloud</button>
-        </div>
-    `;
-
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.add('opacity-100');
-        content.classList.remove('scale-95');
-    }, 10);
-}
-
-function closeSettingsModal() {
-    const modal = document.getElementById('settingsModal');
-    const content = document.getElementById('settingsModalContent');
-    modal.classList.remove('opacity-100');
-    content.classList.add('scale-95');
-    setTimeout(() => modal.classList.add('hidden'), 300);
-}
-
-async function commitAddFaculty() {
-    const name = document.getElementById('newFacName').value.trim();
-    const pin = document.getElementById('newFacPin').value.trim();
-
-    if (!name || !pin) { alert("All fields are required."); return; }
-    if (pin.length !== 4 || isNaN(pin)) { alert("PIN must be exactly 4 digits."); return; }
-
-    const commitBtn = document.querySelector('#settingsModalContent button[onclick="commitAddFaculty()"]');
-    if (commitBtn) { commitBtn.disabled = true; commitBtn.textContent = 'Saving...'; }
-
-    if (supabaseClient) {
-        // Check if name already exists
-        const { data: existing } = await supabaseClient
-            .from('faculty_registry')
-            .select('id')
-            .ilike('name', name)
-            .maybeSingle();
-
-        if (existing) {
-            alert(`"${name}" is already registered. Each faculty member must have a unique name.`);
-            if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = '✅ Register to Cloud'; }
-            return;
-        }
-
-        const { error } = await supabaseClient
-            .from('faculty_registry')
-            .insert([{ name, pin }]);
-
-        if (error) {
-            console.error('Supabase insert error:', error);
-            alert('Failed to save to cloud. Please try again.');
-            if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = '✅ Register to Cloud'; }
-            return;
-        }
-    } else {
-        // Fallback to local config
-        if (!systemConfig.faculty) systemConfig.faculty = [];
-        systemConfig.faculty.push({ name, pin });
-        await saveSystemConfig();
-    }
-
-    closeSettingsModal();
-    renderAdminSettings();
-    alert(`✅ ${name} has been registered!\n\nTheir PIN is: ${pin}\n\nPlease share this with them privately.`);
-}
-
-async function removeFaculty(index) {
-    if (!confirm("Are you sure you want to remove this faculty member? Their private folder will remain but they will lose access.")) return;
-    
-    systemConfig.faculty.splice(index, 1);
-    await saveSystemConfig();
-    renderAdminSettings();
-}
-
-async function removeFacultyById(id, name) {
-    if (!confirm(`Are you sure you want to remove "${name}" from the registry?\n\nTheir private Drive folder will remain, but they will lose portal access.`)) return;
-
-    if (supabaseClient) {
-        const { error } = await supabaseClient
-            .from('faculty_registry')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Supabase delete error:', error);
-            alert('Failed to remove from cloud registry. Please try again.');
-            return;
-        }
-    }
-
-    renderAdminSettings();
-}
-
-async function updateAdminSecurity() {
-    const newPass = document.getElementById('setAdminPass').value.trim();
-    if (!newPass) { alert("Password cannot be empty."); return; }
-
-    systemConfig.admin_password = newPass;
-    await saveSystemConfig();
-    alert("Master Password Successfully Updated.");
-}
-
-async function saveSystemConfig() {
-    if (!driveFolderId) return;
-
-    try {
-        // Find existing config file
-        const response = await gapi.client.drive.files.list({
-            q: `name='system_config.json' and '${driveFolderId}' in parents and trashed=false`,
-            spaces: 'drive'
-        });
-
-        const metadata = { name: 'system_config.json' };
-        if (response.result.files.length > 0) {
-            // Update existing
-            const fileId = response.result.files[0].id;
-            await gapi.client.drive.files.update({
-                fileId: fileId,
-                media: { mimeType: 'application/json', body: JSON.stringify(systemConfig, null, 2) }
-            });
-        } else {
-            // Create new
-            await gapi.client.drive.files.create({
-                resource: { name: 'system_config.json', parents: [driveFolderId] },
-                media: { mimeType: 'application/json', body: JSON.stringify(systemConfig, null, 2) }
-            });
-        }
-        console.log("System Config Persisted to Drive.");
-    } catch (err) {
-        console.error('Error saving config:', err);
-    }
-}
-
-function verifyFaculty() {
-    const pin = document.getElementById('facultyPin').value;
-    if (!systemConfig) { alert("System configuration not loaded. Please wait."); return; }
-
-    // Security Fix: Cross-check the current logged-in email with the PIN
-    const professorIndex = systemConfig.faculty.findIndex(f => f.email && f.email.toLowerCase() === currentUser.email.toLowerCase() && f.pin === pin);
-    
-    if (professorIndex !== -1) {
-        const professor = systemConfig.faculty[professorIndex];
-        userRole = 'faculty';
-        
-        // Auto-Sync Name (Point #1): If they changed their name on Google, update the registry
-        if (currentUser.name && currentUser.name !== professor.name) {
-            console.log(`Auto-Syncing Name: ${professor.name} -> ${currentUser.name}`);
-            systemConfig.faculty[professorIndex].name = currentUser.name;
-            saveSystemConfig(); // Silently save in background
-        }
-
-        currentUser.facultyName = professor.name; 
-        document.getElementById('genInstructor').value = professor.name;
-        
-        // Hide modal and show portal
-        document.getElementById('identityModal').classList.add('hidden-section');
-        document.getElementById('mainPortal').classList.remove('hidden');
-        setupMainFolder();
-    } else {
-        alert("Access Denied: This PIN does not match your authorized email account.");
-    }
-}
-
-function switchGoogleAccount() {
-    // Revoke token if it exists
-    const token = gapi.client ? gapi.client.getToken() : null;
-    if (token && token.access_token) {
-        google.accounts.oauth2.revoke(token.access_token, () => {
-            console.log('Token revoked');
-        });
-    }
-
-    // Clear all storage
-    localStorage.removeItem('google_access_token');
-    localStorage.removeItem('google_token_expiry');
-    localStorage.removeItem('google_user');
-
-    // Reset memory state
-    gapi.client.setToken(null);
-    currentUser = null;
-    userRole = null;
-
-    // Return to auth screen
-    document.getElementById('accountBar').classList.add('hidden');
-    document.getElementById('mainPortal').classList.add('hidden');
-    showAuthModal();
-}
-
-function signOut() {
-    switchGoogleAccount();
-    location.reload(); // Refresh to ensure a clean state
-}
-
-// ==========================================
-// DRIVE FOLDER MANAGEMENT
-// ==========================================
-
-async function setupMainFolder(skipMaster = false) {
-    try {
-        if (!skipMaster) {
-            // This part is now handled by prepareDriveAndConfig
-            return; 
-        }
-
-        // Search for subfolders inside the master folder
-        const response = await gapi.client.drive.files.list({
-            q: `'${driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
-        });
-        
-        const existingFolders = response.result.files;
-        const findFolder = (name) => existingFolders.find(f => f.name === name);
-
-        let commonFolder = findFolder(DRIVE_CONFIG.commonResourcesFolderName);
-        if (!commonFolder) {
-            commonFolder = await gapi.client.drive.files.create({
-                resource: { name: DRIVE_CONFIG.commonResourcesFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] }, fields: 'id'
-            });
-            commonResourcesFolderId = commonFolder.result.id;
-        } else {
-            commonResourcesFolderId = commonFolder.id;
-        }
-
-        let instructorsFolder = findFolder(DRIVE_CONFIG.instructorsFolderName);
-        if (!instructorsFolder) {
-            instructorsFolder = await gapi.client.drive.files.create({
-                resource: { name: DRIVE_CONFIG.instructorsFolderName, mimeType: 'application/vnd.google-apps.folder', parents: [driveFolderId] }, fields: 'id'
-            });
-            instructorsFolderId = instructorsFolder.result.id;
-        } else {
-            instructorsFolderId = instructorsFolder.id;
-        }
-
-        loadLibrary();
-        console.log("Full Folder Structure Operational.");
-    } catch (err) {
-        console.error('Drive structure error:', err);
-    }
-}
-async function getOrCreateInstructorFolder(instructorName) {
-    if (!instructorsFolderId) throw new Error('Instructors folder not initialized');
-
-    // v4.9: Strict Name-Based Subfolder Isolation
-    const targetName = (userRole === 'faculty' || (userRole === 'admin' && storageScope === 'departmental')) 
-                       ? currentUser.facultyName 
-                       : instructorName;
-
-    const sanitizedName = targetName.replace(/[\\/:*?"<>|]/g, '_').trim();
-
-    try {
-        const response = await gapi.client.drive.files.list({
-            q: `name='${sanitizedName}' and '${instructorsFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
-        });
-
-        let instructorFolderId;
-        if (response.result.files.length === 0) {
-            const folder = await gapi.client.drive.files.create({
-                resource: { name: sanitizedName, mimeType: 'application/vnd.google-apps.folder', parents: [instructorsFolderId] }, fields: 'id'
-            });
-            instructorFolderId = folder.result.id;
-
-            for (const subfolderName of DRIVE_CONFIG.instructorSubfolders) {
-                await gapi.client.drive.files.create({
-                    resource: { name: subfolderName, mimeType: 'application/vnd.google-apps.folder', parents: [instructorFolderId] }, fields: 'id'
-                });
-            }
-        } else {
-            instructorFolderId = response.result.files[0].id;
-        }
-        currentInstructorFolderId = instructorFolderId;
-        return instructorFolderId;
-    } catch (err) {
-        console.error('Error creating instructor folder:', err);
-        throw err;
-    }
-}
-
-async function getInstructorSubfolder(subfolderName) {
-    if (!currentInstructorFolderId) throw new Error('No instructor folder selected');
-    const response = await gapi.client.drive.files.list({
-        q: `name='${subfolderName}' and '${currentInstructorFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
-    });
-    if (response.result.files.length > 0) return response.result.files[0].id;
-    return null;
-}
-
-function showDriveFolder() {
-    if (driveFolderId) window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
-}
-
-// ==========================================
-// TAB NAVIGATION
-// ==========================================
-
-function showTab(tabName) {
-    const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish', 'settings'];
-    const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'publish': '8. Publish', 'settings': '⚙️ Settings' };
-    tabs.forEach(t => {
-        document.getElementById(`content-${t}`).classList.add('hidden-section');
-        const btn = document.getElementById(`tab-${t}`);
-        btn.className = 'flex-1 py-4 px-4 font-semibold tab-inactive transition whitespace-nowrap text-sm';
-        btn.innerHTML = `<span class="relative z-10">${tabLabels[t]}</span><span class="tab-overlay">${tabLabels[t]}</span>`;
-    });
-    const activeBtn = document.getElementById(`tab-${tabName}`);
-    activeBtn.className = 'flex-1 py-4 px-4 font-semibold tab-active transition whitespace-nowrap text-sm';
-    activeBtn.innerHTML = tabLabels[tabName];
-
-    // 21st.dev HoverClip inspired: fade+slide content transition
-    const content = document.getElementById(`content-${tabName}`);
-    content.classList.remove('hidden-section');
-    content.classList.remove('tab-content-transition');
-    void content.offsetWidth;
-    content.classList.add('tab-content-transition');
-
-    if (tabName === 'ai-bridge') updateAiBridgeSources();
-    if (tabName === 'library') loadLibrary();
-    if (tabName === 'images') renderImageQueue();
-}
-
-// ==========================================
 // TAB 1: SOURCES MANAGEMENT
 // ==========================================
 
@@ -1063,7 +124,7 @@ function updateSourceDisplay() {
             }">${s.type.toUpperCase()}</span>
                     <span class="text-sm font-medium truncate max-w-xs">${s.name}</span>
                 </div>
-                <button onclick="removeSource('${s.id}')" class="text-red-500 hover:text-red-700">×</button>
+                <button onclick="removeSource('${s.id}')" class="text-red-500 hover:text-red-700">Ã—</button>
             </div>
         `).join('');
     }
@@ -1134,7 +195,7 @@ function loadDraft() {
 function updateAiBridgeSources() {
     const container = document.getElementById('aiBridgeSources');
     if (sources.length === 0) container.innerHTML = '<p class="text-gray-400 text-sm">Add sources in Tab 1 first</p>';
-    else container.innerHTML = `<div class="space-y-2">${sources.map(s => `<div class="text-sm truncate">• ${s.name}</div>`).join('')}</div>`;
+    else container.innerHTML = `<div class="space-y-2">${sources.map(s => `<div class="text-sm truncate">â€¢ ${s.name}</div>`).join('')}</div>`;
 }
 
 // --- NEW: UI Logic for the Pool Slider ---
@@ -1193,7 +254,7 @@ function generatePrompt() {
     const difficultyProfile = difficultyProfiles[difficulty] || difficultyProfiles['MODERATE'];
 
     const examIntelligenceDirective = `
-EXAM INTELLIGENCE PROFILE — ${examProfile.label}:
+EXAM INTELLIGENCE PROFILE â€” ${examProfile.label}:
 ${examProfile.directive}
 
 ${difficultyProfile.directive}
@@ -1207,7 +268,7 @@ You MUST follow BOTH the exam profile AND the difficulty intensity above ABSOLUT
         ? `1. ATTACHED FILES (HIGHEST PRIORITY): You MUST deeply analyze these provided files:\n${localFilesList}\nYou MUST generate a significant portion of the questions directly from the content, structures, and reactions found in these specific files.`
         : "1. ATTACHED FILES: NONE. DO NOT invent or reference any local files.";
 
-    const prompt = `[SYSTEM COMMAND: ACT AS AN EXPERT EXAM GENERATOR. YOUR ONLY OUTPUT MUST BE RAW, VALID JSON. NO CONVERSATION.]
+    const prompt = `You are a specialized Exam Generator. Follow all instructions carefully. YOUR ONLY OUTPUT MUST BE RAW, VALID JSON. Do not include markdown formatting or conversational text outside the JSON block.
 ${examIntelligenceDirective}
 
 STANDARD: ${examProfile.label}
@@ -1308,31 +369,31 @@ function parseAiOutput() {
         const lastBrace = text.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace !== -1) text = text.substring(firstBrace, lastBrace + 1);
 
-        // --- NEW: THE BULLETPROOF JSON SANITIZER ---
-        // This algorithm detects physical line breaks that the AI incorrectly placed 
-        // INSIDE string values and silently converts them to <br> tags before parsing.
+        // --- UPGRADED: THE BULLETPROOF JSON SANITIZER ---
         let sanitized = "";
         let inString = false;
         let isEscaped = false;
         for (let i = 0; i < text.length; i++) {
             let char = text[i];
-            if (char === '\\') {
-                isEscaped = !isEscaped;
+            if (char === '\\' && !isEscaped) {
+                isEscaped = true;
                 sanitized += char;
             } else if (char === '"' && !isEscaped) {
                 inString = !inString;
                 sanitized += char;
-                isEscaped = false;
-            } else if ((char === '\n' || char === '\r') && inString) {
-                // If we hit a line break inside a string, fix it automatically
-                if (char === '\n') sanitized += '<br>';
+            } else if ((char === '\n' || char === '\r')) {
+                if (inString) {
+                    if (char === '\n') sanitized += '<br>';
+                } else {
+                    sanitized += char;
+                }
                 isEscaped = false;
             } else {
                 sanitized += char;
                 isEscaped = false;
             }
         }
-        text = sanitized; // Overwrite the AI's bad text with the sanitized text
+        text = sanitized;
         // --- END SANITIZER ---
 
         let data = JSON.parse(text);
@@ -1392,7 +453,7 @@ function parseAiOutput() {
         badge.className = "bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded font-bold border border-orange-300";
         badge.textContent = "Syntax Error Detected";
 
-        alert("✗ Parse Error: The AI formatted the JSON incorrectly (likely using physical line breaks). Please copy the Repair Command and paste it back to the AI.");
+        alert("âœ— Parse Error: The AI formatted the JSON incorrectly (likely using physical line breaks). Please copy the Repair Command and paste it back to the AI.");
     }
 }
 
@@ -1612,7 +673,7 @@ function renderImageQueue() {
                 '<span>Q' + q.number + '</span>' +
                 '<span class="text-xs bg-blue-200 text-blue-900 px-2 py-0.5 rounded uppercase tracking-wider">' + qTypeStr + '</span>' +
                 '</div>' +
-                '<div class="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">✏️ Click anywhere to edit</div>' +
+                '<div class="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">âœï¸ Click anywhere to edit</div>' +
                 '</div>' +
                 '<div class="mb-5 text-gray-900 leading-relaxed" style="font-size: ' + qBaseSize + 'px; font-weight: ' + qWeightStr + ';">' + q.text + '</div>' +
                 '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-800 mb-4" style="font-size: ' + optBaseSize + 'px;">' +
@@ -1620,7 +681,7 @@ function renderImageQueue() {
                     let isCorrect = Array.isArray(q.correct) ? q.correct.includes(i) : (i === q.correct);
                     let correctClass = isCorrect ? 'bg-green-100 text-green-900 border-2 border-green-500 font-bold shadow-sm' : 'bg-gray-50 border border-gray-300';
                     let btnClass = isCorrect ? 'bg-green-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-green-50 hover:text-green-700 hover:border-green-300';
-                    let btnText = isCorrect ? '✓ CORRECT' : 'Mark Correct';
+                    let btnText = isCorrect ? 'âœ“ CORRECT' : 'Mark Correct';
 
                     return '<div class="relative p-3 rounded-lg flex justify-between items-center ' + correctClass + '">' +
                         '<span>' + String.fromCharCode(65 + i) + '. ' + opt + '</span>' +
@@ -1688,173 +749,6 @@ function saveEditedQuestion() {
     closeEditModal();
     renderImageQueue();
 }
-
-// ==========================================
-// TAB 7 & 8: LIBRARY & PUBLISH (DRIVE FIX)
-// ==========================================
-
-async function loadLibrary() {
-    if (!instructorsFolderId) return;
-    const container = document.getElementById('libraryContent');
-    container.innerHTML = '<p class="text-center py-4 text-slate-400">Loading Cloud Library...</p>';
-
-    try {
-        const response = await gapi.client.drive.files.list({
-            q: `'${instructorsFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-            spaces: 'drive'
-        });
-
-        let folders = response.result.files;
-
-        // Privacy Lock (v4.6): If faculty, show ONLY their folder
-        if (userRole === 'faculty' && currentUser.facultyName) {
-            folders = folders.filter(f => f.name === currentUser.facultyName);
-        }
-
-        if (folders.length === 0) {
-            container.innerHTML = '<p class="text-center py-4 text-slate-500">No instructor folders found or access restricted.</p>';
-            return;
-        }
-
-        container.innerHTML = folders.map(f => `
-            <div class="library-card flex justify-between items-center group">
-                <div class="flex items-center gap-4">
-                    <div class="text-3xl">📁</div>
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-lg">${f.name}</h4>
-                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Chemistry Faculty</p>
-                    </div>
-                </div>
-                <button onclick="window.open('https://drive.google.com/drive/folders/${f.id}', '_blank')" class="pearl-btn pearl-btn-blue px-6 py-2 rounded-xl text-white text-sm font-bold opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">Open Folder</button>
-            </div>
-        `).join('');
-
-    } catch (err) {
-        console.error('Library load error:', err);
-        container.innerHTML = '<p class="text-center py-4 text-red-500">Error loading library data.</p>';
-    }
-}
-
-async function publishExam() {
-    const instructor = document.getElementById('genInstructor').value.trim();
-    const course = document.getElementById('genCourse').value.trim();
-    if (!instructor) { alert('Please enter Instructor name in Generate tab'); showTab('generate'); return; }
-    if (!course) { alert('Please enter Course code in Generate tab'); showTab('generate'); return; }
-    if (Object.keys(generatedSets).length === 0) { alert('No questions to publish. Please generate or import questions first.'); showTab('ai-bridge'); return; }
-
-    const cfg = {
-        instructor: instructor, course: course,
-        semester: document.getElementById('genSemester').value,
-        topic: document.getElementById('genTopic').value,
-        standard: document.getElementById('genStandard').value,
-        sets: parseInt(document.getElementById('genSets').value),
-        attempts: parseInt(document.getElementById('genAttempts').value),
-        linkStart: document.getElementById('linkStartTime').value,
-        linkEnd: document.getElementById('linkEndTime').value,
-        duration: parseInt(document.getElementById('genDuration').value),
-        markCorrect: parseFloat(document.getElementById('markCorrect').value),
-        markNegative: parseFloat(document.getElementById('markNegative').value),
-        resultsSheetId: null
-    };
-
-    currentExam = { id: 'EXAM_' + Date.now(), config: cfg, sets: generatedSets, studentAttempts: {}, createdAt: new Date().toISOString() };
-
-    try {
-        if (driveFolderId && gapi.client) {
-            const instructorFolderId = await getOrCreateInstructorFolder(instructor);
-            const questionBanksFolderId = await getInstructorSubfolder('03_Question_Banks');
-            const examConfigsFolderId = await getInstructorSubfolder('07_Exam_Configurations');
-            const resultsFolderId = await getInstructorSubfolder('05_Results_Archives');
-
-            const sheetName = `Mark_${instructor}_${cfg.semester}_${course}_${cfg.topic}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '')}`;
-            const sheet = await gapi.client.sheets.spreadsheets.create({
-                resource: { properties: { title: sheetName } }
-            });
-            currentExam.config.resultsSheetId = sheet.result.spreadsheetId;
-
-            await gapi.client.drive.files.update({
-                fileId: currentExam.config.resultsSheetId,
-                addParents: resultsFolderId,
-                fields: 'id, parents'
-            });
-
-            await gapi.client.sheets.spreadsheets.values.update({
-                spreadsheetId: currentExam.config.resultsSheetId,
-                range: 'Sheet1!A1:I1',
-                valueInputOption: 'USER_ENTERED',
-                resource: { values: [['Timestamp', 'Email', 'Name', 'ID', 'Attempt', 'Set Assigned', 'Final Score', 'Questions Answered', 'Total Questions']] }
-            });
-
-            await gapi.client.drive.permissions.create({
-                fileId: currentExam.config.resultsSheetId,
-                resource: { type: 'anyone', role: 'writer' }
-            });
-
-            const savedJsonReq = await saveExamToDrive(currentExam, examConfigsFolderId, `Exam_${course}_${currentExam.id.slice(-6)}.json`, 'application/json');
-            const jsonFileId = savedJsonReq.id;
-
-            if (jsonFileId) {
-                try {
-                    await gapi.client.drive.permissions.create({
-                        fileId: jsonFileId,
-                        resource: { type: 'anyone', role: 'reader' }
-                    });
-                } catch (e) {
-                    console.log("Could not auto-share JSON.", e);
-                }
-            }
-
-            const ws = XLSX.utils.json_to_sheet(Object.entries(generatedSets).flatMap(([setName, questions]) =>
-                questions.map(q => ({
-                    Set: setName, Number: q.number, Type: q.type, Text: q.text,
-                    Option_A: q.options[0], Option_B: q.options[1], Option_C: q.options[2], Option_D: q.options[3],
-                    Correct: Array.isArray(q.correct) ? q.correct.join(',') : q.correct,
-                    Marks: q.marks, Negative: q.negative, Explanation: q.explanation
-                }))
-            ));
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-            const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            await saveExamToDrive(new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), questionBanksFolderId, document.getElementById('archiveFileName').value || 'Question_Bank.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', true);
-
-            const baseUrl = location.href.split('?')[0];
-            const studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}&fileId=${jsonFileId}`;
-            document.getElementById('studentUrl').textContent = studentUrl;
-        } else {
-            localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
-            const baseUrl = location.href.split('?')[0];
-            document.getElementById('studentUrl').textContent = `${baseUrl}?mode=student&exam=${currentExam.id}`;
-        }
-
-        addToLibrary(currentExam);
-        document.getElementById('pubInstructor').textContent = cfg.instructor;
-        document.getElementById('pubCourse').textContent = cfg.course;
-        document.getElementById('pubStandard').textContent = cfg.standard;
-        document.getElementById('pubSets').textContent = cfg.sets + ' Sets';
-        document.getElementById('pubAttempts').textContent = cfg.attempts;
-
-        localStorage.removeItem('exam_draft');
-        alert(`✅ Exam Published Successfully!`);
-    } catch (err) {
-        console.error('Publish error:', err);
-        alert('Error: ' + err.message);
-    }
-}
-
-async function saveExamToDrive(data, folderId, fileName, mimeType, isBlob = false) {
-    const token = gapi.client.getToken().access_token;
-    const metadata = { name: fileName, parents: [folderId] };
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', isBlob ? data : new Blob([JSON.stringify(data, null, 2)], { type: mimeType }));
-
-    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: new Headers({ 'Authorization': 'Bearer ' + token }),
-        body: form
-    });
-    return await response.json();
-}
-function copyStudentUrl() { navigator.clipboard.writeText(document.getElementById('studentUrl').textContent); alert('Copied!'); }
 
 // ==========================================
 // STUDENT EXAM MODE
@@ -2047,7 +941,7 @@ function renderLibraryUI() {
     container.innerHTML = libraryData.map(exam => `
         <div class="library-card flex justify-between items-center group bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-2xl">📋</div>
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-2xl">ðŸ“‹</div>
                 <div>
                     <h4 class="font-bold text-slate-800">${exam.config.course}</h4>
                     <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">${exam.config.topic}</p>
@@ -2064,160 +958,6 @@ function renderLibraryUI() {
 document.addEventListener('contextmenu', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
 document.addEventListener('copy', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
 window.addEventListener('blur', () => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) alert('Security Alert!'); });
-
-// ==========================================
-// ADMIN SETTINGS & REGISTRY (v4.9)
-// ==========================================
-
-function renderAdminSettings() {
-    if (!systemConfig) return;
-    
-    document.getElementById('setAdminPass').value = systemConfig.admin_password;
-    const list = document.getElementById('facultyRegistryList');
-    list.innerHTML = systemConfig.faculty.map((f, i) => `
-        <div class="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
-            <input type="email" placeholder="Email" value="${f.email}" class="flex-1 p-2 bg-slate-50 border rounded-lg text-xs font-bold" onchange="updateFacultyRecord(${i}, 'email', this.value)">
-            <input type="text" placeholder="PIN" value="${f.pin}" maxlength="4" class="w-20 p-2 bg-slate-50 border rounded-lg text-xs text-center font-black tracking-widest" onchange="updateFacultyRecord(${i}, 'pin', this.value)">
-            <button onclick="removeFacultyRow(${i})" class="w-8 h-8 rounded-lg text-rose-400 hover:bg-rose-50 transition">✕</button>
-        </div>
-    `).join('');
-}
-
-function updateFacultyRecord(index, field, value) {
-    if (field === 'pin' && !/^\d{4}$/.test(value)) {
-        alert("PIN must be exactly 4 digits.");
-        return;
-    }
-    systemConfig.faculty[index][field] = value;
-}
-
-function addNewFacultyRow() {
-    systemConfig.faculty.push({ email: "", pin: "0000", name: "Pending Login" });
-    renderAdminSettings();
-}
-
-function removeFacultyRow(index) {
-    if (confirm("Revoke access for this account?")) {
-        systemConfig.faculty.splice(index, 1);
-        renderAdminSettings();
-    }
-}
-
-async function saveSystemConfig(manual = false) {
-    if (!driveFolderId || !systemConfig) return;
-    
-    // Update admin pass from UI if manual save
-    if (manual) {
-        systemConfig.admin_password = document.getElementById('setAdminPass').value;
-    }
-
-    try {
-        const response = await gapi.client.drive.files.list({
-            q: `name='system_config.json' and '${driveFolderId}' in parents and trashed=false`,
-            spaces: 'drive'
-        });
-
-        const fileId = response.result.files[0].id;
-        await gapi.client.drive.files.update({
-            fileId: fileId,
-            media: { mimeType: 'application/json', body: JSON.stringify(systemConfig, null, 2) }
-        });
-        
-        if (manual) alert("✅ System Records Securely Updated on Drive!");
-    } catch (err) {
-        console.error('Error saving system config:', err);
-    }
-}
-
-// AI Mode & Manual Flow
-function toggleAiMode() {
-    const engine = document.getElementById('aiEngine').value;
-    const panel = document.getElementById('manualAiPanel');
-    
-    if (engine === 'manual') {
-        panel.classList.remove('hidden-section');
-    } else {
-        panel.classList.add('hidden-section');
-    }
-}
-
-async function processManualResponse() {
-    const rawData = document.getElementById('manualAiResponse').value;
-    if (!rawData.trim()) {
-        alert("Please paste the AI's JSON output first.");
-        return;
-    }
-
-    try {
-        // Clean markdown tags if user copied the whole code block
-        const cleanJson = rawData.replace(/```json|```/gi, '').trim();
-        const parsed = JSON.parse(cleanJson);
-        
-        // Pass to the existing library/state handlers
-        if (Array.isArray(parsed)) {
-            // Store locally
-            localStorage.setItem('temp_manual_batch', JSON.stringify(parsed));
-            alert(`Succesfully parsed ${parsed.length} questions! Head to the "Import" tab to build your exam sets.`);
-            
-            // Populate the import textarea automatically
-            document.getElementById('aiOutputPaste').value = cleanJson;
-            showTab('import');
-        } else {
-            throw new Error("Pasted data is not a valid question array.");
-        }
-    } catch (e) {
-        console.error(e);
-        alert("JSON Error: The pasted data is not valid JSON. Please ensure you copied the entire code block from your AI.");
-    }
-}
-
-// ==========================================
-// INTERACTIVE UI EFFECTS (React-Inspired Hover Glow)
-// ==========================================
-
-function initInteractiveModals() {
-    document.querySelectorAll('.modal-animate').forEach(modal => {
-        // Ensure the container clips the blob and holds relative items
-        modal.classList.add('relative', 'overflow-hidden');
-        
-        // Elevate all immediate children so they sit above the glow blob
-        Array.from(modal.children).forEach(child => {
-            child.classList.add('relative', 'z-10');
-        });
-
-        // Create the glowing blob
-        const glowBlob = document.createElement('div');
-        // Setting up dimensions, blur, and opacity transitions
-        glowBlob.className = 'absolute pointer-events-none w-[500px] h-[500px] rounded-full blur-3xl opacity-0 transition-opacity duration-300';
-        // Using inline background to ensure colors apply without strict strict CDN compilation dependency
-        glowBlob.style.backgroundImage = 'linear-gradient(to right, rgba(216, 180, 254, 0.3), rgba(147, 197, 253, 0.3), rgba(249, 168, 212, 0.3))';
-        glowBlob.style.top = '0';
-        glowBlob.style.left = '0';
-        glowBlob.style.zIndex = '0';
-        
-        modal.insertBefore(glowBlob, modal.firstChild);
-
-        modal.addEventListener('mousemove', (e) => {
-            const rect = modal.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            // Smoothly follow the mouse with a slight transform delay
-            glowBlob.style.transform = `translate(${x - 250}px, ${y - 250}px)`;
-            glowBlob.style.transition = 'transform 0.1s ease-out, opacity 0.3s ease-in-out';
-        });
-
-        modal.addEventListener('mouseenter', () => {
-            glowBlob.classList.remove('opacity-0');
-            glowBlob.classList.add('opacity-100');
-        });
-
-        modal.addEventListener('mouseleave', () => {
-            glowBlob.classList.add('opacity-0');
-            glowBlob.classList.remove('opacity-100');
-        });
-    });
-}
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
@@ -2273,7 +1013,7 @@ function runAcademicSearch() {
 
     resultsContainer.innerHTML = `
         <div class="col-span-full py-12 text-center">
-            <div class="animate-spin text-4xl mb-4">🔮</div>
+            <div class="animate-spin text-4xl mb-4">ðŸ”®</div>
             <h4 class="text-indigo-600 font-bold">Mapping Internet Resources...</h4>
             <p class="text-slate-400 text-[10px] uppercase tracking-widest font-black mt-2">Level: ${levelDisplay}</p>
         </div>
@@ -2326,42 +1066,42 @@ function runAcademicSearch() {
     const portals = [
         {
             label: 'Lecture Intelligence',
-            icon: '🏫',
+            icon: 'ðŸ«',
             engine: 'google',
             query: topic + academicSuffix,
             desc: `Curated university/exam materials and pedagogical structures for ${topic}.`
         },
         {
             label: 'Video Repositories',
-            icon: '📺',
+            icon: 'ðŸ“º',
             engine: 'youtube',
             query: topic + videoSuffix,
             desc: `Expert-led video series and visualized problem sets tailored for ${levelDisplay}.`
         },
         {
             label: 'Research Context',
-            icon: '🔬',
+            icon: 'ðŸ”¬',
             engine: 'scholar',
             query: topic + scholarSuffix,
             desc: `Direct mapping to Google Scholar for high-end academic rigor and concept reviews.`
         },
         {
             label: 'Premium Courseware',
-            icon: '🏛️',
+            icon: 'ðŸ›ï¸',
             engine: 'google',
             query: `site:(mit.edu OR nptel.ac.in OR harvard.edu) "${topic}"`,
             desc: `Tier-1 global repository search including NPTEL and Ivy League standards.`
         },
         {
             label: 'PDF Deep-Scan',
-            icon: '📄',
+            icon: 'ðŸ“„',
             engine: 'google',
             query: topic + academicSuffix + ' filetype:pdf',
             desc: `Locating strictly downloadable academic documents, archives, and PYQs.`
         },
         {
             label: 'Scientific Archives',
-            icon: '📚',
+            icon: 'ðŸ“š',
             engine: 'google',
             query: `site:(researchgate.net OR academia.edu) "${topic}"`,
             desc: `Mapping the community-led scientific discussion and paper databases.`
@@ -2387,7 +1127,7 @@ function runAcademicSearch() {
                 </div>
                 <p class="text-[10px] font-bold text-slate-500 line-clamp-2 leading-relaxed mb-6">${p.desc}</p>
                 <div class="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest gap-2">
-                    Start Intelligence Scan <span class="group-hover/tile:translate-x-2 transition-transform">→</span>
+                    Start Intelligence Scan <span class="group-hover/tile:translate-x-2 transition-transform">â†’</span>
                 </div>
             `;
             resultsContainer.appendChild(tile);
