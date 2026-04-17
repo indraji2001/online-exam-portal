@@ -2261,7 +2261,8 @@ function runAcademicSearch() {
     if (levelDisplay === 'JEE_MAINS') levelDisplay = 'JEE Mains';
     else if (levelDisplay === 'JEE_ADV') levelDisplay = 'JEE Advanced';
     else if (levelDisplay === 'UG') levelDisplay = 'Undergraduate';
-    else if (levelDisplay === 'PG') levelDisplay = 'Postgraduate';
+    else if (levelDisplay === 'JAM') levelDisplay = 'JAM';
+    else if (levelDisplay === 'GENERAL') levelDisplay = 'Open Knowledge';
 
     resultsContainer.innerHTML = `
         <div class="col-span-full py-12 text-center">
@@ -2312,6 +2313,11 @@ function runAcademicSearch() {
             academicSuffix = ' "IIT JAM study material" "Integrated MSc notes"';
             videoSuffix = ' "IIT JAM preparation"';
             scholarSuffix = ' "fundamental derivations"';
+            break;
+        case 'GENERAL':
+            academicSuffix = ' "concept overview" "study materials" site:libretexts.org OR site:openstax.org';
+            videoSuffix = ' "topic explained" "educational animation"';
+            scholarSuffix = ' "foundational review"';
             break;
     }
 
