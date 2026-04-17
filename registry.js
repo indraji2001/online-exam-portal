@@ -35,7 +35,7 @@ async function verifyFacultyLogin(name, pin) {
         }
     }
 
-    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>ðŸ” </span> Unlock My Private Vault'; }
+    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔓</span> Unlock My Private Vault'; }
 
     if (!faculty) {
         alert("❌ Invalid Name or PIN.");
@@ -57,8 +57,8 @@ async function registerNewFaculty(name) {
             .maybeSingle();
 
         if (existing) {
-            alert(`âš ï¸  "${name}" is already registered.`);
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>âœ¨</span> Register & Enter Vault'; }
+            alert(`⚠️ "${name}" is already registered.`);
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
             return;
         }
 
@@ -72,7 +72,7 @@ async function registerNewFaculty(name) {
         if (error) {
             console.error('Registration failed:', error);
             alert('Cloud registration failed.');
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>âœ¨</span> Register & Enter Vault'; }
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
             return;
         }
 
@@ -80,7 +80,7 @@ async function registerNewFaculty(name) {
         revealSuccessScreen(newPin);
     } else {
         alert("Cloud registry unavailable.");
-        if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>âœ¨</span> Register & Enter Vault'; }
+        if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
     }
 }
 
@@ -106,7 +106,7 @@ async function initializeFacultyPortal(faculty) {
 
     const loadingHtml = `
         <div class="text-center py-10">
-            <div class="animate-spin text-4xl mb-4">âš™ï¸ </div>
+            <div class="animate-spin text-4xl mb-4">⚙️</div>
             <h3 class="text-xl font-bold">Initializing Private Vault...</h3>
         </div>
     `;
@@ -126,7 +126,7 @@ async function initializeFacultyPortal(faculty) {
     
     const badge = document.createElement('div');
     badge.className = "flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 shadow-sm ml-4";
-    badge.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">ðŸ“‚ Vault: ${faculty.name}</span>`;
+    badge.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">📂 Vault: ${faculty.name}</span>`;
     document.getElementById('accountBar').insertBefore(badge, document.getElementById('accountBar').firstChild);
     
     if (typeof loadLibrary === 'function') loadLibrary();
@@ -146,7 +146,7 @@ async function renderAdminSettings() {
             .order('created_at', { ascending: true });
 
         if (error) {
-            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-rose-400">â Œ Failed to load.</td></tr>';
+            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-rose-400">❌ Failed to load.</td></tr>';
             return;
         }
 
@@ -182,7 +182,7 @@ function showAddFacultyModal() {
             <input type="text" id="newFacName" placeholder="Name" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50">
             <div class="flex gap-3 items-center">
                 <input type="text" id="newFacPin" value="${autoPin}" maxlength="4" class="flex-1 p-4 border-2 rounded-xl font-black text-2xl text-center">
-                <button onclick="document.getElementById('newFacPin').value=generatePin()" class="px-4 py-4 bg-slate-100 rounded-xl">ðŸ”„</button>
+                <button onclick="document.getElementById('newFacPin').value=generatePin()" class="px-4 py-4 bg-slate-100 rounded-xl">🔄</button>
             </div>
         </div>
         <div class="flex gap-4">
