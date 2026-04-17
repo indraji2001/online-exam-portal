@@ -35,8 +35,12 @@ const examProfiles = {
     'JEE_ADV': {
         label: 'JEE Advanced',
         directive: `You are generating for JEE ADVANCED (IIT Pattern) — the hardest undergraduate entrance exam.
-- Include: Organic reaction mechanisms with stereochemistry, electrochemical cell calculations, thermodynamic cycles, and quantum chemistry.
-- Mastery Verification: Include multi-correct scenarios where appropriate. Provide complex linked question chains based on a single chemical problem or data set. Ensure options test deep conceptual understanding through careful application of principles.`
+- Difficulty: VERY HIGH. Questions must be conceptually deep, tricky, and require multi-step reasoning.
+- Question Style: Mix of single-correct, multi-correct (partial marking), integer type, and paragraph-based linked questions.
+- Marking: Multi-correct: +4 full, +1/correct option; Integer: +3/0; Paragraph-linked: +3/-1.
+- Language: Precise and demanding. No spoon-feeding.
+- Include: Organic reaction mechanisms with stereochemistry, electrochemical cell calculations, thermodynamic cycles, quantum chemistry.
+- Must Have: At least 30% multi-correct questions. At least 1 paragraph with 2-3 linked questions. Conceptual traps and distractors in options.`
     },
     'GATE': {
         label: 'GATE',
@@ -93,10 +97,11 @@ const difficultyProfiles = {
     'HARD': {
         label: '🔥 Hard / Advanced',
         directive: `DIFFICULTY INTENSITY: HARD (Advanced / Competitive)
-- Questions should ensure high-level mastery. Analytical reasoning is expected.
-- Include: Precise conceptual connections, complex edge cases, and non-trivial evaluative chains.
-- Language: Technical and precise. Every detail in the question is significant.
-- Evaluation: At least 50% of questions should require non-obvious conceptual integration or multi-layer reasoning.
-- Options: Ensure distractors focus on common advanced conceptual errors to help verify genuine understanding. Distinguish between similar mechanisms or closely related numerical outcomes.`
+- Questions must challenge even well-prepared students. Multi-step reasoning is mandatory.
+- Include: Conceptual traps, close distractors, tricky edge cases, and non-trivial problem chains.
+- Language: Precise and demanding. Every word in the question matters.
+- At least 50% of questions should require 2+ reasoning steps or non-obvious conceptual connections.
+- Options: At least 2 options must appear plausible. Close numerical values or similar mechanisms as distractors.
+- Majority of questions should be rated "hard" in difficulty field.`
     }
 };
