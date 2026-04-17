@@ -64,14 +64,6 @@
                 
                 <div class="space-y-3">
                     <button id="btnRoleAdmin" onclick="selectRole('admin')" class="identity-selection-btn hidden group">
-                        <span class="text-2xl group-hover:scale-125 transition">👑</span>
-                        <div>
-                            <span class="block font-bold text-slate-800 text-sm">System Admin</span>
-                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Master Access</span>
-                        </div>
-                    </button>
-                    
-                    <button id="btnRoleFaculty" onclick="selectRole('faculty')" class="identity-selection-btn hidden group">
                         <span class="text-2xl group-hover:scale-125 transition">👨‍🏫</span>
                         <div>
                             <span class="block font-bold text-slate-800 text-sm">Faculty Member</span>
@@ -89,13 +81,6 @@
                 <h3 class="text-xl font-bold mb-4">Storage Target?</h3>
                 <div class="space-y-3">
                     <button onclick="confirmAdminEntry('departmental')" class="identity-selection-btn">
-                        <span>📂</span>
-                        <div>
-                            <span class="block font-bold">Departmental Drive</span>
-                            <span class="block text-[9px] uppercase">chemistrydept account</span>
-                        </div>
-                    </button>
-                    <button onclick="confirmAdminEntry('personal')" class="identity-selection-btn">
                         <span>👤</span>
                         <div>
                             <span class="block font-bold">Personal Drive</span>
@@ -127,7 +112,7 @@
                     </div>
                     <div id="newInfoContainer" class="hidden-section p-4 bg-blue-50 border border-blue-100 rounded-xl">
                         <p class="text-[10px] leading-relaxed text-blue-600 font-bold">
-                            <span class="text-sm mr-1">💡</span> You will be assigned a permanent 4-digit PIN after clicking the button below.
+                            <span class="text-sm mr-1">💡</span>💡</span> You will be assigned a permanent 4-digit PIN after clicking the button below.
                         </p>
                     </div>
                 </div>
@@ -140,9 +125,7 @@
             <!-- Faculty Success Step (The Big Reveal) -->
             <div id="facultySuccessStep" class="hidden-section slide-in-up">
                 <div class="text-center py-6">
-                    <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-6 animate-bounce">
-                        �🎓0
-                    </div>
+                    <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-6 animate-bounce">✅</div>
                     <h3 class="text-2xl font-black mb-2">Welcome Aboard!</h3>
                     <p class="text-xs text-slate-400 mb-8 uppercase font-black tracking-widest">Your Private Access Key Generated</p>
                     
@@ -219,7 +202,7 @@
         <!-- Tab 1: Sources -->
         <section id="content-sources" class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 fade-in">
             <div class="glass p-8 rounded-3xl border border-white shadow-xl">
-                <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-blue-100 p-2 rounded-lg">�x�</span> Input Sources</h3>
+                <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-blue-100 p-2 rounded-lg">📥</span> Input Sources</h3>
                 
                 <div class="mb-6">
                     <label class="block text-sm font-bold text-slate-700 mb-2">Google Drive Shared Link</label>
@@ -258,7 +241,7 @@
 
             <div class="flex flex-col gap-4">
                 <div class="glass p-8 rounded-3xl flex-1 border border-white shadow-xl">
-                    <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-indigo-100 p-2 rounded-lg">�a"️</span> Active Context Pool</h3>
+                    <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-indigo-100 p-2 rounded-lg">🧪</span> Active Context Pool</h3>
                     <div id="combinedSourceList" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbox-hide"></div>
                 </div>
                 <!-- Status Badges for Source Types -->
@@ -284,165 +267,9 @@
         </section>
 
         <!-- Tab 2: Extract (LLM Context Prep) -->
-        <section id="content-extract" class="max-w-5xl mx-auto hidden-section">
+        <section id="content-extract" class="max-w-5xl mx-auto hidden-section hidden-section">
             <div class="glass p-10 rounded-3xl shadow-xl border border-white text-center">
-                <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-8 shadow-inner">�x</div>
-                <h3 class="text-3xl font-extrabold text-slate-900 mb-4">Syllabus & Material Extractor</h3>
-                <p class="text-slate-500 max-w-2xl mx-auto mb-10 text-lg">Use AI to scan your source materials and map them against the Master Syllabus or Course Curriculum.</p>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-                    <div class="bg-slate-900 text-slate-300 p-8 rounded-3xl border border-slate-700 shadow-2xl relative">
-                        <div class="absolute -top-3 left-8 bg-blue-600 text-white text-[10px] font-black uppercase px-4 py-1 rounded-full shadow-lg">Analysis Prompt</div>
-                        <p class="mb-4 text-emerald-400 font-mono text-sm leading-relaxed">System Command: Analyze the provided folder contents. Identify all Chemistry reactions and diagrams. Compare against the "Organic Chem Sem 4" main syllabus file.</p>
-                        <div class="space-y-3">
-                            <div class="syllabus-match rounded-xl border border-emerald-200">�S Found: Nucleophilic Substitution (14 pages)</div>
-                            <div class="syllabus-match rounded-xl border border-emerald-200">�S Found: SN1/SN2 Mechanism Charts</div>
-                            <div class="syllabus-mismatch rounded-xl border border-red-200">�S Missing: Aromaticity Theory</div>
-                        </div>
-                    </div>
-                    <div class="flex flex-col justify-center gap-4">
-                        <button class="pearl-btn pearl-btn-blue py-6 px-10 rounded-2xl text-white font-bold text-xl flex items-center justify-center gap-3">
-                            <span>�xa�</span> Run Full AI Scan
-                        </button>
-                        <button class="bg-white text-slate-600 py-4 px-10 rounded-2xl font-bold border-2 border-slate-100 hover:border-slate-300 transition">
-                            Save Analysis to Drive
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Tab 3: Generate (Refined) -->
-        <section id="content-generate" class="max-w-5xl mx-auto hidden-section">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Config Panel -->
-                <div class="lg:col-span-1 glass p-8 rounded-3xl border border-white shadow-xl">
-                    <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-purple-100 p-2 rounded-lg">�a"️</span> Exam Blueprint</h3>
-                    
-                    <div class="space-y-6">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">Instructor Name (Required)</label>
-                            <input type="text" id="genInstructor" oninput="updateFileNamePreview()" placeholder="Full Name..." class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-2">Semester</label>
-                                <select id="genSemester" onchange="updateFileNamePreview()" class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none font-medium">
-                                    <option value="Sem_1">Semester 1</option>
-                                    <option value="Sem_2">Semester 2</option>
-                                    <option value="Sem_3">Semester 3</option>
-                                    <option value="Sem_4">Semester 4</option>
-                                    <option value="Sem_5">Semester 5</option>
-                                    <option value="Sem_6">Semester 6</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-2">Course Code</label>
-                                <input type="text" id="genCourse" oninput="updateFileNamePreview()" placeholder="e.g. CHEM-301" class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">Exam Topic / Heading</label>
-                            <input type="text" id="genTopic" oninput="updateFileNamePreview()" placeholder="e.g. Organic Mechanism - I" class="w-full p-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-100 outline-none">
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-2">Standard</label>
-                                <select id="genStandard" class="w-full p-4 border-2 rounded-xl font-medium focus:ring-4 focus:ring-purple-100 outline-none">
-                                    <optgroup label="University Level">
-                                        <option value="UG">Undergraduate (UG)</option>
-                                        <option value="PG">Postgraduate (PG)</option>
-                                    </optgroup>
-                                    <optgroup label="Competitive Exams">
-                                        <option value="JEE_MAINS">JEE Mains</option>
-                                        <option value="JEE_ADV">JEE Advanced</option>
-                                        <option value="GATE">GATE</option>
-                                        <option value="NET">CSIR-NET / JRF</option>
-                                        <option value="JAM">IIT JAM</option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-2">Intensity / Difficulty</label>
-                                <select id="genDifficulty" class="w-full p-4 border-2 rounded-xl font-black text-indigo-600 bg-indigo-50/30 focus:ring-4 focus:ring-indigo-100 outline-none">
-                                    <option value="EASY">���️ Easy / Foundational</option>
-                                    <option value="MODERATE" selected>�a️ Moderate / Standard</option>
-                                    <option value="HARD">�x� Hard / Advanced</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-2">Duration (Min)</label>
-                                <input type="number" id="genDuration" value="180" class="w-full p-4 border-2 rounded-xl font-bold focus:ring-4 focus:ring-purple-100 outline-none">
-                            </div>
-                        </div>
-                        <!-- AI Engine Selection -->
-                        <div class="pt-4 border-t mb-4">
-                            <label class="block text-sm font-bold text-slate-700 mb-2">Primary AI Intelligence</label>
-                            <select id="aiEngine" class="w-full p-4 border-2 rounded-xl text-sm font-bold bg-blue-50/30 outline-none focus:ring-4 focus:ring-blue-100" onchange="toggleAiMode()">
-                                <option value="gemini">Auto-Generate (Internal Gemini API)</option>
-                                <option value="manual">Manual Entry (ChatGPT / Claude / Custom)</option>
-                            </select>
-                        </div>
-
-                        <!-- Manual Mode Instruction & Input -->
-                        <div id="manualAiPanel" class="hidden-section slide-in-up bg-slate-900 text-white p-6 rounded-3xl mb-6 shadow-2xl">
-                            <p class="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-2">External AI Workflow</p>
-                            <ol class="text-[11px] text-slate-300 space-y-2 mb-4">
-                                <li>1. Click "Generate Blueprint" below</li>
-                                <li>2. Copy the resulting prompt to your AI</li>
-                                <li>3. Paste the AI's JSON answer here:</li>
-                            </ol>
-                            <textarea id="manualAiResponse" placeholder="Paste JSON here..." class="w-full h-32 p-4 bg-slate-800 border border-slate-700 rounded-2xl text-xs font-mono text-emerald-400 outline-none focus:border-blue-500 mb-4"></textarea>
-                            <button onclick="processManualResponse()" class="w-full py-4 bg-blue-600 rounded-xl font-bold text-sm hover:bg-blue-700 transition">Validate & Load Question Pool</button>
-                        </div>
-
-                        <div class="flex items-center justify-between pt-4 border-t">
-                            <span id="draftSavedIndicator" class="draft-saved-indicator">�S� Draft Saved</span>
-                            <button onclick="saveDraft()" class="pearl-btn pearl-btn-green py-3 px-6 rounded-xl text-white font-bold shadow-lg">Save Draft</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Distribution and Prompt -->
-                <div class="lg:col-span-2 glass p-8 rounded-3xl border border-white shadow-xl flex flex-col h-full">
-                    <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-emerald-100 p-2 rounded-lg">�x`</span> Question Distribution</h3>
-                    
-                    <div class="grid grid-cols-3 gap-6 mb-8 text-center">
-                        <div class="bg-blue-50 p-5 rounded-3xl border border-blue-100 shadow-sm">
-                            <label class="block text-[11px] font-black text-blue-500 uppercase tracking-widest mb-3">Single Correct</label>
-                            <input type="number" id="distSingle" value="20" class="w-full p-4 text-3xl font-black rounded-2xl bg-white border-2 border-blue-200 text-center text-blue-700">
-                        </div>
-                        <div class="bg-emerald-50 p-5 rounded-3xl border border-emerald-100 shadow-sm">
-                            <label class="block text-[11px] font-black text-emerald-500 uppercase tracking-widest mb-3">Multiple Correct</label>
-                            <input type="number" id="distMultiple" value="5" class="w-full p-4 text-3xl font-black rounded-2xl bg-white border-2 border-emerald-200 text-center text-emerald-700">
-                        </div>
-                        <div class="bg-amber-50 p-5 rounded-3xl border border-amber-100 shadow-sm">
-                            <label class="block text-[11px] font-black text-amber-500 uppercase tracking-widest mb-3">Matching Matrix</label>
-                            <input type="number" id="distMatching" value="5" class="w-full p-4 text-3xl font-black rounded-2xl bg-white border-2 border-amber-200 text-center text-amber-700">
-                        </div>
-                    </div>
-
-                    <div class="flex-grow flex flex-col gap-4">
-                        <div class="flex justify-between items-end">
-                            <div>
-                                <h4 class="font-bold text-slate-800">Final AI Synthesis Prompt</h4>
-                                <p class="text-xs text-slate-400 font-medium">Automatic context injection active</p>
-                            </div>
-                            <button onclick="generatePrompt()" class="pearl-btn pearl-btn-blue px-8 py-3 rounded-xl text-white font-bold shadow-lg">�S� Rewrite Prompt</button>
-                        </div>
-                        <div id="generatedPrompt" class="prompt-box flex-grow min-h-[300px] border-2 border-indigo-100 text-indigo-900 leading-relaxed text-sm bg-indigo-50/20 backdrop-blur-sm p-6 rounded-3xl">Click Generate to Synthesis Prompt...</div>
-                        <button onclick="copyPrompt()" class="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-black transition text-lg shadow-xl shadow-slate-200">
-                            <span>�x9</span> Copy Multi-Modal Command & Open AI
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Tab 4: AI Bridge -->
-        <section id="content-ai-bridge" class="max-w-4xl mx-auto hidden-section text-center">
-            <div class="glass p-12 rounded-[3rem] shadow-2xl border border-white">
-                <div class="w-24 h-24 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-10 shadow-inner">�xR0</div>
+                <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-8 shadow-inner">🌉</div>
                 <h3 class="text-4xl font-extrabold text-slate-900 mb-6 tracking-tight">AI Connection Bridge</h3>
                 <p class="text-slate-500 text-xl font-medium mb-12 max-w-2xl mx-auto italic">"The portal is connected to your sources. Now, use one of the expert AI engines to build the questions."</p>
                 
@@ -480,12 +307,12 @@
         </section>
 
         <!-- Tab 5: Import -->
-        <section id="content-import" class="max-w-5xl mx-auto hidden-section">
+        <section id="content-import" class="max-w-5xl mx-auto hidden-section hidden-section">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Data Entry -->
                 <div class="glass p-8 rounded-3xl border border-white shadow-xl flex flex-col h-[700px]">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-xl font-bold flex items-center gap-3"><span class="bg-blue-100 p-2 rounded-lg">�x�</span> AI Output Sink</h3>
+                        <h3 class="text-xl font-bold flex items-center gap-3"><span class="bg-blue-100 p-2 rounded-lg">📥</span> AI Output Sink</h3>
                         <div class="flex gap-2">
                              <button onclick="clearImport()" class="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition uppercase tracking-widest">Wipe Data</button>
                              <button onclick="parseAiOutput()" class="pearl-btn pearl-btn-blue px-6 py-2 rounded-xl text-white font-bold text-sm">Process Batch</button>
@@ -591,10 +418,10 @@
         </section>
 
         <!-- Tab 7: Library -->
-        <section id="content-library" class="max-w-5xl mx-auto hidden-section">
+        <section id="content-library" class="max-w-5xl mx-auto hidden-section hidden-section">
             <div class="glass p-10 rounded-[3rem] border border-white shadow-xl min-h-[500px]">
                 <h3 class="text-3xl font-extrabold mb-10 flex items-center justify-between">
-                    <span>�xa Local Exam Archive</span>
+                    <span>📚</span> Local Exam Archive</span>
                     <button class="text-sm bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold uppercase tracking-wider">Sync with Cloud</button>
                 </h3>
                 <div id="libraryContent" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
@@ -679,7 +506,7 @@
         </section>
 
         <!-- Tab 9: Settings (Admin Only) -->
-        <section id="content-settings" class="max-w-5xl mx-auto hidden-section fade-in mb-20">
+        <section id="content-settings" class="max-w-5xl mx-auto hidden-section hidden-section fade-in mb-20">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <!-- System Config -->
                 <div class="md:col-span-1 space-y-8">
