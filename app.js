@@ -1207,60 +1207,48 @@ You MUST follow BOTH the exam profile AND the difficulty intensity above ABSOLUT
         ? `1. ATTACHED FILES (HIGHEST PRIORITY): You MUST deeply analyze these provided files:\n${localFilesList}\nYou MUST generate a significant portion of the questions directly from the content, structures, and reactions found in these specific files.`
         : "1. ATTACHED FILES: NONE. DO NOT invent or reference any local files.";
 
-    const prompt = `[SYSTEM COMMAND: ACT AS AN EXPERT EXAM GENERATOR. YOUR ONLY OUTPUT MUST BE RAW, VALID JSON. NO CONVERSATION.]
+    const prompt = `You are a professional Academic Question Generator specialized in ${standard} chemistry and science topics.
+Your task is to generate high-quality, technically accurate questions based on the following context.
+
+IDENTITY & COMPLIANCE:
+- You are an automated data system. Return strictly valid JSON logic.
+- NO CONVERSATION. NO PREAMBLE. NO POST-TEXT.
+- Ensure all chemical formulas use HTML <sub> and <sup> tags.
+
 ${examIntelligenceDirective}
 
-STANDARD: ${examProfile.label}
-TOPIC: ${topic}
+EXAM PARAMETERS:
+- STANDARD: ${examProfile.label}
+- TOPIC: ${topic}
+- DIFFICULTY: ${difficulty}
 
-SOURCES & MANDATORY RESEARCH DIRECTIVES:
+SOURCES & RESEARCH DIRECTIVES:
 ${attachedFilesDirective}
-2. WEB LINKS: Extract content from:
+2. WEB LINKS:
 ${webLinks}
-3. MANDATORY INDEPENDENT WEB SEARCH (CRITICAL): You MUST activate your browsing/search tool to find NEW, highly relevant external academic websites, PDFs, DOCs, or PPTs related to ${topic}. Supplement the provided sources to ensure high-quality, diverse questions.
+3. EXTERNAL SEARCH: Activate your browsing tool to find high-end academic resources related to ${topic} to ensure question diversity.
 
-QUESTION DISTRIBUTION (GENERATION POOL):
-- Single Correct: ${single}, Multiple Correct: ${multiple}, Matching: ${matching}. TOTAL: ${total}
+QUESTION POOL QUOTA:
+- Generate: Single Correct (${single}), Multiple Correct (${multiple}), Matching (${matching}). TOTAL: ${total}
 
-CRITICAL RULES FOR CHEMISTRY & SCIENCE FORMATTING:
+FORMATTING RULES (STRICT):
+1. VISUAL COMPLIANCE: At least 60% of questions MUST reference structures, diagrams, or data. Use the exact [INSTRUCTOR NOTE] placeholders provided below.
+2. IMAGE PLACEHOLDERS:
+   - For PDFs/Docs: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[FILE_NAME]' target='_blank' style='color:red; font-weight:bold;'>[FILE_NAME]</a> | Page: XX | Fig: XX | Description: '...']<br><br>
+   - For Web Content: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[URL]' target='_blank' style='color:blue; font-weight:bold;'>[DOMAIN]</a> | Quote: '...' | Description: '...']<br><br>
+3. JSON INTEGRITY: Use only \n for internal line breaks. Never use physical line breaks inside a string value.
+4. MATCHING FORMAT: The 'text' must have List I and List II. The 'options' must be 4 sequence strings (e.g. "A. I-A, II-B").
 
-RULE 1: MANDATORY VISUAL & STRUCTURAL QUOTA (CRITICAL)
-- Science/Chemistry is not just text. At least 60% of your questions MUST be based on chemical structures, reaction schemes, diagrams, graphs, or data tables.
-- You MUST actively design questions that require the student to look at a visual diagram (e.g., "Identify the major product in the given reaction scheme", "What is the name of the structure shown?").
-- For EVERY visual question, you MUST insert an Image Placeholder using the exact HTML formats in Rule 2.
-
-RULE 2: STRICT IMAGE PLACEHOLDER FORMATTING (NO HALLUCINATIONS)
-You must use specific HTML tags to tell the instructor exactly where to find the image to copy-paste. The links MUST be clickable hyperlinks.
-- FOR DOCUMENTS (PDF/DOC/PPT from provided sources or your independent search):
-  Use RED clickable links. You MUST include the Page No, Figure/Image No (if any), and Position.
-  Format: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[VALID_URL_OR_FILE_NAME]' target='_blank' style='color:red; font-weight:bold; text-decoration:underline;'>[DOCUMENT NAME]</a> | Page: [XX] | Fig: [XX] | Position: [Top/Middle/Bottom] | Visual Description: '[e.g., reaction mechanism]']<br><br>
-- FOR WEBPAGES (from provided links or your independent search):
-  Use BLUE clickable links. You MUST include a direct quote of the nearby text/heading so the instructor can find the image easily.
-  Format: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[VALID_URL]' target='_blank' style='color:blue; font-weight:bold; text-decoration:underline;'>[DOMAIN NAME]</a> | Nearby Text/Heading: '[EXACT QUOTE]' | Visual Description: '[e.g., crystal lattice diagram]']<br><br>
-- DO NOT invent fake URLs or 404 pages. Only reference real images that actually exist in the sources.
-
-RULE 3: STRICT HTML FOR CHEMICAL FORMULAS (NO LATEX)
-Use HTML <sub> and <sup> tags (e.g., CH<sub>3</sub>Cl). DO NOT use $ signs, \\(, \\), or LaTeX.
-
-RULE 4: QUESTION FORMATTING STRICT RULES
-- Single Correct: 'options' has exactly 4 strings. 'correct' is an integer (0-3).
-- Multiple Correct: 'options' has exactly 4 strings. 'correct' is an array of integers (e.g., [0, 2]).
-- Matching: DO NOT output 6 options! The 'text' MUST contain "List I" and "List II". The 'options' MUST contain exactly 4 sequence variations (e.g., "A. I-P, II-Q, III-R", "B. I-Q, II-P, III-R", etc.). The 'correct' field MUST be a single integer (0-3) pointing to the correct sequence.
-
-RULE 5: ABSOLUTE JSON COMPLIANCE
-- You MUST output ONLY valid JSON.
-- Escape double quotes properly. Use <br> for new lines.
-
-MANDATORY JSON SCHEMA TEMPLATE:
+OUTPUT SCHEMA:
 {
   "questions": [
     {
       "number": 1,
       "type": "single",
-      "text": "Question text here... <br><br>[INSTRUCTOR NOTE...]",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "text": "...",
+      "options": ["A", "B", "C", "D"],
       "correct": 0,
-      "explanation": "Detailed explanation here... <br><br>[INSTRUCTOR NOTE...]",
+      "explanation": "...",
       "difficulty": "medium",
       "marks": 4,
       "negative": 1
@@ -1268,7 +1256,7 @@ MANDATORY JSON SCHEMA TEMPLATE:
   ]
 }
 
-Generate exactly ${total} high-quality questions following the exact schema above. START YOUR RESPONSE WITH { AND END WITH }.`;
+START JSON NOW:`;
 
     document.getElementById('generatedPrompt').textContent = prompt;
 }
@@ -1308,32 +1296,36 @@ function parseAiOutput() {
         const lastBrace = text.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace !== -1) text = text.substring(firstBrace, lastBrace + 1);
 
-        // --- NEW: THE BULLETPROOF JSON SANITIZER ---
-        // This algorithm detects physical line breaks that the AI incorrectly placed 
-        // INSIDE string values and silently converts them to <br> tags before parsing.
+        // --- UPGRADED: THE IRONCLAD JSON RECOVERY ENGINE ---
+        // 1. Repair physical line breaks inside strings
         let sanitized = "";
         let inString = false;
         let isEscaped = false;
         for (let i = 0; i < text.length; i++) {
             let char = text[i];
-            if (char === '\\') {
-                isEscaped = !isEscaped;
-                sanitized += char;
-            } else if (char === '"' && !isEscaped) {
-                inString = !inString;
-                sanitized += char;
-                isEscaped = false;
-            } else if ((char === '\n' || char === '\r') && inString) {
-                // If we hit a line break inside a string, fix it automatically
-                if (char === '\n') sanitized += '<br>';
-                isEscaped = false;
-            } else {
-                sanitized += char;
-                isEscaped = false;
-            }
+            if (char === '\\') { isEscaped = !isEscaped; sanitized += char; }
+            else if (char === '"' && !isEscaped) { inString = !inString; sanitized += char; }
+            else if ((char === '\n' || char === '\r') && inString) { sanitized += '\\n'; isEscaped = false; }
+            else { sanitized += char; isEscaped = false; }
         }
-        text = sanitized; // Overwrite the AI's bad text with the sanitized text
-        // --- END SANITIZER ---
+        text = sanitized;
+
+        // 2. Repair common "unescaped internal quotes" issues
+        // Heuristic: A boundary quote is usually preceded by {[: or followed by ,:]}
+        let result = "";
+        inString = false;
+        for (let i = 0; i < text.length; i++) {
+            let char = text[i];
+            if (char === '"') {
+                let prev = text.substring(0, i).trim().slice(-1);
+                let next = text.substring(i + 1).trim().slice(0, 1);
+                let isStructural = (prev === ':' || prev === '{' || prev === '[' || prev === ',' || 
+                                    next === ':' || next === '}' || next === ']' || next === ',');
+                if (isStructural) { result += '"'; inString = !inString; }
+                else { if (inString) result += '\\"'; else { result += '"'; inString = true; } }
+            } else { result += char; }
+        }
+        text = result.replace(/^[^{]*/, "").replace(/[^}]*$/, "");
 
         let data = JSON.parse(text);
         let newQuestions = data.questions || data;
