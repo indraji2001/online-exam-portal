@@ -90,8 +90,8 @@ function loadQuestion(index) {
 
     const optionsHtml = q.options.map((opt, i) => {
         const isSelected = studentSession.answers[index] === i;
-        return `<div class="quiz-option ${isSelected ? 'selected' : ''}" onclick="studentSession.answers[${inde🎓]=${i}; loadQuestion(${inde🎓)">
-            <input type="radio" ${isSelected ? 'checked' : ''} name="q${inde🎓"> 
+        return `<div class="quiz-option ${isSelected ? 'selected' : ''}" onclick="studentSession.answers[${index}]=${i}; loadQuestion(${index})">
+            <input type="radio" ${isSelected ? 'checked' : ''} name="q${index}"> 
             <span>${opt}</span>
         </div>`}).join('');
 
