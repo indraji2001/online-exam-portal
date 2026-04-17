@@ -247,7 +247,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_KEY) {
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
-    
+
+    // CRITICAL: Show auth screen immediately if no valid token.
+    // Do NOT wait for the async GAPI load — this prevents the blank page.
+    const token = localStorage.getItem('google_access_token');
+    const expiry = localStorage.getItem('google_token_expiry');
+    if (!token || !expiry || Date.now() >= parseInt(expiry)) {
+        showAuthModal();
+    }
+
     initGoogleApi();
     initLibrary();
     
