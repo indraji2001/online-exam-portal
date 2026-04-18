@@ -71,6 +71,15 @@ const examProfiles = {
 - Language: BSc honours level. Focus on foundational mastery with analytical application.
 - Include: Physical chemistry calculations (thermodynamics, quantum, kinetics), organic reaction mechanisms, inorganic coordination chemistry.
 - Must Have: At least 20% MSQ (multiple select) questions and 20% NAT questions.`
+    },
+    'OPEN_KNOWLEDGE': {
+        label: 'Open Knowledge',
+        directive: `You are looking for GENERAL ACADEMIC and OPEN EDUCATIONAL RESOURCES (OER).
+- Context: Focus on high-quality, free, and accessible academic content.
+- Sources: Prioritize LibreTexts, OpenStax, Wikipedia (Academic sections), and university portals.
+- Content Style: Foundational overviews, standard derivations, and clear pedagogical explanations.
+- Perspective: Broad academic relevance suitable for all levels of learning.
+- Avoid: Paywalled content, overly niche research papers, or commercial tutorial sites.`
     }
 };
 
