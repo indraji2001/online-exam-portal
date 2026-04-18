@@ -2225,15 +2225,15 @@ const OER_REPOS = [
     { name: 'LibreTexts', url: 'https://libretexts.org', icon: '🧪', desc: 'The most visited open textbook platform.' },
     { name: 'OpenStax', url: 'https://openstax.org', icon: '📖', desc: 'Peer-reviewed, open-licensed textbooks.' },
     { name: 'MIT OCW', url: 'https://ocw.mit.edu', icon: '🏛️', desc: 'Complete course materials from MIT.' },
+    { name: 'Chemguide', url: 'https://www.chemguide.co.uk/', icon: '🧪', desc: 'Legendary clarity for core chemistry concepts.' },
+    { name: 'Organic Chem Portal', url: 'https://www.organic-chemistry.org/', icon: '🧬', desc: 'Highly technical synthesis and reaction database.' },
     { name: 'Chemistry Steps', url: 'https://www.chemistrysteps.com/', icon: '🪜', desc: 'Organic chemistry tutorials and practice problems.' },
     { name: 'Making Molecules', url: 'https://www.makingmolecules.com/', icon: '🧪', desc: 'Organic chemistry summaries and infographics.' },
     { name: 'Master Organic Chem', url: 'https://www.masterorganicchemistry.com/', icon: '🔬', desc: 'Detailed organic chemistry guides and summary sheets.' },
     { name: 'Compound Interest', url: 'https://www.compoundchem.com/', icon: '📊', desc: 'Chemistry graphics and educational infographics.' },
     { name: 'BCcampus', url: 'https://open.bccampus.ca', icon: '🍁', desc: 'Canadian open educational resources.' },
     { name: 'OER Commons', url: 'https://www.oercommons.org', icon: '🌍', desc: 'Public digital library of OERs.' },
-    { name: 'Saylor Academy', url: 'https://www.saylor.org', icon: '🎓', desc: 'Free online courses and textbooks.' },
-    { name: 'Lumen Learning', url: 'https://lumenlearning.com', icon: '💡', desc: 'Enhanced OER courseware.' },
-    { name: 'MERLOT', url: 'https://www.merlot.org', icon: '🍱', desc: 'Curated online learning materials.' }
+    { name: 'Saylor Academy', url: 'https://www.saylor.org', icon: '🎓', desc: 'Free online courses and textbooks.' }
 ];
 
 const verifiedTokens = [
