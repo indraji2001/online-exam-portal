@@ -221,6 +221,9 @@ function handleAuthSuccess() {
     document.getElementById('welcomeUserEmail').textContent = currentUser.email;
     document.getElementById('identityModal').classList.remove('hidden-section');
     
+    // Initial render for tokens (Whitelist)
+    if (typeof renderVerifiedTokens === 'function') renderVerifiedTokens();
+    
     // Auto-detect available roles for this email
     const isAdmin = AUTHORIZED_ADMINS.includes(currentUser.email.toLowerCase());
     const isDept = currentUser.email.toLowerCase() === DEPARTMENTAL_ACCOUNT;
@@ -977,6 +980,9 @@ function showTab(tabName) {
     content.classList.add('tab-content-transition');
 
     if (tabName === 'ai-bridge') updateAiBridgeSources();
+    if (tabName === 'settings') {
+        renderVerifiedTokens(); // Render the whitelist when entering settings
+    }
     if (tabName === 'library') loadLibrary();
     if (tabName === 'images') renderImageQueue();
     if (tabName === 'settings') renderAdminSettings();
@@ -2214,6 +2220,28 @@ function setSearchLevel(lvl) {
     }
 }
 
+// --- OER & TOKEN REGISTRY (v4.9.6.2) ---
+const OER_REPOS = [
+    { name: 'LibreTexts', url: 'https://libretexts.org', icon: '🧪', desc: 'The most visited open textbook platform.' },
+    { name: 'OpenStax', url: 'https://openstax.org', icon: '📖', desc: 'Peer-reviewed, open-licensed textbooks.' },
+    { name: 'MIT OCW', url: 'https://ocw.mit.edu', icon: '🏛️', desc: 'Complete course materials from MIT.' },
+    { name: 'BCcampus', url: 'https://open.bccampus.ca', icon: '🍁', desc: 'Canadian open educational resources.' },
+    { name: 'OER Commons', url: 'https://www.oercommons.org', icon: '🌍', desc: 'Public digital library of OERs.' },
+    { name: 'Saylor Academy', url: 'https://www.saylor.org', icon: '🎓', desc: 'Free online courses and textbooks.' },
+    { name: 'Lumen Learning', url: 'https://lumenlearning.com', icon: '💡', desc: 'Enhanced OER courseware.' },
+    { name: 'MERLOT', url: 'https://www.merlot.org', icon: '🍱', desc: 'Curated online learning materials.' }
+];
+
+const verifiedTokens = [
+    {
+        address: '3E9eXWovmB1yX57t8wTozV68L5vT19mQv5m6L8wPsn4S',
+        name: 'Arke',
+        symbol: 'ARKE',
+        verified: true,
+        desc: 'Decentralized RWA Intelligence Protocol'
+    }
+];
+
 function runAcademicSearch() {
     const topic = document.getElementById('adminTopicInput').value.trim();
     if (!topic) {
@@ -2332,6 +2360,18 @@ function runAcademicSearch() {
         }
     ];
 
+    // --- PRE-FLIGHT INJECTION: OER Directory ---
+    if (currentSearchLevel === 'GENERAL') {
+        portals.unshift({
+            label: 'OER Repositories',
+            icon: '📂',
+            engine: 'custom',
+            query: '',
+            action: 'toggleOerDiscoveryGrid()',
+            desc: 'Direct access to major open resource websites like LibreTexts & OpenStax.'
+        });
+    }
+
     setTimeout(() => {
         resultsContainer.innerHTML = '';
         portals.forEach(p => {
@@ -2340,10 +2380,15 @@ function runAcademicSearch() {
             else if (p.engine === 'youtube') searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(p.query)}`;
             else if (p.engine === 'scholar') searchUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(p.query)}`;
 
-            const tile = document.createElement('a');
-            tile.href = searchUrl;
-            tile.target = '_blank';
-            tile.className = 'group/tile bg-white/80 border border-indigo-50 p-7 rounded-[2rem] hover:border-indigo-300 hover:shadow-2xl hover:shadow-indigo-50 transition-all duration-500 hover:-translate-y-1 block';
+            const tile = document.createElement('div');
+            tile.className = 'group/tile bg-white/80 border border-indigo-50 p-7 rounded-[2rem] hover:border-indigo-300 hover:shadow-2xl hover:shadow-indigo-50 transition-all duration-500 hover:-translate-y-1 block cursor-pointer';
+            
+            if (p.engine === 'custom' && p.action) {
+                tile.onclick = (e) => { e.preventDefault(); eval(p.action); };
+            } else {
+                tile.onclick = () => window.open(searchUrl, '_blank');
+            }
+
             tile.innerHTML = `
                 <div class="flex items-center gap-5 mb-4">
                     <span class="text-3xl filter drop-shadow-lg scale-100 group-hover/tile:scale-110 transition-transform">${p.icon}</span>
@@ -2351,7 +2396,7 @@ function runAcademicSearch() {
                 </div>
                 <p class="text-[10px] font-bold text-slate-500 line-clamp-2 leading-relaxed mb-6">${p.desc}</p>
                 <div class="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest gap-2">
-                    Start Intelligence Scan <span class="group-hover/tile:translate-x-2 transition-transform">→</span>
+                    ${p.engine === 'custom' ? 'Open Registry' : 'Start Intelligence Scan'} <span class="group-hover/tile:translate-x-2 transition-transform">→</span>
                 </div>
             `;
             resultsContainer.appendChild(tile);
@@ -2395,3 +2440,62 @@ FORMAT: Please provide this in a clean, professional academic structure.`;
     });
 }
 
+
+// --- NEW: OER DISCOVERY GRID ---
+function toggleOerDiscoveryGrid() {
+    const grid = document.getElementById('oerDiscoveryGridContainer');
+    if (!grid) return;
+    
+    if (grid.classList.contains('hidden')) {
+        renderOerGrid();
+        grid.classList.remove('hidden');
+        setTimeout(() => {
+            grid.style.maxHeight = '1000px';
+            grid.style.opacity = '1';
+        }, 10);
+    } else {
+        grid.style.maxHeight = '0';
+        grid.style.opacity = '0';
+        setTimeout(() => grid.classList.add('hidden'), 500);
+    }
+}
+
+function renderOerGrid() {
+    const container = document.getElementById('oerGridItems');
+    if (!container) return;
+    
+    container.innerHTML = OER_REPOS.map(repo => \
+        <a href="\" target="_blank" class="flex flex-col items-center p-6 bg-white rounded-3xl shadow-sm hover:shadow-xl hover:scale-105 transition-all border border-slate-100 hover:border-indigo-300 group">
+            <span class="text-4xl mb-4 group-hover:rotate-12 transition-transform">\</span>
+            <h4 class="font-black text-slate-800 mb-1 text-sm text-center">\</h4>
+            <p class="text-[9px] text-slate-400 font-bold uppercase text-center leading-tight">\</p>
+        </a>
+    \).join('');
+}
+
+// --- NEW: TOKEN REGISTRY ---
+function renderVerifiedTokens() {
+    const container = document.getElementById('verifiedTokenList');
+    if (!container) return;
+    
+    container.innerHTML = verifiedTokens.map(token => \
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-blue-300 transition-all">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-black">
+                    \
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h4 class="font-black text-slate-800">\</h4>
+                        \
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-mono">\</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="block text-[10px] font-black text-slate-300 uppercase tracking-widest">\</span>
+                <span class="text-[9px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full mt-1 inline-block">Whitelisted</span>
+            </div>
+        </div>
+    \).join('');
+}
