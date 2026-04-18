@@ -2464,13 +2464,13 @@ function renderOerGrid() {
     const container = document.getElementById('oerGridItems');
     if (!container) return;
     
-    container.innerHTML = OER_REPOS.map(repo => \
-        <a href="\" target="_blank" class="flex flex-col items-center p-6 bg-white rounded-3xl shadow-sm hover:shadow-xl hover:scale-105 transition-all border border-slate-100 hover:border-indigo-300 group">
-            <span class="text-4xl mb-4 group-hover:rotate-12 transition-transform">\</span>
-            <h4 class="font-black text-slate-800 mb-1 text-sm text-center">\</h4>
-            <p class="text-[9px] text-slate-400 font-bold uppercase text-center leading-tight">\</p>
+    container.innerHTML = OER_REPOS.map(repo => `
+        <a href="${repo.url}" target="_blank" class="flex flex-col items-center p-6 bg-white rounded-3xl shadow-sm hover:shadow-xl hover:scale-105 transition-all border border-slate-100 hover:border-indigo-300 group">
+            <span class="text-4xl mb-4 group-hover:rotate-12 transition-transform">${repo.icon}</span>
+            <h4 class="font-black text-slate-800 mb-1 text-sm text-center">${repo.name}</h4>
+            <p class="text-[9px] text-slate-400 font-bold uppercase text-center leading-tight">${repo.desc}</p>
         </a>
-    \).join('');
+    `).join('');
 }
 
 // --- NEW: TOKEN REGISTRY ---
@@ -2478,24 +2478,24 @@ function renderVerifiedTokens() {
     const container = document.getElementById('verifiedTokenList');
     if (!container) return;
     
-    container.innerHTML = verifiedTokens.map(token => \
+    container.innerHTML = verifiedTokens.map(token => `
         <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-blue-300 transition-all">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-black">
-                    \
+                    ${token.symbol.charAt(0)}
                 </div>
                 <div>
-                    <div class="flex items-center gap-2">
-                        <h4 class="font-black text-slate-800">\</h4>
-                        \
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h4 class="font-black text-slate-800">${token.name}</h4>
+                        ${token.verified ? '<span class="text-blue-500 text-xs shadow-sm bg-white rounded-full">✓</span>' : ''}
                     </div>
-                    <p class="text-[10px] text-slate-400 font-mono">\</p>
+                    <p class="text-[9px] sm:text-[10px] text-slate-400 font-mono break-all max-w-[150px] sm:max-w-xs">${token.address}</p>
                 </div>
             </div>
-            <div class="text-right">
-                <span class="block text-[10px] font-black text-slate-300 uppercase tracking-widest">\</span>
+            <div class="text-right whitespace-nowrap">
+                <span class="block text-[10px] font-black text-slate-300 uppercase tracking-widest">${token.symbol}</span>
                 <span class="text-[9px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full mt-1 inline-block">Whitelisted</span>
             </div>
         </div>
-    \).join('');
+    `).join('');
 }
