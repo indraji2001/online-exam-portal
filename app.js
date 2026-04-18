@@ -156,39 +156,6 @@ function showAuthModal() {
 // NAVIGATION & CORE UI
 // ==========================================
 
-function showTab(tabId) {
-    // Hide all sections
-    document.querySelectorAll('section').forEach(el => {
-        if (el.id.startsWith('content-')) {
-            el.classList.add('hidden-section');
-            el.classList.add('hidden'); // Double safety
-        }
-    });
-
-    // Show target section
-    const target = document.getElementById('content-' + tabId);
-    if (target) {
-        target.classList.remove('hidden-section');
-        target.classList.remove('hidden');
-    }
-
-    // Update Tab Buttons
-    document.querySelectorAll('nav button').forEach(btn => {
-        if (btn.id && btn.id.startsWith('tab-')) {
-            btn.className = 'flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl';
-        }
-    });
-    
-    const activeBtn = document.getElementById('tab-' + tabId);
-    if (activeBtn) {
-        activeBtn.className = 'flex-1 py-4 px-4 font-semibold tab-active rounded-xl';
-    }
-
-    // Special Rendering for dynamic tabs
-    if (tabId === 'library') renderLibraryUI();
-    if (tabId === 'settings') renderAdminSettings();
-}
-
 function requestDriveAccess() {
     // Clear any stuck tokens in memory before requesting a new one
     gapi.client.setToken(null);
@@ -1012,6 +979,7 @@ function showTab(tabName) {
     if (tabName === 'ai-bridge') updateAiBridgeSources();
     if (tabName === 'library') loadLibrary();
     if (tabName === 'images') renderImageQueue();
+    if (tabName === 'settings') renderAdminSettings();
 }
 
 // ==========================================
@@ -2216,13 +2184,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initInteractiveModals();
     
     // Admin Intelligence Initialization
-    if (userRole === 'admin') {
-        const adminInput = document.getElementById('adminTopicInput');
-        if (adminInput) {
-            adminInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') runAcademicSearch();
-            });
-        }
+    const adminInput = document.getElementById('adminTopicInput');
+    if (adminInput) {
+        adminInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') runAcademicSearch();
+        });
     }
 });
 
@@ -2230,7 +2196,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * ADMIN INTELLIGENCE: Academic Resource Discovery (v4.9.1)
  * Strictly restricted to Admin role for internet-wide curated mapping.
  */
-let currentSearchLevel = 'UG';
+let currentSearchLevel = 'GENERAL';
 
 function setSearchLevel(lvl) {
     currentSearchLevel = lvl;
@@ -2391,5 +2357,41 @@ function runAcademicSearch() {
             resultsContainer.appendChild(tile);
         });
     }, 800);
+}
+
+// OER AI INTEGRATION (v4.9.6)
+function toggleAdminAiGrid() {
+    const grid = document.getElementById('adminAiGrid');
+    if (grid.classList.contains('hidden')) {
+        grid.classList.remove('hidden');
+        setTimeout(() => grid.style.maxHeight = '500px', 10);
+    } else {
+        grid.style.maxHeight = '0';
+        setTimeout(() => grid.classList.add('hidden'), 500);
+    }
+}
+
+function runAdminOERGeneration(service) {
+    const topic = document.getElementById('adminTopicInput').value.trim();
+    if (!topic) {
+        alert("Please enter a topic first!");
+        return;
+    }
+
+    const oerProfile = examProfiles.OPEN_KNOWLEDGE;
+    const prompt = `${oerProfile.directive}
+
+TASK: Generate a foundational study guide and educational overview for the topic: "${topic}".
+Include: Core concepts, standard derivations, and high-quality OER references.
+FORMAT: Please provide this in a clean, professional academic structure.`;
+
+    navigator.clipboard.writeText(prompt).then(() => {
+        alert(`Academic Prompt for "${topic}" copied to clipboard! Opening ${service}...`);
+        openAiService(service);
+    }).catch(err => {
+        console.error('Clipboard error:', err);
+        alert('Prompt generated. Opening service...');
+        openAiService(service);
+    });
 }
 
