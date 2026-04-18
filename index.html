@@ -720,6 +720,32 @@
                     </div>
                 </div>
 
+                <!-- Verified Token Registry (Whitelist) -->
+                <div class="md:col-span-3 mt-8">
+                    <div class="glass p-8 rounded-3xl border border-blue-100 shadow-xl bg-gradient-to-br from-blue-50/50 to-white">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 class="text-xl font-black text-slate-900 flex items-center gap-3">
+                                    <span class="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center text-sm shadow-lg">🛡️</span>
+                                    Verified Token Registry
+                                </h3>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1 ml-11">Whitelisted Digital Assets & Identity Tokens</p>
+                            </div>
+                        </div>
+                        
+                        <div id="verifiedTokenList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Tokens rendered by JS -->
+                            <div class="animate-pulse flex items-center gap-4 p-6 bg-white/50 rounded-3xl">
+                                <div class="w-12 h-12 bg-slate-200 rounded-2xl"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-4 bg-slate-200 rounded w-1/3"></div>
+                                    <div class="h-2 bg-slate-200 rounded w-2/3"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Academic Resource Intelligence (v4.9.6 Admin Only) -->
                 <div class="md:col-span-3 mt-12 mb-10">
                     <div class="glass p-10 rounded-[3rem] border-2 border-indigo-50 shadow-2xl bg-white/60 relative overflow-hidden">
@@ -789,6 +815,20 @@
 
                             <div id="adminSearchPortals" class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-0 translate-y-4 transition-all duration-500 pointer-events-none">
                                 <!-- Results appear here dynamically -->
+                            </div>
+
+                            <!-- OER Discovery Selection Grid (Collapsible) -->
+                            <div id="oerDiscoveryGridContainer" class="hidden overflow-hidden transition-all duration-500 max-h-0 bg-white/40 backdrop-blur-md rounded-[3rem] border-2 border-indigo-100/50 mt-12 p-12 shadow-2xl">
+                                <div class="flex justify-between items-center mb-10">
+                                    <div>
+                                        <h4 class="text-2xl font-black text-slate-900 leading-tight">Direct OER Repository Directory</h4>
+                                        <p class="text-[10px] font-black uppercase text-indigo-500 tracking-widest mt-1">Curated Open Access Repositories</p>
+                                    </div>
+                                    <button onclick="toggleOerDiscoveryGrid()" class="w-10 h-10 flex items-center justify-center bg-white rounded-2xl text-slate-400 hover:text-red-500 transition shadow-sm border border-slate-100">×</button>
+                                </div>
+                                <div id="oerGridItems" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                    <!-- OER Cards rendered by app.js -->
+                                </div>
                             </div>
                         </div>
                     </div>
