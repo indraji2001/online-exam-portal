@@ -2308,6 +2308,13 @@ function runAcademicSearch() {
 
     const portals = [
         {
+            label: 'OER Repositories',
+            icon: '📂',
+            engine: 'google',
+            query: `site:(libretexts.org OR openstax.org OR oercommons.org OR merlot.org OR cnx.org OR open.bccampus.ca OR saylor.org) "${topic}" ${academicSuffix}`,
+            desc: `Aggregated search across top-tier Open Educational Resources for ${topic} (${levelDisplay}).`
+        },
+        {
             label: 'Lecture Intelligence',
             icon: '🏫',
             engine: 'google',
@@ -2351,16 +2358,6 @@ function runAcademicSearch() {
         }
     ];
 
-    // --- PRE-FLIGHT INJECTION: OER Search Portal ---
-    if (currentSearchLevel === 'GENERAL') {
-        portals.unshift({
-            label: 'OER Repositories',
-            icon: '📂',
-            engine: 'google',
-            query: `site:(libretexts.org OR openstax.org OR oercommons.org OR merlot.org OR cnx.org OR open.bccampus.ca OR saylor.org) "${topic}" "textbook" OR "lecture notes"`,
-            desc: `Aggregated search across top-tier Open Educational Resources for ${topic}.`
-        });
-    }
 
     setTimeout(() => {
         resultsContainer.innerHTML = '';
