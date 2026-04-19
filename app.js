@@ -2221,20 +2221,7 @@ function setSearchLevel(lvl) {
 }
 
 // --- OER & TOKEN REGISTRY (v4.9.6.2) ---
-const OER_REPOS = [
-    { name: 'LibreTexts', url: 'https://libretexts.org', searchUrl: 'https://chem.libretexts.org/Special:Search?query={{topic}}', icon: '🧪', desc: 'The most visited open textbook platform.' },
-    { name: 'OpenStax', url: 'https://openstax.org', searchUrl: 'https://openstax.org/search?q={{topic}}', icon: '📖', desc: 'Peer-reviewed, open-licensed textbooks.' },
-    { name: 'MIT OCW', url: 'https://ocw.mit.edu', searchUrl: 'https://ocw.mit.edu/search/?q={{topic}}', icon: '🏛️', desc: 'Complete course materials from MIT.' },
-    { name: 'Chemguide', url: 'https://www.chemguide.co.uk/', searchUrl: 'https://www.google.com/search?q=site:chemguide.co.uk+{{topic}}', icon: '🧪', desc: 'Legendary clarity for core chemistry concepts.' },
-    { name: 'Organic Chem Portal', url: 'https://www.organic-chemistry.org/', searchUrl: 'https://www.organic-chemistry.org/search.htm?q={{topic}}', icon: '🧬', desc: 'Highly technical synthesis and reaction database.' },
-    { name: 'Chemistry Steps', url: 'https://www.chemistrysteps.com/', searchUrl: 'https://www.chemistrysteps.com/?s={{topic}}', icon: '🪜', desc: 'Organic chemistry tutorials and practice problems.' },
-    { name: 'Making Molecules', url: 'https://www.makingmolecules.com/', searchUrl: 'https://www.makingmolecules.com/?s={{topic}}', icon: '🧪', desc: 'Organic chemistry summaries and infographics.' },
-    { name: 'Master Organic Chem', url: 'https://www.masterorganicchemistry.com/', searchUrl: 'https://www.masterorganicchemistry.com/?s={{topic}}', icon: '🔬', desc: 'Detailed organic chemistry guides and summary sheets.' },
-    { name: 'Compound Interest', url: 'https://www.compoundchem.com/', searchUrl: 'https://www.compoundchem.com/?s={{topic}}', icon: '📊', desc: 'Chemistry graphics and educational infographics.' },
-    { name: 'BCcampus', url: 'https://open.bccampus.ca', searchUrl: 'https://open.bccampus.ca/browse-our-collection/find-open-textbooks/?search={{topic}}', icon: '🍁', desc: 'Canadian open educational resources.' },
-    { name: 'OER Commons', url: 'https://www.oercommons.org', searchUrl: 'https://www.oercommons.org/search?f.search={{topic}}', icon: '🌍', desc: 'Public digital library of OERs.' },
-    { name: 'Saylor Academy', url: 'https://www.saylor.org', searchUrl: 'https://www.saylor.org/?s={{topic}}', icon: '🎓', desc: 'Free online courses and textbooks.' }
-];
+
 
 const verifiedTokens = [
     {
@@ -2364,15 +2351,14 @@ function runAcademicSearch() {
         }
     ];
 
-    // --- PRE-FLIGHT INJECTION: OER Directory ---
+    // --- PRE-FLIGHT INJECTION: OER Search Portal ---
     if (currentSearchLevel === 'GENERAL') {
         portals.unshift({
             label: 'OER Repositories',
             icon: '📂',
-            engine: 'custom',
-            query: '',
-            action: 'toggleOerDiscoveryGrid()',
-            desc: 'Direct access to major open resource websites like LibreTexts & OpenStax.'
+            engine: 'google',
+            query: `site:(libretexts.org OR openstax.org OR oercommons.org OR merlot.org OR cnx.org OR open.bccampus.ca OR saylor.org) "${topic}" "textbook" OR "lecture notes"`,
+            desc: `Aggregated search across top-tier Open Educational Resources for ${topic}.`
         });
     }
 
@@ -2445,51 +2431,7 @@ FORMAT: Please provide this in a clean, professional academic structure.`;
 }
 
 
-// --- NEW: OER DISCOVERY GRID ---
-function toggleOerDiscoveryGrid() {
-    const grid = document.getElementById('oerDiscoveryGridContainer');
-    if (!grid) return;
-    
-    if (grid.classList.contains('hidden')) {
-        renderOerGrid();
-        grid.classList.remove('hidden');
-        setTimeout(() => {
-            grid.style.maxHeight = '1000px';
-            grid.style.opacity = '1';
-        }, 10);
-    } else {
-        grid.style.maxHeight = '0';
-        grid.style.opacity = '0';
-        setTimeout(() => grid.classList.add('hidden'), 500);
-    }
-}
 
-function renderOerGrid() {
-    const container = document.getElementById('oerGridItems');
-    if (!container) return;
-    
-    const topic = document.getElementById('adminTopicInput')?.value.trim();
-    
-    container.innerHTML = OER_REPOS.map(repo => {
-        // Construct search URL if topic exists, otherwise fallback to root URL
-        const finalUrl = topic 
-            ? repo.searchUrl.replace('{{topic}}', encodeURIComponent(topic))
-            : repo.url;
-            
-        return `
-            <a href="${finalUrl}" target="_blank" class="flex flex-col items-center p-6 bg-white rounded-3xl shadow-sm hover:shadow-xl hover:scale-105 transition-all border border-slate-100 hover:border-indigo-300 group">
-                <div class="relative">
-                    <span class="text-4xl mb-4 block group-hover:rotate-12 transition-transform">${repo.icon}</span>
-                    ${topic ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full animate-pulse"></div>' : ''}
-                </div>
-                <h4 class="font-black text-slate-800 mb-1 text-sm text-center">${repo.name}</h4>
-                <p class="text-[9px] text-slate-400 font-bold uppercase text-center leading-tight">
-                    ${topic ? `<span class="text-blue-600">Searching:</span> ${topic}` : repo.desc}
-                </p>
-            </a>
-        `;
-    }).join('');
-}
 
 // --- NEW: TOKEN REGISTRY ---
 function renderVerifiedTokens() {
