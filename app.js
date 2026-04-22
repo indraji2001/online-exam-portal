@@ -2245,7 +2245,7 @@ function runAcademicSearch() {
     let levelDisplay = currentSearchLevel;
     if (levelDisplay === 'JEE_MAINS') levelDisplay = 'JEE Mains';
     else if (levelDisplay === 'JEE_ADV') levelDisplay = 'JEE Advanced';
-    else if (levelDisplay === 'UG') levelDisplay = 'Undergraduate';
+    else if (levelDisplay === 'GRADUATE') levelDisplay = 'Graduate';
     else if (levelDisplay === 'JAM') levelDisplay = 'JAM';
     else if (levelDisplay === 'GENERAL') levelDisplay = 'Open Knowledge';
 
@@ -2264,15 +2264,10 @@ function runAcademicSearch() {
     let scholarSuffix = '';
 
     switch (currentSearchLevel) {
-        case 'UG':
-            academicSuffix = ' "university lecture notes" "study materials" "solved problems"';
+        case 'GRADUATE':
+            academicSuffix = ' "graduate lecture notes" "study materials" "research papers" site:edu';
             videoSuffix = ' "university level"';
-            scholarSuffix = ' "introductory review"';
-            break;
-        case 'PG':
-            academicSuffix = ' "postgraduate lecture series" "research papers" "advanced derivation" site:edu';
-            videoSuffix = ' "advanced seminar"';
-            scholarSuffix = ' "recent advancements"';
+            scholarSuffix = ' "research review"';
             break;
         case 'JEE_MAINS':
             academicSuffix = ' "JEE Mains preparation" "previous year questions" "short tricks"';
@@ -2311,7 +2306,7 @@ function runAcademicSearch() {
             label: 'OER Repositories',
             icon: '📂',
             engine: 'google',
-            query: `site:(libretexts.org OR openstax.org OR oercommons.org OR merlot.org OR cnx.org OR open.bccampus.ca OR saylor.org) "${topic}" ${academicSuffix}`,
+            query: `site:(libretexts.org OR openstax.org OR oercommons.org OR merlot.org OR cnx.org OR open.bccampus.ca OR saylor.org OR epgp.inflibnet.ac.in OR egyankosh.ac.in OR chemistrysteps.com OR makingmolecules.com OR masterorganicchemistry.com OR chemistry.msu.edu OR pressbooks.pub OR spcmc.ac.in OR edurev.in) "${topic}" ${academicSuffix}`,
             desc: `Aggregated search across top-tier Open Educational Resources for ${topic} (${levelDisplay}).`
         },
         {
@@ -2346,8 +2341,16 @@ function runAcademicSearch() {
             label: 'PDF Deep-Scan',
             icon: '📄',
             engine: 'google',
-            query: topic + academicSuffix + ' filetype:pdf',
-            desc: `Locating strictly downloadable academic documents, archives, and PYQs.`
+            query: (function() {
+                let base = `${topic} filetype:pdf`;
+                // Append category tag for competitive exams, exclude for Graduate/General
+                if (['JEE_MAINS', 'JEE_ADV', 'JAM', 'GATE', 'NET'].includes(currentSearchLevel)) {
+                    let tag = levelDisplay.replace('JEE Mains', 'JEE MAIN'); // Normalized tag
+                    return `${base} +${tag}`;
+                }
+                return base;
+            })(),
+            desc: `Locating strictly downloadable academic documents, archives, and PYQs for ${levelDisplay}.`
         },
         {
             label: 'Scientific Archives',
