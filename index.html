@@ -79,8 +79,27 @@
                         </div>
                     </button>
                 </div>
-                <div id="wrongAccountWarning" class="hidden mt-4 p-4 bg-rose-50 text-rose-600 rounded-2xl text-xs font-bold">
-                    This Google account is not authorized for the selected role.
+                <div id="wrongAccountWarning" class="hidden mt-4 p-6 bg-rose-50 text-rose-600 rounded-3xl text-xs font-bold border border-rose-100 slide-in-up">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span>⚠️</span> This account is not authorized for the portal.
+                    </div>
+                    
+                    <!-- Request Access Flow -->
+                    <div id="requestAccessFlow" class="mt-4 p-4 bg-white rounded-2xl border border-rose-200 shadow-sm text-slate-600 font-medium">
+                        <p class="mb-4 text-[10px]">You can request access from the System Admin. Select your intended role:</p>
+                        <select id="requestedRole" class="w-full p-2.5 mb-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold outline-none focus:border-blue-500">
+                            <option value="faculty">Faculty Member</option>
+                            <option value="admin">System Admin</option>
+                        </select>
+                        <button id="btnSubmitRequest" onclick="submitAccessRequest()" class="w-full py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition">Request Permission</button>
+                    </div>
+
+                    <div id="requestPendingStatus" class="hidden mt-4 p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100">
+                        <div class="flex items-center gap-2">
+                            <span class="animate-pulse">🕒</span> 
+                            <span>Request Pending: Your access is awaiting admin approval.</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -741,6 +760,36 @@
                                     <div class="h-2 bg-slate-200 rounded w-2/3"></div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Access Request Management (v4.9.7) -->
+                <div id="accessRequestsSection" class="md:col-span-3 mt-8 hidden">
+                    <div class="glass p-8 rounded-3xl border border-orange-100 shadow-xl bg-gradient-to-br from-orange-50/50 to-white">
+                        <div class="flex justify-between items-center mb-8">
+                            <div>
+                                <h3 class="text-xl font-black text-slate-900 flex items-center gap-3">
+                                    <span class="w-8 h-8 bg-orange-500 text-white rounded-lg flex items-center justify-center text-sm shadow-lg">🔔</span>
+                                    Pending Access Requests
+                                </h3>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1 ml-11">New users awaiting your permission</p>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                        <th class="pb-4">User Details</th>
+                                        <th class="pb-4 text-center">Requested Role</th>
+                                        <th class="pb-4 text-right pr-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pendingRequestsList" class="divide-y divide-slate-50">
+                                    <!-- Dynamic Requests -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
