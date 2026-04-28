@@ -663,50 +663,69 @@ function verifyAdmin() {
 // ==========================================
 
 async function renderAdminSettings() {
-    // Update Password Field
-    if (systemConfig) document.getElementById('setAdminPass').value = systemConfig.admin_password;
+    console.log("Admin Settings: Initializing...");
+    
+    // 1. Password
+    if (systemConfig) {
+        const passField = document.getElementById('setAdminPass');
+        if (passField) passField.value = systemConfig.admin_password;
+    }
 
-    // Render Faculty List from Supabase
+    // 2. Database Connectivity Check
+    if (!supabaseClient) {
+        console.warn("Supabase client is null. Attempting re-init...");
+        initSupabase(); 
+    }
+
+    // 3. Render Sections (Modularized for safety)
+    renderPendingRequests();
+    renderFacultyRegistry();
+    renderTokenRegistry();
+}
+
+async function renderFacultyRegistry() {
     const list = document.getElementById('facultyRegistryList');
+    if (!list) return;
+
     list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Loading from cloud...</td></tr>';
 
     if (supabaseClient) {
-        renderPendingRequests();
-        
-        const { data: faculty, error } = await supabaseClient
-            .from('faculty_registry')
-            .select('*')
-            .order('created_at', { ascending: true });
+        try {
+            const { data: faculty, error } = await supabaseClient
+                .from('faculty_registry')
+                .select('*')
+                .order('created_at', { ascending: true });
 
-        if (error) {
-            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-rose-400">❌ Failed to load registry from cloud.</td></tr>';
-            return;
+            if (error) throw error;
+
+            if (!faculty || faculty.length === 0) {
+                list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered yet.</td></tr>';
+                return;
+            }
+
+            list.innerHTML = '';
+            faculty.forEach((member) => {
+                const tr = document.createElement('tr');
+                tr.className = "group hover:bg-slate-50 transition-colors";
+                const joinDate = new Date(member.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                tr.innerHTML = `
+                    <td class="py-5">
+                        <div class="font-bold text-slate-900">${member.name}</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Joined: ${joinDate}</div>
+                    </td>
+                    <td class="py-5 text-center">
+                        <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin}</span>
+                    </td>
+                    <td class="py-5 text-right">
+                        <button onclick="removeFacultyById('${member.id}', '${member.name}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        } catch (e) {
+            console.error('Faculty Registry Error:', e);
+            list.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-rose-400">⚠️ Error: ${e.message}</td></tr>`;
         }
-
-        if (!faculty || faculty.length === 0) {
-            list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered yet.</td></tr>';
-            return;
-        }
-
-        list.innerHTML = '';
-        faculty.forEach((member) => {
-            const tr = document.createElement('tr');
-            tr.className = "group hover:bg-slate-50 transition-colors";
-            const joinDate = new Date(member.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-            tr.innerHTML = `
-                <td class="py-5">
-                    <div class="font-bold text-slate-900">${member.name}</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">Joined: ${joinDate}</div>
-                </td>
-                <td class="py-5 text-center">
-                    <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin}</span>
-                </td>
-                <td class="py-5 text-right">
-                    <button onclick="removeFacultyById('${member.id}', '${member.name}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
-                </td>
-            `;
-            list.appendChild(tr);
-        });
     } else {
         // Fallback to local config
         if (!systemConfig || !systemConfig.faculty || systemConfig.faculty.length === 0) {
@@ -725,6 +744,42 @@ async function renderAdminSettings() {
             list.appendChild(tr);
         });
     }
+}
+
+function renderTokenRegistry() {
+    const list = document.getElementById('verifiedTokenList');
+    if (!list) return;
+
+    if (!verifiedTokens || verifiedTokens.length === 0) {
+        list.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400 italic font-medium">No verified tokens in registry.</div>';
+        return;
+    }
+
+    list.innerHTML = '';
+    verifiedTokens.forEach(token => {
+        const div = document.createElement('div');
+        div.className = "group bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all hover:border-blue-200 flex items-center gap-5";
+        div.innerHTML = `
+            <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform">
+                ${token.name.charAt(0)}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <h4 class="font-black text-slate-900 truncate">${token.name}</h4>
+                    ${token.verified ? '<span class="text-blue-500 text-[10px]">✔</span>' : ''}
+                </div>
+                <div class="font-mono text-[10px] text-slate-400 truncate tracking-tight mb-1">${token.address}</div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">${token.symbol}</span>
+                    <span class="text-[8px] font-black uppercase text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Whitelisted</span>
+                </div>
+            </div>
+            <button class="p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+            </button>
+        `;
+        list.appendChild(div);
+    });
 }
 
 function showAddFacultyModal() {
