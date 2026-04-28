@@ -2551,39 +2551,48 @@ async function renderPendingRequests() {
     
     if (!supabaseClient || !list || !section) return;
 
-    const { data: requests, error } = await supabaseClient
-        .from('access_requests')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-    if (error || !requests || requests.length === 0) {
-        section.classList.add('hidden');
-        return;
-    }
-
+    // Show section by default once we start loading
     section.classList.remove('hidden');
-    list.innerHTML = '';
-    
-    requests.forEach(req => {
-        const tr = document.createElement('tr');
-        tr.className = "group hover:bg-slate-50 transition-colors";
-        tr.innerHTML = `
-            <td class="py-5">
-                <div class="font-bold text-slate-900">${req.name}</div>
-                <div class="text-[10px] text-slate-400 mt-0.5">${req.email}</div>
-            </td>
-            <td class="py-5 text-center">
-                <span class="px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg font-black text-[10px] uppercase tracking-widest text-blue-700">${req.requested_role}</span>
-            </td>
-            <td class="py-5 text-right pr-4">
-                <div class="flex justify-end gap-2">
-                    <button onclick="approveAccessRequest('${req.id}', '${req.email}', '${req.requested_role}')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition">Approve</button>
-                    <button onclick="denyAccessRequest('${req.id}')" class="px-4 py-2 bg-rose-50 text-rose-500 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-rose-100 transition">Deny</button>
-                </div>
-            </td>
-        `;
-        list.appendChild(tr);
-    });
+    list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Syncing with cloud...</td></tr>';
+
+    try {
+        const { data: requests, error } = await supabaseClient
+            .from('access_requests')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (!requests || requests.length === 0) {
+            list.innerHTML = '<tr><td colspan="3" class="py-12 text-center text-slate-400 italic">No pending access requests found.</td></tr>';
+            return;
+        }
+
+        list.innerHTML = '';
+        requests.forEach(req => {
+            const tr = document.createElement('tr');
+            tr.className = "group hover:bg-slate-50 transition-colors";
+            tr.innerHTML = `
+                <td class="py-5">
+                    <div class="font-bold text-slate-900">${req.name}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">${req.email}</div>
+                </td>
+                <td class="py-5 text-center">
+                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg font-black text-[10px] uppercase tracking-widest text-blue-700">${req.requested_role}</span>
+                </td>
+                <td class="py-5 text-right pr-4">
+                    <div class="flex justify-end gap-2">
+                        <button onclick="approveAccessRequest('${req.id}', '${req.email}', '${req.requested_role}')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition">Approve</button>
+                        <button onclick="denyAccessRequest('${req.id}')" class="px-4 py-2 bg-rose-50 text-rose-500 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-rose-100 transition">Deny</button>
+                    </div>
+                </td>
+            `;
+            list.appendChild(tr);
+        });
+    } catch (e) {
+        console.error('Request Fetch Error:', e);
+        list.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-rose-400">⚠️ Database Sync Error: ${e.message}</td></tr>`;
+    }
 }
 
 async function approveAccessRequest(requestId, email, role) {
