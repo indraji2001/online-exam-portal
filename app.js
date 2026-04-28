@@ -224,6 +224,11 @@ function handleAuthSuccess() {
     // Initial render for tokens (Whitelist)
     if (typeof renderVerifiedTokens === 'function') renderVerifiedTokens();
     
+    // v4.9.7 UI RESET: Always hide roles and warnings at start of auth
+    document.getElementById('btnRoleAdmin').classList.add('hidden');
+    document.getElementById('btnRoleFaculty').classList.add('hidden');
+    document.getElementById('wrongAccountWarning').classList.add('hidden');
+
     // Auto-detect available roles for this email
     const isAdmin = AUTHORIZED_ADMINS.includes(currentUser.email.toLowerCase());
     const isDept = currentUser.email.toLowerCase() === DEPARTMENTAL_ACCOUNT;
@@ -241,6 +246,11 @@ function resetAuthFlow() {
     // Hide the identity modal and return to main landing
     document.getElementById('identityModal').classList.add('hidden-section');
     
+    // Reset authorization UI state for safety
+    document.getElementById('btnRoleAdmin').classList.add('hidden');
+    document.getElementById('btnRoleFaculty').classList.add('hidden');
+    document.getElementById('wrongAccountWarning').classList.add('hidden');
+
     // Re-initialize and show the login screen with the button
     showAuthModal();
     
@@ -251,6 +261,19 @@ function resetAuthFlow() {
 }
 
 function selectRole(role) {
+    // v4.9.7 SECURITY CHECK: Prevent manual console bypass
+    const isAdmin = AUTHORIZED_ADMINS.includes(currentUser.email.toLowerCase());
+    const isDept = currentUser.email.toLowerCase() === DEPARTMENTAL_ACCOUNT;
+
+    if (role === 'admin' && !isAdmin) {
+        alert("⛔ Access Denied: Your account is not authorized for the System Admin role.");
+        return;
+    }
+    if (role === 'faculty' && !isDept) {
+        alert("⛔ Access Denied: Your account is not authorized for the Faculty Member role.");
+        return;
+    }
+
     if (role === 'admin') {
         document.getElementById('roleSelectionStep').classList.add('hidden-section');
         document.getElementById('adminDriveStep').classList.remove('hidden-section');
