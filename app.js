@@ -2549,9 +2549,17 @@ async function renderPendingRequests() {
     const list = document.getElementById('pendingRequestsList');
     const section = document.getElementById('accessRequestsSection');
     
-    if (!supabaseClient || !list || !section) return;
+    if (!section || !list) {
+        console.warn('⚠️ Access Request UI elements not found in this version of the page.');
+        return;
+    }
 
-    // Show section by default once we start loading
+    if (!supabaseClient) {
+        list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-rose-400">❌ Supabase not initialized.</td></tr>';
+        return;
+    }
+
+    // Show section
     section.classList.remove('hidden');
     list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Syncing with cloud...</td></tr>';
 
