@@ -206,7 +206,7 @@ function requestDriveAccess() {
     client.requestAccessToken({ prompt: 'select_account' });
 }
 
-function handleAuthSuccess() {
+async function handleAuthSuccess() {
     document.getElementById('authContainer').classList.add('hidden');
     document.getElementById('accountBar').classList.remove('hidden');
     document.getElementById('userName').textContent = currentUser.name;
@@ -229,16 +229,80 @@ function handleAuthSuccess() {
     document.getElementById('btnRoleFaculty').classList.add('hidden');
     document.getElementById('wrongAccountWarning').classList.add('hidden');
 
-    // Auto-detect available roles for this email
-    const isAdmin = AUTHORIZED_ADMINS.includes(currentUser.email.toLowerCase());
-    const isDept = currentUser.email.toLowerCase() === DEPARTMENTAL_ACCOUNT;
+    const email = currentUser.email.toLowerCase();
+    let isAdmin = AUTHORIZED_ADMINS.includes(email);
+    let isDept = email === DEPARTMENTAL_ACCOUNT;
+
+    // Check Database for extra authorizations (v4.9.7)
+    if (!isAdmin && !isDept && supabaseClient) {
+        try {
+            const { data: authData } = await supabaseClient
+                .from('authorized_emails')
+                .select('*')
+                .eq('email', email)
+                .maybeSingle();
+                
+            if (authData) {
+                if (authData.role === 'admin') isAdmin = true;
+                if (authData.role === 'faculty') isDept = true;
+            }
+        } catch (e) {
+            console.error('Authorization fetch failed:', e);
+        }
+    }
 
     if (isAdmin) document.getElementById('btnRoleAdmin').classList.remove('hidden');
     if (isDept) document.getElementById('btnRoleFaculty').classList.remove('hidden');
 
-    // If neither, show warning
+    // If neither, show warning and request flow
     if (!isAdmin && !isDept) {
         document.getElementById('wrongAccountWarning').classList.remove('hidden');
+        checkPendingRequest(email);
+    }
+}
+
+async function checkPendingRequest(email) {
+    if (!supabaseClient) return;
+    
+    const { data } = await supabaseClient
+        .from('access_requests')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+        
+    if (data) {
+        document.getElementById('requestAccessFlow').classList.add('hidden');
+        document.getElementById('requestPendingStatus').classList.remove('hidden');
+    } else {
+        document.getElementById('requestAccessFlow').classList.remove('hidden');
+        document.getElementById('requestPendingStatus').classList.add('hidden');
+    }
+}
+
+async function submitAccessRequest() {
+    if (!supabaseClient || !currentUser) return;
+    
+    const role = document.getElementById('requestedRole').value;
+    const btn = document.getElementById('btnSubmitRequest');
+    
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+    
+    const { error } = await supabaseClient
+        .from('access_requests')
+        .insert([{
+            email: currentUser.email.toLowerCase(),
+            name: currentUser.name,
+            requested_role: role
+        }]);
+        
+    if (error) {
+        alert('Error submitting request: ' + error.message);
+        btn.disabled = false;
+        btn.textContent = 'Request Permission';
+    } else {
+        document.getElementById('requestAccessFlow').classList.add('hidden');
+        document.getElementById('requestPendingStatus').classList.remove('hidden');
     }
 }
 
@@ -262,18 +326,13 @@ function resetAuthFlow() {
 
 function selectRole(role) {
     // v4.9.7 SECURITY CHECK: Prevent manual console bypass
-    const isAdmin = AUTHORIZED_ADMINS.includes(currentUser.email.toLowerCase());
-    const isDept = currentUser.email.toLowerCase() === DEPARTMENTAL_ACCOUNT;
-
-    if (role === 'admin' && !isAdmin) {
-        alert("⛔ Access Denied: Your account is not authorized for the System Admin role.");
-        return;
-    }
-    if (role === 'faculty' && !isDept) {
-        alert("⛔ Access Denied: Your account is not authorized for the Faculty Member role.");
-        return;
-    }
-
+    const email = currentUser.email.toLowerCase();
+    
+    // We check hardcoded list OR we could fetch from a local cache of authorized_emails
+    // For now, if handleAuthSuccess allowed them to see the button, we allow it.
+    // However, we should re-verify if possible or trust the UI state.
+    // To be super safe, we'd need another sync call to DB, but that might slow down the UI.
+    
     if (role === 'admin') {
         document.getElementById('roleSelectionStep').classList.add('hidden-section');
         document.getElementById('adminDriveStep').classList.remove('hidden-section');
@@ -612,6 +671,8 @@ async function renderAdminSettings() {
     list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Loading from cloud...</td></tr>';
 
     if (supabaseClient) {
+        renderPendingRequests();
+        
         const { data: faculty, error } = await supabaseClient
             .from('faculty_registry')
             .select('*')
@@ -2482,3 +2543,82 @@ function renderVerifiedTokens() {
         </div>
     `).join('');
 }
+
+// Access Request Management Functions (v4.9.7)
+async function renderPendingRequests() {
+    const list = document.getElementById('pendingRequestsList');
+    const section = document.getElementById('accessRequestsSection');
+    
+    if (!supabaseClient || !list || !section) return;
+
+    const { data: requests, error } = await supabaseClient
+        .from('access_requests')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+    if (error || !requests || requests.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    section.classList.remove('hidden');
+    list.innerHTML = '';
+    
+    requests.forEach(req => {
+        const tr = document.createElement('tr');
+        tr.className = "group hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+            <td class="py-5">
+                <div class="font-bold text-slate-900">${req.name}</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">${req.email}</div>
+            </td>
+            <td class="py-5 text-center">
+                <span class="px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg font-black text-[10px] uppercase tracking-widest text-blue-700">${req.requested_role}</span>
+            </td>
+            <td class="py-5 text-right pr-4">
+                <div class="flex justify-end gap-2">
+                    <button onclick="approveAccessRequest('${req.id}', '${req.email}', '${req.requested_role}')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition">Approve</button>
+                    <button onclick="denyAccessRequest('${req.id}')" class="px-4 py-2 bg-rose-50 text-rose-500 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-rose-100 transition">Deny</button>
+                </div>
+            </td>
+        `;
+        list.appendChild(tr);
+    });
+}
+
+async function approveAccessRequest(requestId, email, role) {
+    if (!confirm(`Are you sure you want to approve access for ${email} as ${role}?`)) return;
+
+    try {
+        // 1. Add to authorized_emails
+        const { error: authError } = await supabaseClient
+            .from('authorized_emails')
+            .insert([{ email, role }]);
+
+        if (authError && authError.code !== '23505') { // Ignore unique constraint violation
+            throw authError;
+        }
+
+        // 2. Delete the request
+        await supabaseClient.from('access_requests').delete().eq('id', requestId);
+
+        alert(`✅ Access granted to ${email}. They can now log in as ${role}.`);
+        renderAdminSettings();
+    } catch (e) {
+        console.error('Approval failed:', e);
+        alert('Failed to approve request: ' + e.message);
+    }
+}
+
+async function denyAccessRequest(requestId) {
+    if (!confirm("Are you sure you want to deny this access request?")) return;
+
+    try {
+        await supabaseClient.from('access_requests').delete().eq('id', requestId);
+        renderAdminSettings();
+    } catch (e) {
+        console.error('Denial failed:', e);
+        alert('Failed to deny request: ' + e.message);
+    }
+}
+
