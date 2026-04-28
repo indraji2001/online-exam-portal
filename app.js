@@ -2546,20 +2546,21 @@ function renderVerifiedTokens() {
 
 // Access Request Management Functions (v4.9.7)
 async function renderPendingRequests() {
+    console.log("DEBUG: renderPendingRequests started");
     const list = document.getElementById('pendingRequestsList');
     const section = document.getElementById('accessRequestsSection');
     
     if (!section || !list) {
-        console.warn('⚠️ Access Request UI elements not found in this version of the page.');
+        console.warn('⚠️ Access Request UI elements not found');
         return;
     }
 
     if (!supabaseClient) {
+        alert("DEBUG: Supabase is NOT connected!");
         list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-rose-400">❌ Supabase not initialized.</td></tr>';
         return;
     }
 
-    // Show section
     section.classList.remove('hidden');
     list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Syncing with cloud...</td></tr>';
 
@@ -2569,7 +2570,10 @@ async function renderPendingRequests() {
             .select('*')
             .order('created_at', { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+            alert("DEBUG Database Error: " + error.message);
+            throw error;
+        }
 
         if (!requests || requests.length === 0) {
             list.innerHTML = '<tr><td colspan="3" class="py-12 text-center text-slate-400 italic">No pending access requests found.</td></tr>';
@@ -2599,6 +2603,7 @@ async function renderPendingRequests() {
         });
     } catch (e) {
         console.error('Request Fetch Error:', e);
+        alert("DEBUG System Error: " + e.message);
         list.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-rose-400">⚠️ Database Sync Error: ${e.message}</td></tr>`;
     }
 }
