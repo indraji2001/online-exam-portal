@@ -2601,65 +2601,44 @@ function renderVerifiedTokens() {
 
 // Access Request Management Functions (v4.9.7)
 async function renderPendingRequests() {
-    console.log("DEBUG: renderPendingRequests started");
     const list = document.getElementById('pendingRequestsList');
     const section = document.getElementById('accessRequestsSection');
-    
-    if (!section || !list) {
-        console.warn('⚠️ Access Request UI elements not found');
-        return;
-    }
-
-    if (!supabaseClient) {
-        alert("DEBUG: Supabase is NOT connected!");
-        list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-rose-400">❌ Supabase not initialized.</td></tr>';
-        return;
-    }
+    if (!list || !section) return;
 
     section.classList.remove('hidden');
-    list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400"><span class="animate-spin inline-block mr-2">⚙️</span> Syncing with cloud...</td></tr>';
+    list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400">🔍 Fetching from Supabase...</td></tr>';
 
     try {
-        const { data: requests, error } = await supabaseClient
-            .from('access_requests')
-            .select('*')
-            .order('created_at', { ascending: true });
+        const { data, error } = await supabaseClient.from('access_requests').select('*');
 
         if (error) {
-            alert("DEBUG Database Error: " + error.message);
-            throw error;
+            alert("Supabase Fetch Error: " + error.message);
+            list.innerHTML = `<tr><td colspan="3" class="py-4 text-rose-500">${error.message}</td></tr>`;
+            return;
         }
 
-        if (!requests || requests.length === 0) {
-            list.innerHTML = '<tr><td colspan="3" class="py-12 text-center text-slate-400 italic">No pending access requests found.</td></tr>';
+        alert("Database Report: Found " + (data ? data.length : 0) + " rows in access_requests.");
+
+        if (!data || data.length === 0) {
+            list.innerHTML = '<tr><td colspan="3" class="py-12 text-center text-slate-400 italic font-medium">Zero rows returned. If you just sent a request, wait 5 seconds and refresh.</td></tr>';
             return;
         }
 
         list.innerHTML = '';
-        requests.forEach(req => {
+        data.forEach(req => {
             const tr = document.createElement('tr');
-            tr.className = "group hover:bg-slate-50 transition-colors";
             tr.innerHTML = `
-                <td class="py-5">
-                    <div class="font-bold text-slate-900">${req.name}</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">${req.email}</div>
-                </td>
-                <td class="py-5 text-center">
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg font-black text-[10px] uppercase tracking-widest text-blue-700">${req.requested_role}</span>
-                </td>
-                <td class="py-5 text-right pr-4">
-                    <div class="flex justify-end gap-2">
-                        <button onclick="approveAccessRequest('${req.id}', '${req.email}', '${req.requested_role}')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition">Approve</button>
-                        <button onclick="denyAccessRequest('${req.id}')" class="px-4 py-2 bg-rose-50 text-rose-500 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-rose-100 transition">Deny</button>
-                    </div>
+                <td class="py-5 font-bold">${req.name}<br><span class="text-[10px] text-slate-400">${req.email}</span></td>
+                <td class="py-5 text-center"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-black">${req.requested_role}</span></td>
+                <td class="py-5 text-right">
+                    <button onclick="approveAccessRequest('${req.id}', '${req.email}', '${req.requested_role}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold">Approve</button>
+                    <button onclick="denyAccessRequest('${req.id}')" class="ml-2 bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-[10px] font-bold">Deny</button>
                 </td>
             `;
             list.appendChild(tr);
         });
     } catch (e) {
-        console.error('Request Fetch Error:', e);
-        alert("DEBUG System Error: " + e.message);
-        list.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-rose-400">⚠️ Database Sync Error: ${e.message}</td></tr>`;
+        alert("System Exception: " + e.message);
     }
 }
 
