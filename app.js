@@ -107,7 +107,9 @@ function checkExistingToken() {
     const token = localStorage.getItem('google_access_token');
     const expiry = localStorage.getItem('google_token_expiry');
     if (token && expiry && Date.now() < parseInt(expiry)) {
-        gapi.client.setToken({ access_token: token });
+        if (typeof gapi !== 'undefined' && gapi.client) {
+            gapi.client.setToken({ access_token: token });
+        }
         const user = JSON.parse(localStorage.getItem('google_user') || '{}');
         if (user.name) {
             currentUser = user;
@@ -131,7 +133,9 @@ function checkEnvironment() {
             DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; // Fixed name for everyone to prevent duplicate folders
         }
         
-        gapi.client.setToken({ access_token: token });
+        if (typeof gapi !== 'undefined' && gapi.client) {
+            gapi.client.setToken({ access_token: token });
+        }
         
         // v4.9 SECURITY FIX: Hide portal until identity is confirmed
         document.getElementById('mainPortal').classList.add('hidden');
