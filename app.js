@@ -682,7 +682,7 @@ async function renderAdminSettings() {
     }
 
     // 3. Render Sections (Modularized for safety)
-    renderPendingRequests();
+
     renderFacultyRegistry();
     renderTokenRegistry();
 }
@@ -2601,84 +2601,5 @@ function renderVerifiedTokens() {
             </div>
         </div>
     `).join('');
-}
-
-// Access Request Management Functions (v4.9.7)
-async function renderPendingRequests() {
-    const list = document.getElementById('pendingRequestsList');
-    const section = document.getElementById('accessRequestsSection');
-    if (!list || !section) return;
-
-    section.classList.remove('hidden');
-    list.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400">🔍 Fetching from Supabase...</td></tr>';
-
-    try {
-        const { data, error } = await supabaseClient.from('access_requests').select('*');
-
-        if (error) {
-            alert("Supabase Fetch Error: " + error.message);
-            list.innerHTML = `<tr><td colspan="3" class="py-4 text-rose-500">${error.message}</td></tr>`;
-            return;
-        }
-
-        alert("Database Report: Found " + (data ? data.length : 0) + " rows in access_requests.");
-
-        if (!data || data.length === 0) {
-            list.innerHTML = '<tr><td colspan="3" class="py-12 text-center text-slate-400 italic font-medium">Zero rows returned. If you just sent a request, wait 5 seconds and refresh.</td></tr>';
-            return;
-        }
-
-        list.innerHTML = '';
-        data.forEach(req => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="py-5 font-bold">${req.name}<br><span class="text-[10px] text-slate-400">${req.email}</span></td>
-                <td class="py-5 text-center"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-black">${req.requested_role}</span></td>
-                <td class="py-5 text-right">
-                    <button onclick="approveAccessRequest('${req.id}', '${req.email}', '${req.requested_role}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold">Approve</button>
-                    <button onclick="denyAccessRequest('${req.id}')" class="ml-2 bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-[10px] font-bold">Deny</button>
-                </td>
-            `;
-            list.appendChild(tr);
-        });
-    } catch (e) {
-        alert("System Exception: " + e.message);
-    }
-}
-
-async function approveAccessRequest(requestId, email, role) {
-    if (!confirm(`Are you sure you want to approve access for ${email} as ${role}?`)) return;
-
-    try {
-        // 1. Add to authorized_emails
-        const { error: authError } = await supabaseClient
-            .from('authorized_emails')
-            .insert([{ email, role }]);
-
-        if (authError && authError.code !== '23505') { // Ignore unique constraint violation
-            throw authError;
-        }
-
-        // 2. Delete the request
-        await supabaseClient.from('access_requests').delete().eq('id', requestId);
-
-        alert(`✅ Access granted to ${email}. They can now log in as ${role}.`);
-        renderAdminSettings();
-    } catch (e) {
-        console.error('Approval failed:', e);
-        alert('Failed to approve request: ' + e.message);
-    }
-}
-
-async function denyAccessRequest(requestId) {
-    if (!confirm("Are you sure you want to deny this access request?")) return;
-
-    try {
-        await supabaseClient.from('access_requests').delete().eq('id', requestId);
-        renderAdminSettings();
-    } catch (e) {
-        console.error('Denial failed:', e);
-        alert('Failed to deny request: ' + e.message);
-    }
 }
 
