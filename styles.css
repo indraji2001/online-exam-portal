@@ -215,8 +215,14 @@ input:focus, select:focus, textarea:focus {
 .save-draft-btn { background:#ffffff !important; color:#0f172a !important; border:1px solid #cbd5e1 !important; padding:8px 16px !important; border-radius:12px !important; font-weight:500 !important; transition:all 0.2s !important; box-shadow:none !important; }
 .save-draft-btn:hover { background:#f1f5f9 !important; }
 
-.identity-selection-btn { background:#ffffff !important; border:1px solid #e2e8f0 !important; padding:1rem !important; border-radius:16px !important; transition:all 0.2s !important; }
+.identity-selection-btn { background:#ffffff !important; border:1px solid #e2e8f0 !important; padding:1rem !important; border-radius:16px !important; transition:all 0.2s !important; width:100%; display:flex; align-items:center; gap:0.75rem; text-align:left; }
 .identity-selection-btn:hover { border-color:#2563EB !important; background:#f8fafc !important; }
+
+@media (max-width: 767px) {
+    #content-generate .grid-cols-3 { grid-template-columns:1fr !important; }
+    #content-generate .grid-cols-2 { grid-template-columns:1fr !important; }
+    #accountBar { left:1rem; right:1rem; justify-content:space-between; border-radius:12px !important; }
+}
 
 /* Part 6: Student view, Tailwind overrides, Footer */
 #studentView { background:#F8FAFC !important; color:#0F172A !important; }
