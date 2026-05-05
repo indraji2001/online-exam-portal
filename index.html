@@ -61,6 +61,7 @@
                     </button>
                 </div>
                 <div id="wrongAccountWarning" class="hidden mt-4 p-6 bg-rose-50 text-rose-600 rounded-3xl text-xs font-bold border border-rose-100 slide-in-up">
+                    <p class="mb-3">This Google account is not authorized for faculty/admin access. You may only access student exam links.</p>
                     <div class="flex items-center gap-2 mb-3">
                         <span>⚠️</span> This account is not authorized for the portal.
                     </div>
@@ -103,7 +104,7 @@
                 <!-- Auth Mode Toggle -->
                 <div class="flex p-1 bg-slate-100 rounded-2xl mb-8 border border-slate-200">
                     <button id="authModeReturning" onclick="setAuthMode('returning')" class="flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 bg-white shadow-sm text-blue-600">Returning User</button>
-                    <button id="authModeNew" onclick="setAuthMode('new')" class="flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-slate-400 hover:text-slate-600">First-Time Entry</button>
+                    <button id="authModeNew" onclick="setAuthMode('new')" class="hidden flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-slate-400 hover:text-slate-600">First-Time Entry</button>
                 </div>
 
                 <div class="space-y-4 mb-8 text-left">
@@ -139,7 +140,7 @@
                     <div class="bg-slate-900 p-8 rounded-3xl shadow-2xl mb-8 relative group overflow-hidden">
                         <div class="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div class="relative z-10">
-                            <label class="block text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-4">Your Permanent PIN</label>
+                                <label class="block text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-4">Admin-Issued PIN</label>
                             <div id="generatedPinDisplay" class="text-6xl font-black text-white tracking-[0.4em] mb-4 drop-shadow-glow">0000</div>
                             <p class="text-[10px] text-slate-500 font-bold leading-relaxed px-4">
                                 Keep this PIN safe. You will need it every time you log in to access your Faculty Vault.
@@ -705,10 +706,10 @@
                         <h3 class="text-xl font-bold mb-6 flex items-center gap-3"><span class="bg-rose-100 p-2 rounded-lg">🔐</span> Security</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Admin Master Password</label>
-                                <input type="password" id="setAdminPass" class="w-full p-4 border-2 rounded-xl font-bold bg-white outline-none focus:border-rose-500 transition">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Admin Authorization</label>
+                                <input type="text" id="setAdminPass" value="Managed in authorized_emails" disabled class="w-full p-4 border-2 rounded-xl font-bold bg-white outline-none text-slate-400 transition">
                             </div>
-                            <button onclick="updateAdminSecurity()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition">Update Password</button>
+                            <button onclick="updateAdminSecurity()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition">Manage Authorization</button>
                         </div>
                     </div>
                 </div>
@@ -726,7 +727,7 @@
                                 <thead>
                                     <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                                         <th class="pb-4">Name</th>
-                                        <th class="pb-4 text-center">PIN</th>
+                                        <th class="pb-4 text-center">PIN Status</th>
                                         <th class="pb-4 text-right pr-4">Action</th>
                                     </tr>
                                 </thead>
@@ -1142,6 +1143,7 @@
 
     <!-- Load scripts in order -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="portal-core.js?v=4.9.8"></script>
     <script src="exam-intelligence.js"></script>
     <script src="app.js?v=4.9.8"></script>
 </body>
