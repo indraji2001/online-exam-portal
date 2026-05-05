@@ -1,76 +1,4 @@
 // ==========================================
-// USER CONFIGURATION - PASTE YOUR KEYS HERE!
-// ==========================================
-
-const GOOGLE_CLIENT_ID = '670497066265-fqlae5ft60pn5eulscqalu6716227p2n.apps.googleusercontent.com';
-const GOOGLE_API_KEY = 'AIzaSyDdUDx1O499R5H2Ikai2Hl-rDq_wYKcyC0';
-
-// ==========================================
-// SUPABASE CONFIGURATION
-// ==========================================
-const SUPABASE_URL = 'https://epdnzakxmdmvldrwmkcf.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_EUDjItmGuijXnXpPJD25Wg_npHA4Lu9';
-let supabaseClient = null;
-
-function initSupabase() {
-    try {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log('✅ Supabase connected: Chemistry Exam Portal DB');
-    } catch(e) {
-        console.error('❌ Supabase init failed:', e);
-    }
-}
-
-function generatePin() {
-    return String(Math.floor(1000 + Math.random() * 9000));
-}
-
-// ==========================================
-// GLOBAL STATE & CONFIGURATION
-// ==========================================
-
-let sources = [], currentExam = {}, generatedSets = {}, studentSession = {};
-let parsedQuestions = [], figureMappings = [], libraryData = [];
-let googleAuthToken = null, currentUser = null, driveFolderId = null, userRole = null, systemConfig = null;
-let instructorsFolderId = null, commonResourcesFolderId = null;
-let currentInstructorFolderId = null;
-let storageScope = 'personal'; // 'personal' or 'departmental'
-let currentAuthMode = 'returning'; // 'returning' or 'new'
-let pendingFaculty = null;
-
-const $ = (id) => document.getElementById(id);
-const getValue = (id, fallback = '') => {
-    const el = $(id);
-    return el ? el.value : fallback;
-};
-const setValue = (id, value) => {
-    const el = $(id);
-    if (el) el.value = value;
-};
-const setText = (id, value) => {
-    const el = $(id);
-    if (el) el.textContent = value;
-};
-
-const AUTHORIZED_ADMINS = ['indraji2001@gmail.com', 'anindyaums@gmail.com'];
-const DEPARTMENTAL_ACCOUNT = 'chemistrydept@maldacollege.ac.in';
-
-const DRIVE_CONFIG = {
-    mainFolder: null,
-    instructorsFolderName: 'Instructors',
-    commonResourcesFolderName: '08_Common_Resources',
-    instructorSubfolders: [
-        '01_Source_Materials',
-        '02_Notebook_LLM_Exports',
-        '03_Question_Banks',
-        '04_Exam_Images',
-        '05_Results_Archives',
-        '06_Student_Submissions',
-        '07_Exam_Configurations'
-    ]
-};
-
-// ==========================================
 // INITIALIZATION
 // ==========================================
 
@@ -235,7 +163,7 @@ async function handleAuthSuccess() {
         document.getElementById('userAvatar').classList.remove('hidden');
     }
 
-    // Role Detection Logic - v4.9 Departmental
+    // Role Detection Logic - v5 strict allowlist
     document.getElementById('welcomeUserEmail').textContent = currentUser.email;
     document.getElementById('identityModal').classList.remove('hidden-section');
     
@@ -247,27 +175,9 @@ async function handleAuthSuccess() {
     document.getElementById('btnRoleFaculty').classList.add('hidden');
     document.getElementById('wrongAccountWarning').classList.add('hidden');
 
-    const email = currentUser.email.toLowerCase();
-    let isAdmin = AUTHORIZED_ADMINS.includes(email);
-    let isDept = email === DEPARTMENTAL_ACCOUNT;
-
-    // Check Database for extra authorizations (v4.9.7)
-    if (!isAdmin && !isDept && supabaseClient) {
-        try {
-            const { data: authData } = await supabaseClient
-                .from('authorized_emails')
-                .select('*')
-                .eq('email', email)
-                .maybeSingle();
-                
-            if (authData) {
-                if (authData.role === 'admin') isAdmin = true;
-                if (authData.role === 'faculty') isDept = true;
-            }
-        } catch (e) {
-            console.error('Authorization fetch failed:', e);
-        }
-    }
+    const verifiedRole = await verifyCurrentUserRole();
+    const isAdmin = verifiedRole === 'admin';
+    const isDept = verifiedRole === 'faculty' || (verifiedRole === 'admin' && ADMINS_CAN_ACT_AS_FACULTY);
 
     if (isAdmin) document.getElementById('btnRoleAdmin').classList.remove('hidden');
     if (isDept) document.getElementById('btnRoleFaculty').classList.remove('hidden');
@@ -275,8 +185,97 @@ async function handleAuthSuccess() {
     // If neither, show warning and request flow
     if (!isAdmin && !isDept) {
         document.getElementById('wrongAccountWarning').classList.remove('hidden');
-        checkPendingRequest(email);
+        checkPendingRequest(normalizeEmail(currentUser.email));
     }
+}
+
+function normalizeEmail(email) {
+    return String(email || '').trim().toLowerCase();
+}
+
+async function sha256Hex(value) {
+    const bytes = new TextEncoder().encode(value);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(hashBuffer)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function getAuthorizedRole(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return { role: 'student', record: null };
+
+    try {
+        const token = localStorage.getItem('google_access_token');
+        if (token) {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/verify-role`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && (data.role === 'admin' || data.role === 'faculty')) {
+                return { role: data.role, record: { email: data.email, role: data.role, display_name: data.display_name, active: true } };
+            }
+        }
+    } catch (e) {
+        console.error('Authorization fetch failed:', e);
+    }
+
+    // Emergency bootstrap only. Real faculty/admin authorization must live in Supabase/RLS
+    // or a backend/Edge Function that verifies the Google ID token server-side.
+    if (AUTHORIZED_ADMINS.includes(normalizedEmail)) {
+        return { role: 'admin', record: { email: normalizedEmail, role: 'admin', active: true, emergency: true } };
+    }
+
+    return { role: 'student', record: null };
+}
+
+async function verifyCurrentUserRole(forceRefresh = false) {
+    if (!currentUser || !currentUser.email) {
+        currentAuthorization = { role: 'student', record: null, checkedAt: Date.now() };
+        userRole = null;
+        return 'student';
+    }
+
+    const normalizedEmail = normalizeEmail(currentUser.email);
+    currentUser.email = normalizedEmail;
+
+    if (!forceRefresh && currentAuthorization.checkedAt && currentAuthorization.record && currentAuthorization.record.email === normalizedEmail) {
+        return currentAuthorization.role;
+    }
+
+    const authorization = await getAuthorizedRole(normalizedEmail);
+    currentAuthorization = { ...authorization, checkedAt: Date.now() };
+    if (authorization.role === 'student' && userRole !== 'student') userRole = null;
+    return authorization.role;
+}
+
+function denyPrivilegedAccess(message = 'Access denied.') {
+    alert(message);
+    document.getElementById('mainPortal')?.classList.add('hidden');
+    document.getElementById('tab-settings')?.classList.add('hidden');
+    return false;
+}
+
+function requireRole(allowedRoles) {
+    const allowed = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+    if (!allowed.includes(userRole)) {
+        return denyPrivilegedAccess('Access denied.');
+    }
+    return true;
+}
+
+async function callSecureFacultyFunction(action, payload = {}) {
+    const token = localStorage.getItem('google_access_token');
+    if (!token) throw new Error('Missing Google token. Please sign in again.');
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/faculty-admin`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Secure faculty operation failed.');
+    return data;
 }
 
 async function checkPendingRequest(email) {
@@ -348,25 +347,35 @@ function resetAuthFlow() {
     document.getElementById('facultyNameStep').classList.add('hidden-section');
 }
 
-function selectRole(role) {
-    // v4.9.7 SECURITY CHECK: Prevent manual console bypass
-    const email = currentUser.email.toLowerCase();
-    
-    // We check hardcoded list OR we could fetch from a local cache of authorized_emails
-    // For now, if handleAuthSuccess allowed them to see the button, we allow it.
-    // However, we should re-verify if possible or trust the UI state.
-    // To be super safe, we'd need another sync call to DB, but that might slow down the UI.
-    
+async function selectRole(role) {
+    const verifiedRole = await verifyCurrentUserRole(true);
+
     if (role === 'admin') {
+        if (verifiedRole !== 'admin') {
+            denyPrivilegedAccess('This Google account is not authorized for admin access.');
+            return;
+        }
         document.getElementById('roleSelectionStep').classList.add('hidden-section');
         document.getElementById('adminDriveStep').classList.remove('hidden-section');
     } else {
+        if (verifiedRole !== 'faculty' && !(verifiedRole === 'admin' && ADMINS_CAN_ACT_AS_FACULTY)) {
+            denyPrivilegedAccess('This Google account is not authorized for faculty access. You may only access student exam links.');
+            return;
+        }
         document.getElementById('roleSelectionStep').classList.add('hidden-section');
         document.getElementById('facultyNameStep').classList.remove('hidden-section');
+        document.getElementById('facultyNameClaim').value = currentAuthorization.record?.display_name || currentUser.name || '';
+        setAuthMode('returning');
     }
 }
 
 async function confirmAdminEntry(scope) {
+    const verifiedRole = await verifyCurrentUserRole(true);
+    if (verifiedRole !== 'admin') {
+        denyPrivilegedAccess('This Google account is not authorized for admin access.');
+        return;
+    }
+
     userRole = 'admin';
     storageScope = scope;
     
@@ -386,12 +395,17 @@ async function confirmAdminEntry(scope) {
 }
 
 function setAuthMode(mode) {
-    currentAuthMode = mode;
+    if (mode !== 'returning') {
+        alert("Faculty self-registration is disabled. An admin must add your Google email first.");
+        mode = 'returning';
+    }
+    currentAuthMode = 'returning';
     const btnReturning = document.getElementById('authModeReturning');
     const btnNew = document.getElementById('authModeNew');
     const pinContainer = document.getElementById('pinContainer');
     const newInfo = document.getElementById('newInfoContainer');
     const entryBtn = document.getElementById('facultyEntryBtn');
+    btnNew?.classList.add('hidden');
 
     if (mode === 'returning') {
         btnReturning.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
@@ -418,26 +432,43 @@ async function confirmFacultyEntry() {
     
     if (!name) { alert("Please enter your name."); return; }
     
-    if (currentAuthMode === 'returning') {
-        if (!pin) { alert("Please enter your Faculty PIN."); return; }
-        await verifyFacultyLogin(name, pin);
-    } else {
-        await registerNewFaculty(name);
-    }
+    if (!pin) { alert("Please enter your Faculty PIN."); return; }
+    await verifyFacultyLogin(name, pin);
 }
 
 async function verifyFacultyLogin(name, pin) {
     const verifyBtn = document.getElementById('facultyEntryBtn');
     if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...'; }
 
+    const verifiedRole = await verifyCurrentUserRole(true);
+    if (verifiedRole !== 'faculty' && !(verifiedRole === 'admin' && ADMINS_CAN_ACT_AS_FACULTY)) {
+        if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Unlock My Private Vault'; }
+        denyPrivilegedAccess('This Google account is not authorized for faculty access. You may only access student exam links.');
+        return;
+    }
+
     // Verify against Supabase cloud registry
     let faculty = null;
     if (supabaseClient) {
+        try {
+            const secureData = await callSecureFacultyFunction('verifyFacultyPin', { pin });
+            faculty = secureData.faculty;
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Unlock My Private Vault'; }
+            await initializeFacultyPortal(faculty);
+            return;
+        } catch (error) {
+            console.error('Faculty verification error:', error);
+            alert(error.message || 'Faculty verification failed.');
+            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Unlock My Private Vault'; }
+            return;
+        }
+
+        const normalizedEmail = normalizeEmail(currentUser.email);
         const { data, error } = await supabaseClient
             .from('faculty_registry')
             .select('*')
-            .ilike('name', name)
-            .eq('pin', pin)
+            .eq('email', normalizedEmail)
+            .eq('active', true)
             .maybeSingle();
 
         if (error) {
@@ -446,12 +477,18 @@ async function verifyFacultyLogin(name, pin) {
             if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault'; }
             return;
         }
-        faculty = data;
+        if (data) {
+            const pinHash = await sha256Hex(pin);
+            const matchesHash = data.pin_hash && data.pin_hash === pinHash;
+            const matchesLegacyPin = data.pin && data.pin === pin;
+            faculty = (matchesHash || matchesLegacyPin) ? data : null;
+        }
     } else {
         // Fallback: check local config if Supabase not available
         if (systemConfig && systemConfig.faculty) {
+            const normalizedEmail = normalizeEmail(currentUser.email);
             faculty = systemConfig.faculty.find(f =>
-                f.name.toLowerCase() === name.toLowerCase() && f.pin === pin
+                normalizeEmail(f.email) === normalizedEmail && f.pin === pin
             );
         }
     }
@@ -467,6 +504,8 @@ async function verifyFacultyLogin(name, pin) {
 }
 
 async function registerNewFaculty(name) {
+    alert("Faculty self-registration is disabled. An admin must add your Google email to the authorized faculty list.");
+    return;
     const verifyBtn = document.getElementById('facultyEntryBtn');
     if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Registering...'; }
 
@@ -516,15 +555,21 @@ function revealSuccessScreen(pin) {
 }
 
 async function finalizeNewUserEntry() {
-    if (!pendingFaculty) return;
-    await initializeFacultyPortal(pendingFaculty);
+    alert("Faculty self-registration is disabled. Please use your admin-provided access.");
 }
 
 async function initializeFacultyPortal(faculty) {
+    const verifiedRole = await verifyCurrentUserRole(true);
+    if (verifiedRole !== 'faculty' && !(verifiedRole === 'admin' && ADMINS_CAN_ACT_AS_FACULTY)) {
+        denyPrivilegedAccess('This Google account is not authorized for faculty access.');
+        return;
+    }
+
     userRole = 'faculty';
     storageScope = 'departmental';
-    currentUser.facultyName = faculty.name;
-    document.getElementById('genInstructor').value = faculty.name;
+    const facultyName = faculty.name || faculty.display_name || currentUser.name;
+    currentUser.facultyName = facultyName;
+    document.getElementById('genInstructor').value = facultyName;
     DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
 
     // Show Loading State in Modal
@@ -552,7 +597,7 @@ async function initializeFacultyPortal(faculty) {
     await setupInstructorsFolderOnly();
 
     // 3. SECURE ISOLATION: Re-scope the root to the Instructor's specific vault
-    const facultyFolderId = await getOrCreateInstructorFolder(faculty.name);
+    const facultyFolderId = await getOrCreateInstructorFolder(facultyName);
     
     // THE MASTER LOCK: Redirect all future drive operations to this subfolder
     driveFolderId = facultyFolderId; 
@@ -566,6 +611,7 @@ async function initializeFacultyPortal(faculty) {
     const badge = document.createElement('div');
     badge.className = "flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 shadow-sm ml-4";
     badge.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">📂 Vault: ${faculty.name}</span>`;
+    badge.textContent = `Vault: ${facultyName}`;
     document.getElementById('accountBar').insertBefore(badge, document.getElementById('accountBar').firstChild);
     
     // Refresh library from the new isolated root
@@ -573,6 +619,7 @@ async function initializeFacultyPortal(faculty) {
 }
 
 async function setupInstructorsFolderOnly() {
+    if (!requireRole(['admin', 'faculty'])) return;
     const response = await gapi.client.drive.files.list({
         q: `'${driveFolderId}' in parents and name='${DRIVE_CONFIG.instructorsFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         spaces: 'drive'
@@ -620,10 +667,8 @@ async function initSystemConfig() {
         if (response.result.files.length === 0) {
             // Create default config if not exists
             systemConfig = {
-                admin_password: "admin", 
-                faculty: [
-                    { email: "faculty@example.com", pin: "1234", name: "Sample Professor" }
-                ]
+                admin_password: null,
+                faculty: []
             };
             await gapi.client.drive.files.create({
                 resource: { name: 'system_config.json', parents: [driveFolderId] },
@@ -664,30 +709,7 @@ async function prepareDriveAndConfig() {
 }
 
 function verifyAdmin() {
-    const pwd = getValue('adminPass');
-    if (!$('adminPass')) {
-        alert("The legacy admin password form is not available in this layout.");
-        return;
-    }
-    
-    // Fallback: If the config file hasn't loaded yet, use the emergency 'admin' password
-    const masterPass = (systemConfig && systemConfig.admin_password) ? systemConfig.admin_password : "admin";
-    
-    if (pwd === masterPass) {
-        userRole = 'admin';
-        document.getElementById('identityModal').classList.add('hidden-section');
-        document.getElementById('mainPortal').classList.remove('hidden');
-        
-        // Correctly reveal the admin settings tab
-        document.getElementById('tab-settings').classList.remove('hidden');
-        renderAdminSettings();
-        
-        // Finalize Folder structure & ENSURE config file exists
-        setupMainFolder(true); 
-        saveSystemConfig(); // Force a save to Drive now that we are in!
-    } else {
-        alert("Access Denied. If this is a new setup, your default password is 'admin'.");
-    }
+    alert("Legacy shared admin passwords are disabled. Please sign in with an authorized Google admin account.");
 }
 
 // ==========================================
@@ -695,12 +717,13 @@ function verifyAdmin() {
 // ==========================================
 
 async function renderAdminSettings() {
+    if (!requireRole('admin')) return;
     console.log("Admin Settings: Initializing...");
     
     // 1. Password
     if (systemConfig) {
         const passField = document.getElementById('setAdminPass');
-        if (passField) passField.value = systemConfig.admin_password;
+        if (passField) passField.value = 'Managed in authorized_emails';
     }
 
     // 2. Database Connectivity Check
@@ -716,6 +739,7 @@ async function renderAdminSettings() {
 }
 
 async function renderFacultyRegistry() {
+    if (!requireRole('admin')) return;
     const list = document.getElementById('facultyRegistryList');
     if (!list) return;
 
@@ -723,6 +747,35 @@ async function renderFacultyRegistry() {
 
     if (supabaseClient) {
         try {
+            const secureData = await callSecureFacultyFunction('listFaculty');
+            const secureFaculty = secureData.faculty || [];
+
+            if (secureFaculty.length === 0) {
+                list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered yet.</td></tr>';
+                return;
+            }
+
+            list.innerHTML = '';
+            secureFaculty.forEach((member) => {
+                const tr = document.createElement('tr');
+                tr.className = "group hover:bg-slate-50 transition-colors";
+                const joinDate = member.created_at ? new Date(member.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pending';
+                tr.innerHTML = `
+                    <td class="py-5">
+                        <div class="font-bold text-slate-900">${member.name}</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">${member.email || 'No email'} · Joined: ${joinDate}</div>
+                    </td>
+                    <td class="py-5 text-center">
+                        <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin_hash ? 'Hashed' : 'Unset'}</span>
+                    </td>
+                    <td class="py-5 text-right">
+                        <button onclick="removeFacultyById('${member.id}', '${member.name}', '${member.email || ''}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+            return;
+
             const { data: faculty, error } = await supabaseClient
                 .from('faculty_registry')
                 .select('*')
@@ -743,13 +796,13 @@ async function renderFacultyRegistry() {
                 tr.innerHTML = `
                     <td class="py-5">
                         <div class="font-bold text-slate-900">${member.name}</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">Joined: ${joinDate}</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">${member.email || 'No email'} · Joined: ${joinDate}</div>
                     </td>
                     <td class="py-5 text-center">
-                        <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin}</span>
+                        <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin_hash ? 'Hashed' : 'Legacy'}</span>
                     </td>
                     <td class="py-5 text-right">
-                        <button onclick="removeFacultyById('${member.id}', '${member.name}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
+                        <button onclick="removeFacultyById('${member.id}', '${member.name}', '${member.email || ''}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
                     </td>
                 `;
                 list.appendChild(tr);
@@ -815,6 +868,7 @@ function renderTokenRegistry() {
 }
 
 function showAddFacultyModal() {
+    if (!requireRole('admin')) return;
     const modal = document.getElementById('settingsModal');
     const content = document.getElementById('settingsModalContent');
     
@@ -823,6 +877,10 @@ function showAddFacultyModal() {
         <h3 class="text-2xl font-black mb-2">Register Faculty</h3>
         <p class="text-xs text-slate-400 mb-6">A unique PIN will be auto-generated and saved to the cloud registry.</p>
         <div class="space-y-4 mb-8">
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Google Email</label>
+                <input type="email" id="newFacEmail" placeholder="faculty@example.com" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none focus:border-blue-400 transition">
+            </div>
             <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-left ml-2">Display Name</label>
                 <input type="text" id="newFacName" placeholder="e.g. Dr. Sen" class="w-full p-4 border-2 rounded-xl font-bold bg-slate-50 outline-none focus:border-blue-400 transition">
@@ -858,32 +916,60 @@ function closeSettingsModal() {
 }
 
 async function commitAddFaculty() {
+    if (!requireRole('admin')) return;
+    const email = normalizeEmail(document.getElementById('newFacEmail').value);
     const name = document.getElementById('newFacName').value.trim();
     const pin = document.getElementById('newFacPin').value.trim();
 
-    if (!name || !pin) { alert("All fields are required."); return; }
+    if (!email || !name || !pin) { alert("All fields are required."); return; }
+    if (!email.includes('@')) { alert("Please enter a valid Google email."); return; }
     if (pin.length !== 4 || isNaN(pin)) { alert("PIN must be exactly 4 digits."); return; }
 
     const commitBtn = document.querySelector('#settingsModalContent button[onclick="commitAddFaculty()"]');
     if (commitBtn) { commitBtn.disabled = true; commitBtn.textContent = 'Saving...'; }
 
     if (supabaseClient) {
-        // Check if name already exists
+        try {
+            await callSecureFacultyFunction('addFaculty', { email, name, pin });
+            closeSettingsModal();
+            renderAdminSettings();
+            alert(`${name} has been registered. Share their PIN privately.`);
+            return;
+        } catch (error) {
+            console.error('Secure faculty add error:', error);
+            alert(error.message || 'Failed to save faculty member.');
+            if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = 'Register to Cloud'; }
+            return;
+        }
+
+        // Frontend checks are UX gates. Supabase RLS or a backend/Edge Function must enforce admin-only writes.
         const { data: existing } = await supabaseClient
-            .from('faculty_registry')
+            .from('authorized_emails')
             .select('id')
-            .ilike('name', name)
+            .eq('email', email)
             .maybeSingle();
 
         if (existing) {
-            alert(`"${name}" is already registered. Each faculty member must have a unique name.`);
+            alert(`"${email}" is already authorized.`);
             if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = '✅ Register to Cloud'; }
+            return;
+        }
+
+        const pinHash = await sha256Hex(pin);
+        const { error: authError } = await supabaseClient
+            .from('authorized_emails')
+            .insert([{ email, role: 'faculty', display_name: name, active: true, created_by: normalizeEmail(currentUser.email) }]);
+
+        if (authError) {
+            console.error('Supabase authorization insert error:', authError);
+            alert('Failed to authorize faculty email. Please try again.');
+            if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = 'Register to Cloud'; }
             return;
         }
 
         const { error } = await supabaseClient
             .from('faculty_registry')
-            .insert([{ name, pin }]);
+            .insert([{ email, name, pin_hash: pinHash, active: true }]);
 
         if (error) {
             console.error('Supabase insert error:', error);
@@ -894,7 +980,7 @@ async function commitAddFaculty() {
     } else {
         // Fallback to local config
         if (!systemConfig.faculty) systemConfig.faculty = [];
-        systemConfig.faculty.push({ name, pin });
+        systemConfig.faculty.push({ email, name, pin });
         await saveSystemConfig();
     }
 
@@ -904,6 +990,7 @@ async function commitAddFaculty() {
 }
 
 async function removeFaculty(index) {
+    if (!requireRole('admin')) return;
     if (!confirm("Are you sure you want to remove this faculty member? Their private folder will remain but they will lose access.")) return;
     
     systemConfig.faculty.splice(index, 1);
@@ -911,13 +998,24 @@ async function removeFaculty(index) {
     renderAdminSettings();
 }
 
-async function removeFacultyById(id, name) {
+async function removeFacultyById(id, name, email = '') {
+    if (!requireRole('admin')) return;
     if (!confirm(`Are you sure you want to remove "${name}" from the registry?\n\nTheir private Drive folder will remain, but they will lose portal access.`)) return;
 
     if (supabaseClient) {
+        try {
+            await callSecureFacultyFunction('deactivateFaculty', { id, email });
+            renderAdminSettings();
+            return;
+        } catch (error) {
+            console.error('Secure faculty deactivate error:', error);
+            alert(error.message || 'Failed to remove faculty member.');
+            return;
+        }
+
         const { error } = await supabaseClient
             .from('faculty_registry')
-            .delete()
+            .update({ active: false })
             .eq('id', id);
 
         if (error) {
@@ -925,21 +1023,31 @@ async function removeFacultyById(id, name) {
             alert('Failed to remove from cloud registry. Please try again.');
             return;
         }
+
+        if (email) {
+            const { error: authError } = await supabaseClient
+                .from('authorized_emails')
+                .update({ active: false })
+                .eq('email', normalizeEmail(email));
+
+            if (authError) {
+                console.error('Supabase authorization deactivate error:', authError);
+                alert('Faculty registry was disabled, but authorization deactivation failed. Please check authorized_emails.');
+                return;
+            }
+        }
     }
 
     renderAdminSettings();
 }
 
 async function updateAdminSecurity() {
-    const newPass = document.getElementById('setAdminPass').value.trim();
-    if (!newPass) { alert("Password cannot be empty."); return; }
-
-    systemConfig.admin_password = newPass;
-    await saveSystemConfig();
-    alert("Master Password Successfully Updated.");
+    if (!requireRole('admin')) return;
+    alert("Shared frontend admin passwords are disabled. Manage admins in the authorized_emails table.");
 }
 
 async function saveSystemConfig() {
+    if (!requireRole(['admin', 'faculty'])) return;
     if (!driveFolderId) return;
 
     try {
@@ -971,37 +1079,7 @@ async function saveSystemConfig() {
 }
 
 function verifyFaculty() {
-    const pin = getValue('facultyPin');
-    if (!$('facultyPin')) {
-        alert("The legacy faculty PIN form is not available in this layout.");
-        return;
-    }
-    if (!systemConfig) { alert("System configuration not loaded. Please wait."); return; }
-
-    // Security Fix: Cross-check the current logged-in email with the PIN
-    const professorIndex = systemConfig.faculty.findIndex(f => f.email && f.email.toLowerCase() === currentUser.email.toLowerCase() && f.pin === pin);
-    
-    if (professorIndex !== -1) {
-        const professor = systemConfig.faculty[professorIndex];
-        userRole = 'faculty';
-        
-        // Auto-Sync Name (Point #1): If they changed their name on Google, update the registry
-        if (currentUser.name && currentUser.name !== professor.name) {
-            console.log(`Auto-Syncing Name: ${professor.name} -> ${currentUser.name}`);
-            systemConfig.faculty[professorIndex].name = currentUser.name;
-            saveSystemConfig(); // Silently save in background
-        }
-
-        currentUser.facultyName = professor.name; 
-        document.getElementById('genInstructor').value = professor.name;
-        
-        // Hide modal and show portal
-        document.getElementById('identityModal').classList.add('hidden-section');
-        document.getElementById('mainPortal').classList.remove('hidden');
-        setupMainFolder();
-    } else {
-        alert("Access Denied: This PIN does not match your authorized email account.");
-    }
+    alert("Legacy faculty login is disabled. Use the Google-authorized faculty entry flow.");
 }
 
 function switchGoogleAccount() {
@@ -1039,6 +1117,7 @@ function signOut() {
 // ==========================================
 
 async function setupMainFolder(skipMaster = false) {
+    if (!requireRole(['admin', 'faculty'])) return;
     try {
         if (!skipMaster) {
             // This part is now handled by prepareDriveAndConfig
@@ -1080,6 +1159,7 @@ async function setupMainFolder(skipMaster = false) {
     }
 }
 async function getOrCreateInstructorFolder(instructorName) {
+    if (!requireRole(['admin', 'faculty'])) throw new Error('Access denied');
     if (!instructorsFolderId) throw new Error('Instructors folder not initialized');
 
     // v4.9: Strict Name-Based Subfolder Isolation
@@ -1118,6 +1198,7 @@ async function getOrCreateInstructorFolder(instructorName) {
 }
 
 async function getInstructorSubfolder(subfolderName) {
+    if (!requireRole(['admin', 'faculty'])) throw new Error('Access denied');
     if (!currentInstructorFolderId) throw new Error('No instructor folder selected');
     const response = await gapi.client.drive.files.list({
         q: `name='${subfolderName}' and '${currentInstructorFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
@@ -1127,6 +1208,7 @@ async function getInstructorSubfolder(subfolderName) {
 }
 
 function showDriveFolder() {
+    if (!requireRole(['admin', 'faculty'])) return;
     if (driveFolderId) window.open(`https://drive.google.com/drive/folders/${driveFolderId}`, '_blank');
 }
 
@@ -1135,6 +1217,8 @@ function showDriveFolder() {
 // ==========================================
 
 function showTab(tabName) {
+    if (tabName === 'settings' && !requireRole('admin')) return;
+    if (['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish'].includes(tabName) && !requireRole(['admin', 'faculty'])) return;
     const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish', 'settings'];
     const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'publish': '8. Publish', 'settings': '⚙️ Settings' };
     tabs.forEach(t => {
@@ -1841,6 +1925,7 @@ function saveEditedQuestion() {
 // ==========================================
 
 async function loadLibrary() {
+    if (!requireRole(['admin', 'faculty'])) return;
     if (!instructorsFolderId) return;
     const container = document.getElementById('libraryContent');
     container.innerHTML = '<p class="text-center py-4 text-slate-400">Loading Cloud Library...</p>';
@@ -1883,6 +1968,7 @@ async function loadLibrary() {
 }
 
 async function publishExam() {
+    if (!requireRole(['admin', 'faculty'])) return;
     const instructor = document.getElementById('genInstructor').value.trim();
     const course = document.getElementById('genCourse').value.trim();
     if (!instructor) { alert('Please enter Instructor name in Generate tab'); showTab('generate'); return; }
@@ -1988,6 +2074,7 @@ async function publishExam() {
 }
 
 async function saveExamToDrive(data, folderId, fileName, mimeType, isBlob = false) {
+    if (!requireRole(['admin', 'faculty'])) throw new Error('Access denied');
     const token = gapi.client.getToken().access_token;
     const metadata = { name: fileName, parents: [folderId] };
     const form = new FormData();
@@ -2216,10 +2303,11 @@ window.addEventListener('blur', () => { if (!document.getElementById('examInterf
 // ADMIN SETTINGS & REGISTRY (v4.9)
 // ==========================================
 
-function renderAdminSettings() {
+function renderLegacyAdminSettings() {
+    if (!requireRole('admin')) return;
     if (!systemConfig) return;
     
-    document.getElementById('setAdminPass').value = systemConfig.admin_password;
+    document.getElementById('setAdminPass').value = 'Managed in authorized_emails';
     const list = document.getElementById('facultyRegistryList');
     list.innerHTML = systemConfig.faculty.map((f, i) => `
         <div class="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm group">
@@ -2231,6 +2319,7 @@ function renderAdminSettings() {
 }
 
 function updateFacultyRecord(index, field, value) {
+    if (!requireRole('admin')) return;
     if (field === 'pin' && !/^\d{4}$/.test(value)) {
         alert("PIN must be exactly 4 digits.");
         return;
@@ -2239,11 +2328,13 @@ function updateFacultyRecord(index, field, value) {
 }
 
 function addNewFacultyRow() {
+    if (!requireRole('admin')) return;
     systemConfig.faculty.push({ email: "", pin: "0000", name: "Pending Login" });
     renderAdminSettings();
 }
 
 function removeFacultyRow(index) {
+    if (!requireRole('admin')) return;
     if (confirm("Revoke access for this account?")) {
         systemConfig.faculty.splice(index, 1);
         renderAdminSettings();
@@ -2251,11 +2342,12 @@ function removeFacultyRow(index) {
 }
 
 async function saveSystemConfig(manual = false) {
+    if (!requireRole(['admin', 'faculty'])) return;
     if (!driveFolderId || !systemConfig) return;
     
     // Update admin pass from UI if manual save
     if (manual) {
-        systemConfig.admin_password = document.getElementById('setAdminPass').value;
+        systemConfig.admin_password = null;
     }
 
     try {
@@ -2415,6 +2507,7 @@ const verifiedTokens = [
 ];
 
 function runAcademicSearch() {
+    if (!requireRole('admin')) return;
     const topic = document.getElementById('adminTopicInput').value.trim();
     if (!topic) {
         alert("Please enter a topic to discover resources.");
@@ -2577,6 +2670,7 @@ function runAcademicSearch() {
 
 // OER AI INTEGRATION (v4.9.6)
 function toggleAdminAiGrid() {
+    if (!requireRole('admin')) return;
     const grid = document.getElementById('adminAiGrid');
     if (grid.classList.contains('hidden')) {
         grid.classList.remove('hidden');
@@ -2588,6 +2682,7 @@ function toggleAdminAiGrid() {
 }
 
 function runAdminOERGeneration(service) {
+    if (!requireRole('admin')) return;
     const topic = document.getElementById('adminTopicInput').value.trim();
     if (!topic) {
         alert("Please enter a topic first!");
