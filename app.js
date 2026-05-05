@@ -38,6 +38,20 @@ let storageScope = 'personal'; // 'personal' or 'departmental'
 let currentAuthMode = 'returning'; // 'returning' or 'new'
 let pendingFaculty = null;
 
+const $ = (id) => document.getElementById(id);
+const getValue = (id, fallback = '') => {
+    const el = $(id);
+    return el ? el.value : fallback;
+};
+const setValue = (id, value) => {
+    const el = $(id);
+    if (el) el.value = value;
+};
+const setText = (id, value) => {
+    const el = $(id);
+    if (el) el.textContent = value;
+};
+
 const AUTHORIZED_ADMINS = ['indraji2001@gmail.com', 'anindyaums@gmail.com'];
 const DEPARTMENTAL_ACCOUNT = 'chemistrydept@maldacollege.ac.in';
 
@@ -267,6 +281,9 @@ async function handleAuthSuccess() {
 
 async function checkPendingRequest(email) {
     if (!supabaseClient) return;
+    const requestAccessFlow = $('requestAccessFlow');
+    const requestPendingStatus = $('requestPendingStatus');
+    if (!requestAccessFlow || !requestPendingStatus) return;
     
     const { data } = await supabaseClient
         .from('access_requests')
@@ -275,19 +292,20 @@ async function checkPendingRequest(email) {
         .maybeSingle();
         
     if (data) {
-        document.getElementById('requestAccessFlow').classList.add('hidden');
-        document.getElementById('requestPendingStatus').classList.remove('hidden');
+        requestAccessFlow.classList.add('hidden');
+        requestPendingStatus.classList.remove('hidden');
     } else {
-        document.getElementById('requestAccessFlow').classList.remove('hidden');
-        document.getElementById('requestPendingStatus').classList.add('hidden');
+        requestAccessFlow.classList.remove('hidden');
+        requestPendingStatus.classList.add('hidden');
     }
 }
 
 async function submitAccessRequest() {
     if (!supabaseClient || !currentUser) return;
     
-    const role = document.getElementById('requestedRole').value;
-    const btn = document.getElementById('btnSubmitRequest');
+    const role = getValue('requestedRole', 'faculty');
+    const btn = $('btnSubmitRequest');
+    if (!btn) return;
     
     btn.disabled = true;
     btn.textContent = 'Submitting...';
@@ -305,8 +323,10 @@ async function submitAccessRequest() {
         btn.disabled = false;
         btn.textContent = 'Request Permission';
     } else {
-        document.getElementById('requestAccessFlow').classList.add('hidden');
-        document.getElementById('requestPendingStatus').classList.remove('hidden');
+        const requestAccessFlow = $('requestAccessFlow');
+        const requestPendingStatus = $('requestPendingStatus');
+        if (requestAccessFlow) requestAccessFlow.classList.add('hidden');
+        if (requestPendingStatus) requestPendingStatus.classList.remove('hidden');
     }
 }
 
@@ -574,13 +594,17 @@ async function setupInstructorsFolderOnly() {
 // ==========================================
 
 function selectAccountType(role) {
-    document.getElementById('facultyForm').classList.add('hidden-section');
-    document.getElementById('adminForm').classList.add('hidden-section');
+    const facultyForm = $('facultyForm');
+    const adminForm = $('adminForm');
+    if (!facultyForm || !adminForm) return;
+
+    facultyForm.classList.add('hidden-section');
+    adminForm.classList.add('hidden-section');
 
     if (role === 'admin') {
-        document.getElementById('adminForm').classList.remove('hidden-section');
+        adminForm.classList.remove('hidden-section');
     } else {
-        document.getElementById('facultyForm').classList.remove('hidden-section');
+        facultyForm.classList.remove('hidden-section');
     }
 }
 
@@ -640,7 +664,11 @@ async function prepareDriveAndConfig() {
 }
 
 function verifyAdmin() {
-    const pwd = document.getElementById('adminPass').value;
+    const pwd = getValue('adminPass');
+    if (!$('adminPass')) {
+        alert("The legacy admin password form is not available in this layout.");
+        return;
+    }
     
     // Fallback: If the config file hasn't loaded yet, use the emergency 'admin' password
     const masterPass = (systemConfig && systemConfig.admin_password) ? systemConfig.admin_password : "admin";
@@ -943,7 +971,11 @@ async function saveSystemConfig() {
 }
 
 function verifyFaculty() {
-    const pin = document.getElementById('facultyPin').value;
+    const pin = getValue('facultyPin');
+    if (!$('facultyPin')) {
+        alert("The legacy faculty PIN form is not available in this layout.");
+        return;
+    }
     if (!systemConfig) { alert("System configuration not loaded. Please wait."); return; }
 
     // Security Fix: Cross-check the current logged-in email with the PIN
@@ -1198,33 +1230,36 @@ function removeSource(id) { sources = sources.filter(x => x.id !== id); updateSo
 // ==========================================
 
 function updateFileNamePreview() {
-    const instructor = document.getElementById('genInstructor').value.replace(/\s+/g, '_') || 'Instructor';
-    const sem = document.getElementById('genSemester').value || 'SemXX';
-    const code = document.getElementById('genCourse').value || 'Code';
-    const topic = document.getElementById('genTopic').value.replace(/\s+/g, '_') || 'Topic';
+    const instructor = getValue('genInstructor', 'Instructor').replace(/\s+/g, '_') || 'Instructor';
+    const sem = getValue('genSemester', 'SemXX') || 'SemXX';
+    const code = getValue('genCourse', 'Code') || 'Code';
+    const topic = getValue('genTopic', 'Topic').replace(/\s+/g, '_') || 'Topic';
     const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
     const qsName = `QS_${instructor}_${sem}_${code}_${topic}_${date}.xlsx`;
-    document.getElementById('fileNamePreview').innerHTML = `<div>Question Set: ${qsName}</div>`;
-    if (document.getElementById('archiveFileName')) document.getElementById('archiveFileName').value = qsName;
+    const preview = $('fileNamePreview');
+    if (preview) preview.textContent = `Question Set: ${qsName}`;
+    setValue('archiveFileName', qsName);
 }
 
 function saveDraft() {
     const draft = {
-        instructor: document.getElementById('genInstructor').value,
-        course: document.getElementById('genCourse').value,
-        topic: document.getElementById('genTopic').value,
-        standard: document.getElementById('genStandard').value,
-        difficulty: document.getElementById('genDifficulty').value,
-        duration: document.getElementById('genDuration').value,
-        sets: document.getElementById('genSets').value,
-        attempts: document.getElementById('genAttempts').value,
-        linkStart: document.getElementById('linkStartTime').value,
-        linkEnd: document.getElementById('linkEndTime').value
+        instructor: getValue('genInstructor'),
+        course: getValue('genCourse'),
+        topic: getValue('genTopic'),
+        standard: getValue('genStandard'),
+        difficulty: getValue('genDifficulty'),
+        duration: getValue('genDuration'),
+        sets: getValue('genSets', '4'),
+        attempts: getValue('genAttempts', '2'),
+        linkStart: getValue('linkStartTime'),
+        linkEnd: getValue('linkEndTime')
     };
     localStorage.setItem('exam_draft', JSON.stringify(draft));
-    const indicator = document.getElementById('draftSavedIndicator');
-    indicator.style.display = 'flex';
-    setTimeout(() => { indicator.style.display = 'none'; }, 3000);
+    const indicator = $('draftSavedIndicator');
+    if (indicator) {
+        indicator.style.display = 'flex';
+        setTimeout(() => { indicator.style.display = 'none'; }, 3000);
+    }
 }
 
 function loadDraft() {
@@ -1232,14 +1267,14 @@ function loadDraft() {
     if (!draftStr) return;
     try {
         const draft = JSON.parse(draftStr);
-        document.getElementById('genInstructor').value = draft.instructor || '';
-        document.getElementById('genCourse').value = draft.course || '';
-        document.getElementById('genTopic').value = draft.topic || '';
-        document.getElementById('genStandard').value = draft.standard || 'UG';
-        if (document.getElementById('genDifficulty')) document.getElementById('genDifficulty').value = draft.difficulty || 'MODERATE';
-        document.getElementById('genDuration').value = draft.duration || '180';
-        document.getElementById('genSets').value = draft.sets || '4';
-        document.getElementById('genAttempts').value = draft.attempts || '2';
+        setValue('genInstructor', draft.instructor || '');
+        setValue('genCourse', draft.course || '');
+        setValue('genTopic', draft.topic || '');
+        setValue('genStandard', draft.standard || 'GRADUATE');
+        setValue('genDifficulty', draft.difficulty || 'MODERATE');
+        setValue('genDuration', draft.duration || '180');
+        setValue('genSets', draft.sets || '4');
+        setValue('genAttempts', draft.attempts || '2');
         updateFileNamePreview();
     } catch (e) { }
 }
@@ -1249,31 +1284,34 @@ function loadDraft() {
 // ==========================================
 
 function updateAiBridgeSources() {
-    const container = document.getElementById('aiBridgeSources');
+    const container = $('aiBridgeSources');
+    if (!container) return;
     if (sources.length === 0) container.innerHTML = '<p class="text-gray-400 text-sm">Add sources in Tab 1 first</p>';
     else container.innerHTML = `<div class="space-y-2">${sources.map(s => `<div class="text-sm truncate">• ${s.name}</div>`).join('')}</div>`;
 }
 
 // --- NEW: UI Logic for the Pool Slider ---
 function togglePoolSlider() {
-    const isChecked = document.getElementById('enablePool').checked;
-    const container = document.getElementById('poolSliderContainer');
-    const poolOption = document.getElementById('poolOption');
-    const importMode = document.getElementById('importMode');
+    const enablePool = $('enablePool');
+    const container = $('poolSliderContainer');
+    const poolOption = $('poolOption');
+    const importMode = $('importMode');
+    if (!enablePool || !container) return;
+    const isChecked = enablePool.checked;
 
     if (isChecked) {
         container.classList.remove('hidden-section');
-        poolOption.disabled = false; // Un-grey the option in Tab 5
-        importMode.value = 'pool';   // Auto-select it for convenience
+        if (poolOption) poolOption.disabled = false;
+        if (importMode) importMode.value = 'pool';
     } else {
         container.classList.add('hidden-section');
-        poolOption.disabled = true;  // Grey it back out
-        if (importMode.value === 'pool') importMode.value = 'shuffle';
+        if (poolOption) poolOption.disabled = true;
+        if (importMode && importMode.value === 'pool') importMode.value = 'shuffle';
     }
 }
 
 function updatePoolDisplay() {
-    document.getElementById('poolValDisplay').textContent = document.getElementById('poolSlider').value + '%';
+    setText('poolValDisplay', getValue('poolSlider', '50') + '%');
 }
 
 // --- UPGRADED: Prompt Generator (Anti-Hallucination + Visual Quota) ---
