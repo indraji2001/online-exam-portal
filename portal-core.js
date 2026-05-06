@@ -73,3 +73,19 @@ const DRIVE_CONFIG = {
         '07_Exam_Configurations'
     ]
 };
+
+// --- SAFE STORAGE HELPERS ---
+const safeStorage = {
+    get: (key) => {
+        try { return localStorage.getItem(key); }
+        catch (e) { console.warn('Storage Access Denied:', e); return null; }
+    },
+    set: (key, value) => {
+        try { localStorage.setItem(key, value); }
+        catch (e) { console.warn('Storage Write Denied:', e); }
+    },
+    remove: (key) => {
+        try { localStorage.removeItem(key); }
+        catch (e) { console.warn('Storage Removal Denied:', e); }
+    }
+};
