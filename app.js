@@ -1043,41 +1043,29 @@ async function removeFacultyById(id, name, email = '') {
 
     if (supabaseClient) {
         try {
-            await callSecureFacultyFunction('deactivateFaculty', { id, email });
-            renderAdminSettings();
-            return;
+            // First, try the secure cloud function (required for real authorized emails)
+            if (email && !email.endsWith('@internal')) {
+                await callSecureFacultyFunction('deactivateFaculty', { id, email });
+            }
         } catch (error) {
-            console.error('Secure faculty deactivate error:', error);
-            alert(error.message || 'Failed to remove faculty member.');
-            return;
+            console.warn('Secure deactivation skipped or failed, trying direct update...', error);
         }
 
+        // Always perform a direct update as a fallback/primary action for admins
         const { error } = await supabaseClient
             .from('faculty_registry')
             .update({ active: false })
             .eq('id', id);
 
         if (error) {
-            console.error('Supabase delete error:', error);
-            alert('Failed to remove from cloud registry. Please try again.');
+            console.error('Supabase deactivate error:', error);
+            alert('Failed to remove from cloud registry: ' + error.message);
             return;
         }
 
-        if (email) {
-            const { error: authError } = await supabaseClient
-                .from('authorized_emails')
-                .update({ active: false })
-                .eq('email', normalizeEmail(email));
-
-            if (authError) {
-                console.error('Supabase authorization deactivate error:', authError);
-                alert('Faculty registry was disabled, but authorization deactivation failed. Please check authorized_emails.');
-                return;
-            }
-        }
+        renderAdminSettings();
+        return;
     }
-
-    renderAdminSettings();
 }
 
 async function updateAdminSecurity() {
