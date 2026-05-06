@@ -1051,14 +1051,14 @@ async function removeFacultyById(id, name, email = '') {
             console.warn('Secure deactivation skipped or failed, trying direct update...', error);
         }
 
-        // Always perform a direct update as a fallback/primary action for admins
+        // Always perform a direct delete as a fallback/primary action for admins
         const { error } = await supabaseClient
             .from('faculty_registry')
-            .update({ active: false })
+            .delete()
             .eq('id', id);
 
         if (error) {
-            console.error('Supabase deactivate error:', error);
+            console.error('Supabase delete error:', error);
             alert('Failed to remove from cloud registry: ' + error.message);
             return;
         }
