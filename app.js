@@ -367,6 +367,15 @@ async function selectRole(role) {
         document.getElementById('roleSelectionStep').classList.add('hidden-section');
         document.getElementById('facultyNameStep').classList.remove('hidden-section');
         document.getElementById('facultyNameClaim').value = currentAuthorization.record?.display_name || currentUser.name || '';
+        
+        // Show First-Time Entry only for departmental account
+        const isDept = normalizeEmail(currentUser.email) === DEPARTMENTAL_ACCOUNT || normalizeEmail(currentUser.email) === 'chemistrydept@maldacollege.ac.in';
+        if (isDept) {
+            document.getElementById('authModeNew').classList.remove('hidden');
+        } else {
+            document.getElementById('authModeNew').classList.add('hidden');
+        }
+        
         setAuthMode('returning');
     }
 }
@@ -397,11 +406,12 @@ async function confirmAdminEntry(scope) {
 }
 
 function setAuthMode(mode) {
-    if (mode !== 'returning') {
+    const isDept = normalizeEmail(currentUser.email) === DEPARTMENTAL_ACCOUNT || normalizeEmail(currentUser.email) === 'chemistrydept@maldacollege.ac.in';
+    if (mode !== 'returning' && !isDept) {
         alert("Faculty self-registration is disabled. An admin must add your Google email first.");
         mode = 'returning';
     }
-    currentAuthMode = 'returning';
+    currentAuthMode = mode;
     const btnReturning = document.getElementById('authModeReturning');
     const btnNew = document.getElementById('authModeNew');
     const pinContainer = document.getElementById('pinContainer');
@@ -430,12 +440,15 @@ function setAuthMode(mode) {
 
 async function confirmFacultyEntry() {
     const name = document.getElementById('facultyNameClaim').value.trim();
-    const pin = document.getElementById('facultyPinClaim').value.trim();
-    
     if (!name) { alert("Please enter your name."); return; }
     
-    if (!pin) { alert("Please enter your Faculty PIN."); return; }
-    await verifyFacultyLogin(name, pin);
+    if (currentAuthMode === 'new') {
+        await registerNewFaculty(name);
+    } else {
+        const pin = document.getElementById('facultyPinClaim').value.trim();
+        if (!pin) { alert("Please enter your Faculty PIN."); return; }
+        await verifyFacultyLogin(name, pin);
+    }
 }
 
 async function verifyFacultyLogin(name, pin) {
@@ -506,8 +519,11 @@ async function verifyFacultyLogin(name, pin) {
 }
 
 async function registerNewFaculty(name) {
-    alert("Faculty self-registration is disabled. An admin must add your Google email to the authorized faculty list.");
-    return;
+    const isDept = normalizeEmail(currentUser.email) === DEPARTMENTAL_ACCOUNT || normalizeEmail(currentUser.email) === 'chemistrydept@maldacollege.ac.in';
+    if (!isDept) {
+        alert("Faculty self-registration is disabled. An admin must add your Google email to the authorized faculty list.");
+        return;
+    }
     const verifyBtn = document.getElementById('facultyEntryBtn');
     if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Registering...'; }
 
