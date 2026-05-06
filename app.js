@@ -623,7 +623,11 @@ function revealSuccessScreen(pin) {
 }
 
 async function finalizeNewUserEntry() {
-    alert("Faculty self-registration is disabled. Please use your admin-provided access.");
+    if (pendingFaculty) {
+        await initializeFacultyPortal(pendingFaculty);
+    } else {
+        alert("Session lost. Please use 'Returning User' mode to log in with your new PIN.");
+    }
 }
 
 async function initializeFacultyPortal(faculty) {
