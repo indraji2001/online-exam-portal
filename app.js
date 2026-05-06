@@ -821,40 +821,6 @@ async function renderFacultyRegistry() {
                 `;
                 list.appendChild(tr);
             });
-            return;
-        }
-
-        const { data: faculty, error } = await supabaseClient
-                .from('faculty_registry')
-                .select('*')
-                .order('created_at', { ascending: true });
-
-            if (error) throw error;
-
-            if (!faculty || faculty.length === 0) {
-                list.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No faculty members registered yet.</td></tr>';
-                return;
-            }
-
-            list.innerHTML = '';
-            faculty.forEach((member) => {
-                const tr = document.createElement('tr');
-                tr.className = "group hover:bg-slate-50 transition-colors";
-                const joinDate = new Date(member.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                tr.innerHTML = `
-                    <td class="py-5">
-                        <div class="font-bold text-slate-900">${member.name}</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">${member.email || 'No email'} · Joined: ${joinDate}</div>
-                    </td>
-                    <td class="py-5 text-center">
-                        <span class="px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg font-black text-xs tracking-widest text-emerald-700">${member.pin_hash ? 'Hashed' : 'Legacy'}</span>
-                    </td>
-                    <td class="py-5 text-right">
-                        <button onclick="removeFacultyById('${member.id}', '${member.name}', '${member.email || ''}')" class="text-rose-400 hover:text-rose-600 font-bold text-[10px] uppercase tracking-widest">Remove</button>
-                    </td>
-                `;
-                list.appendChild(tr);
-            });
         } catch (e) {
             console.error('Faculty Registry Error:', e);
             list.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-rose-400">⚠️ Error: ${e.message}</td></tr>`;
