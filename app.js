@@ -503,42 +503,46 @@ async function verifyFacultyLogin(name, pin) {
         return;
     }
 
-    // Verify against Supabase cloud registry
+    // Verify against Supabase cloud registry directly (since RLS is disabled)
     let faculty = null;
     if (supabaseClient) {
         try {
-            const secureData = await callSecureFacultyFunction('verifyFacultyPin', { name, pin });
-            faculty = secureData.faculty;
+            const { data, error } = await supabaseClient
+                .from('faculty_registry')
+                .select('*')
+                .ilike('name', name)
+                .maybeSingle();
+
+            if (error) throw error;
+            
+            if (data) {
+                // Check both hashed and plain text pins for compatibility
+                const pinHash = await sha256Hex(pin);
+                const matchesHash = data.pin_hash && data.pin_hash === pinHash;
+                const matchesLegacyPin = data.pin && data.pin === pin;
+                
+                if (matchesHash || matchesLegacyPin) {
+                    faculty = data;
+                }
+            }
+
+            if (!faculty) {
+                alert("Invalid Name or PIN.");
+                if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Unlock My Private Vault'; }
+                return;
+            }
+
             if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Unlock My Private Vault'; }
             await initializeFacultyPortal(faculty);
             return;
         } catch (error) {
             console.error('Faculty verification error:', error);
-            alert(error.message || 'Faculty verification failed.');
+            alert('Verification failed: ' + error.message);
             if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Unlock My Private Vault'; }
             return;
         }
+    }
 
-        const normalizedEmail = normalizeEmail(currentUser.email);
-        const { data, error } = await supabaseClient
-            .from('faculty_registry')
-            .select('*')
-            .ilike('name', name) // Search by name for shared accounts
-            .eq('active', true)
-            .maybeSingle();
-
-        if (error) {
-            console.error('Supabase verify error:', error);
-            alert('A network error occurred. Please try again.');
-            if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>🔐</span> Unlock My Private Vault'; }
-            return;
-        }
-        if (data) {
-            const pinHash = await sha256Hex(pin);
-            const matchesHash = data.pin_hash && data.pin_hash === pinHash;
-            const matchesLegacyPin = data.pin && data.pin === pin;
-            faculty = (matchesHash || matchesLegacyPin) ? data : null;
-        }
     } else {
         // Fallback: check local config if Supabase not available
         if (systemConfig && systemConfig.faculty) {
