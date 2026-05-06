@@ -202,7 +202,9 @@ async function handleAuthSuccess() {
         roleStep.innerHTML = originalRoleHtml;
         document.getElementById('welcomeUserEmail').textContent = currentUser.email;
 
-        if (isAdmin) document.getElementById('btnRoleAdmin').classList.remove('hidden');
+        if (isAdmin && normalizeEmail(currentUser.email) !== DEPARTMENTAL_ACCOUNT) {
+            document.getElementById('btnRoleAdmin').classList.remove('hidden');
+        }
         if (isDept) document.getElementById('btnRoleFaculty').classList.remove('hidden');
 
         if (!isAdmin && !isDept) {
@@ -235,7 +237,7 @@ async function getAuthorizedRole(email) {
 
     // Emergency bootstrap: Priority access for departmental and admin accounts
     if (normalizedEmail === DEPARTMENTAL_ACCOUNT || normalizedEmail === 'chemistrydept@maldacollege.ac.in') {
-        return { role: 'admin', record: { email: normalizedEmail, role: 'admin', active: true, emergency: true } };
+        return { role: 'faculty', record: { email: normalizedEmail, role: 'faculty', active: true, emergency: true } };
     }
     if (AUTHORIZED_ADMINS.includes(normalizedEmail)) {
         return { role: 'admin', record: { email: normalizedEmail, role: 'admin', active: true, emergency: true } };
@@ -571,18 +573,21 @@ async function registerNewFaculty(name) {
         }
 
         const newPin = generatePin();
-        const email = normalizeEmail(currentUser.email);
-        
-        try {
-            const data = await callSecureFacultyFunction('addFaculty', { email, name, pin: newPin });
-            pendingFaculty = data; // Edge function should return the new record
-            revealSuccessScreen(newPin);
-        } catch (error) {
+        const { data, error } = await supabaseClient
+            .from('faculty_registry')
+            .insert([{ name, pin: newPin }])
+            .select()
+            .single();
+
+        if (error) {
             console.error('Registration failed:', error);
-            alert('Cloud registration failed. ' + (error.message || 'Please check your connection.'));
+            alert('Cloud registration failed: ' + (error.message || 'Please check your connection.'));
             if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
             return;
         }
+
+        pendingFaculty = data;
+        revealSuccessScreen(newPin);
     } else {
         alert("Cloud registry unavailable. Admin must register you manually via Settings.");
         if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
