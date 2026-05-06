@@ -57,7 +57,7 @@ const setText = (id, value) => {
 
 const AUTHORIZED_ADMINS = ['indraji2001@gmail.com', 'anindyaums@gmail.com'];
 const DEPARTMENTAL_ACCOUNT = 'chemistrydept@maldacollege.ac.in';
-const ADMINS_CAN_ACT_AS_FACULTY = true;
+const ADMINS_CAN_ACT_AS_FACULTY = false;
 
 const DRIVE_CONFIG = {
     mainFolder: null,
