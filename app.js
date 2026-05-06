@@ -46,13 +46,14 @@ function initGoogleApi() {
 }
 
 function checkExistingToken() {
-    const token = localStorage.getItem('google_access_token');
-    const expiry = localStorage.getItem('google_token_expiry');
+    const token = safeStorage.get('google_access_token');
+    const expiry = safeStorage.get('google_token_expiry');
     if (token && expiry && Date.now() < parseInt(expiry)) {
         if (typeof gapi !== 'undefined' && gapi.client) {
             gapi.client.setToken({ access_token: token });
         }
-        const user = JSON.parse(localStorage.getItem('google_user') || '{}');
+        const userStr = safeStorage.get('google_user');
+        const user = userStr ? JSON.parse(userStr) : {};
         if (user.name) {
             currentUser = user;
             handleAuthSuccess();
@@ -61,9 +62,9 @@ function checkExistingToken() {
 }
 
 function checkEnvironment() {
-    const token = localStorage.getItem('google_access_token');
-    const expiry = localStorage.getItem('google_token_expiry');
-    const user = localStorage.getItem('google_user');
+    const token = safeStorage.get('google_access_token');
+    const expiry = safeStorage.get('google_token_expiry');
+    const user = safeStorage.get('google_user');
 
     if (token && expiry && Date.now() < parseInt(expiry) && user) {
         currentUser = JSON.parse(user);
@@ -115,8 +116,8 @@ function requestDriveAccess() {
             callback: (tokenResponse) => {
                 if (tokenResponse && tokenResponse.access_token) {
                     gapi.client.setToken({ access_token: tokenResponse.access_token });
-                    localStorage.setItem('google_access_token', tokenResponse.access_token);
-                    localStorage.setItem('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
+                    safeStorage.set('google_access_token', tokenResponse.access_token);
+                    safeStorage.set('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
 
                     fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                         headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
@@ -132,7 +133,7 @@ function requestDriveAccess() {
                                 DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; 
                             }
                             
-                            localStorage.setItem('google_user', JSON.stringify(currentUser));
+                            safeStorage.set('google_user', JSON.stringify(currentUser));
                             handleAuthSuccess();
                         })
                         .catch(err => {
@@ -241,7 +242,7 @@ async function getAuthorizedRole(email) {
     }
 
     try {
-        const token = localStorage.getItem('google_access_token');
+        const token = safeStorage.get('google_access_token');
         if (token) {
             const response = await fetch(`${SUPABASE_URL}/functions/v1/verify-role`, {
                 method: 'POST',
@@ -821,8 +822,9 @@ async function renderFacultyRegistry() {
                 list.appendChild(tr);
             });
             return;
+        }
 
-            const { data: faculty, error } = await supabaseClient
+        const { data: faculty, error } = await supabaseClient
                 .from('faculty_registry')
                 .select('*')
                 .order('created_at', { ascending: true });
