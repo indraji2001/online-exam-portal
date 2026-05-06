@@ -543,7 +543,7 @@ async function verifyFacultyLogin(name, pin) {
         }
     }
 
-    } else {
+    else {
         // Fallback: check local config if Supabase not available
         if (systemConfig && systemConfig.faculty) {
             const normalizedEmail = normalizeEmail(currentUser.email);
