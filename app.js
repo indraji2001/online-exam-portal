@@ -231,6 +231,16 @@ async function sha256Hex(value) {
     return Array.from(new Uint8Array(hashBuffer)).map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function sha256Prefix(value) {
+    // Simple fast prefix for internal IDs
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+        hash = ((hash << 5) - hash) + value.charCodeAt(i);
+        hash |= 0; 
+    }
+    return Math.abs(hash).toString(16);
+}
+
 async function getAuthorizedRole(email) {
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) return { role: 'student', record: null };
@@ -497,7 +507,7 @@ async function verifyFacultyLogin(name, pin) {
     let faculty = null;
     if (supabaseClient) {
         try {
-            const secureData = await callSecureFacultyFunction('verifyFacultyPin', { pin });
+            const secureData = await callSecureFacultyFunction('verifyFacultyPin', { name, pin });
             faculty = secureData.faculty;
             if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Unlock My Private Vault'; }
             await initializeFacultyPortal(faculty);
@@ -513,7 +523,7 @@ async function verifyFacultyLogin(name, pin) {
         const { data, error } = await supabaseClient
             .from('faculty_registry')
             .select('*')
-            .eq('email', normalizedEmail)
+            .ilike('name', name) // Search by name for shared accounts
             .eq('active', true)
             .maybeSingle();
 
@@ -573,11 +583,18 @@ async function registerNewFaculty(name) {
         }
 
         const newPin = generatePin();
-        const email = normalizeEmail(currentUser.email);
         
         try {
-            const data = await callSecureFacultyFunction('addFaculty', { email, name, pin: newPin });
-            pendingFaculty = data; // Edge function should return the new record
+            // For the departmental account, we don't attach their email to the new faculty record
+            // so they can register multiple different names/test accounts without "Duplicate Email" errors.
+            const payload = { 
+                name, 
+                pin: newPin,
+                email: `faculty.${sha256Prefix(name)}@internal` // Create a unique virtual email for the registry
+            };
+            
+            const data = await callSecureFacultyFunction('addFaculty', payload);
+            pendingFaculty = data; 
             revealSuccessScreen(newPin);
         } catch (error) {
             console.error('Registration failed:', error);
