@@ -203,6 +203,14 @@ async function getAuthorizedRole(email) {
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) return { role: 'student', record: null };
 
+    // Emergency bootstrap: Priority access for departmental and admin accounts
+    if (normalizedEmail === DEPARTMENTAL_ACCOUNT || normalizedEmail === 'chemistrydept@maldacollege.ac.in') {
+        return { role: 'faculty', record: { email: normalizedEmail, role: 'faculty', active: true, emergency: true } };
+    }
+    if (AUTHORIZED_ADMINS.includes(normalizedEmail)) {
+        return { role: 'admin', record: { email: normalizedEmail, role: 'admin', active: true, emergency: true } };
+    }
+
     try {
         const token = localStorage.getItem('google_access_token');
         if (token) {
@@ -218,12 +226,6 @@ async function getAuthorizedRole(email) {
         }
     } catch (e) {
         console.error('Authorization fetch failed:', e);
-    }
-
-    // Emergency bootstrap only. Real faculty/admin authorization must live in Supabase/RLS
-    // or a backend/Edge Function that verifies the Google ID token server-side.
-    if (AUTHORIZED_ADMINS.includes(normalizedEmail)) {
-        return { role: 'admin', record: { email: normalizedEmail, role: 'admin', active: true, emergency: true } };
     }
 
     return { role: 'student', record: null };
