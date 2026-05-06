@@ -573,21 +573,18 @@ async function registerNewFaculty(name) {
         }
 
         const newPin = generatePin();
-        const { data, error } = await supabaseClient
-            .from('faculty_registry')
-            .insert([{ name, pin: newPin }])
-            .select()
-            .single();
-
-        if (error) {
+        const email = normalizeEmail(currentUser.email);
+        
+        try {
+            const data = await callSecureFacultyFunction('addFaculty', { email, name, pin: newPin });
+            pendingFaculty = data; // Edge function should return the new record
+            revealSuccessScreen(newPin);
+        } catch (error) {
             console.error('Registration failed:', error);
             alert('Cloud registration failed: ' + (error.message || 'Please check your connection.'));
             if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
             return;
         }
-
-        pendingFaculty = data;
-        revealSuccessScreen(newPin);
     } else {
         alert("Cloud registry unavailable. Admin must register you manually via Settings.");
         if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.innerHTML = '<span>✨</span> Register & Enter Vault'; }
