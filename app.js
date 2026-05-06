@@ -103,57 +103,66 @@ function showAuthModal() {
 // ==========================================
 
 function requestDriveAccess() {
-    // Clear any stuck tokens in memory before requesting a new one
-    gapi.client.setToken(null);
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+        alert("Google Identity Services not loaded. Please check your internet connection or disable ad-blockers.");
+        return;
+    }
 
-    const client = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-        callback: (tokenResponse) => {
-            if (tokenResponse && tokenResponse.access_token) {
-                gapi.client.setToken({ access_token: tokenResponse.access_token });
-                localStorage.setItem('google_access_token', tokenResponse.access_token);
-                localStorage.setItem('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
+    try {
+        const client = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+            callback: (tokenResponse) => {
+                if (tokenResponse && tokenResponse.access_token) {
+                    gapi.client.setToken({ access_token: tokenResponse.access_token });
+                    localStorage.setItem('google_access_token', tokenResponse.access_token);
+                    localStorage.setItem('google_token_expiry', Date.now() + (tokenResponse.expires_in * 1000));
 
-                fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                })
-                    .then(res => res.json())
-                    .then(profile => {
-                        currentUser = { name: profile.name, email: profile.email, image: profile.picture };
-                        
-                        // Unified Drive Naming Logic (v4.9)
-                        if (profile.email === 'chemistrydept@maldacollege.ac.in') {
-                            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
-                        } else {
-                            DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; // Fixed name for everyone
-                        }
-                        
-                        localStorage.setItem('google_user', JSON.stringify(currentUser));
-                        
-                        // v4.9 SECURITY FIX: 
-                        // Hide portal until identity is confirmed
-                        document.getElementById('mainPortal').classList.add('hidden');
-                        handleAuthSuccess();
-                    });
+                    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                        headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                    })
+                        .then(res => res.json())
+                        .then(profile => {
+                            currentUser = { name: profile.name, email: profile.email, image: profile.picture };
+                            
+                            // Unified Drive Naming Logic (v4.9)
+                            if (normalizeEmail(profile.email) === DEPARTMENTAL_ACCOUNT) {
+                                DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal";
+                            } else {
+                                DRIVE_CONFIG.mainFolder = "Chemistry Department Exam Portal"; 
+                            }
+                            
+                            localStorage.setItem('google_user', JSON.stringify(currentUser));
+                            handleAuthSuccess();
+                        })
+                        .catch(err => {
+                            console.error('Userinfo fetch failed:', err);
+                            alert("Failed to retrieve user profile. Please try again.");
+                        });
+                }
+            },
+            error_callback: (err) => {
+                console.error('Google Auth Error:', err);
+                if (err.type === 'popup_blocked_by_browser') {
+                    alert('Popup blocked! Please allow popups for this site to sign in.');
+                } else {
+                    alert('Sign-in Error: ' + (err.message || 'Verification failed. Try refreshing the page.'));
+                }
             }
-        },
-        error_callback: (err) => {
-            console.error('Google Auth Error Scope:', err);
-            if (err.type === 'popup_blocked_by_browser') {
-                alert('Please allow popups for this site to sign in.');
-            } else {
-                alert('Sign-in Error: ' + (err.message || 'Check browser console for details. Ensure you are running on http://localhost'));
-            }
-        }
-    });
+        });
 
-    // Forced account selection
-    client.requestAccessToken({ prompt: 'select_account' });
+        // Forced account selection to ensure fresh login
+        client.requestAccessToken({ prompt: 'select_account' });
+    } catch (e) {
+        console.error("Auth initialization failed:", e);
+        alert("Authentication failed to start. Please check if your browser allows third-party cookies.");
+    }
 }
 
 async function handleAuthSuccess() {
+    // 1. Hide the entry modal and show base UI
     document.getElementById('authContainer').classList.add('hidden');
+    document.getElementById('mainPortal').classList.add('hidden'); // Keep portal hidden until role is verified
     document.getElementById('accountBar').classList.remove('hidden');
     document.getElementById('userName').textContent = currentUser.name;
     document.getElementById('userEmail').textContent = currentUser.email;
@@ -163,29 +172,49 @@ async function handleAuthSuccess() {
         document.getElementById('userAvatar').classList.remove('hidden');
     }
 
-    // Role Detection Logic - v5 strict allowlist
+    // 2. Prepare Role Verification Modal
     document.getElementById('welcomeUserEmail').textContent = currentUser.email;
     document.getElementById('identityModal').classList.remove('hidden-section');
     
-    // Initial render for tokens (Whitelist)
-    if (typeof renderVerifiedTokens === 'function') renderVerifiedTokens();
-    
-    // v4.9.7 UI RESET: Always hide roles and warnings at start of auth
+    // UI RESET: Hide everything until check completes
     document.getElementById('btnRoleAdmin').classList.add('hidden');
     document.getElementById('btnRoleFaculty').classList.add('hidden');
     document.getElementById('wrongAccountWarning').classList.add('hidden');
+    
+    // Show Loading Spinner during verification
+    const roleStep = document.getElementById('roleSelectionStep');
+    const originalRoleHtml = roleStep.innerHTML;
+    roleStep.innerHTML = `
+        <div class="py-10 text-center">
+            <div class="animate-spin text-4xl mb-4">🛡️</div>
+            <h3 class="text-xl font-black text-slate-800">Verifying Permissions...</h3>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Checking Google Auth Registry</p>
+        </div>
+    `;
 
-    const verifiedRole = await verifyCurrentUserRole();
-    const isAdmin = verifiedRole === 'admin';
-    const isDept = verifiedRole === 'faculty' || (verifiedRole === 'admin' && ADMINS_CAN_ACT_AS_FACULTY);
+    try {
+        const verifiedRole = await verifyCurrentUserRole(true); // Force refresh for accuracy
+        const isAdmin = verifiedRole === 'admin';
+        const isDept = verifiedRole === 'faculty' || (verifiedRole === 'admin' && ADMINS_CAN_ACT_AS_FACULTY);
 
-    if (isAdmin) document.getElementById('btnRoleAdmin').classList.remove('hidden');
-    if (isDept) document.getElementById('btnRoleFaculty').classList.remove('hidden');
+        // Restore original UI
+        roleStep.innerHTML = originalRoleHtml;
+        document.getElementById('welcomeUserEmail').textContent = currentUser.email;
 
-    // If neither, show warning and request flow
-    if (!isAdmin && !isDept) {
-        document.getElementById('wrongAccountWarning').classList.remove('hidden');
-        checkPendingRequest(normalizeEmail(currentUser.email));
+        if (isAdmin) document.getElementById('btnRoleAdmin').classList.remove('hidden');
+        if (isDept) document.getElementById('btnRoleFaculty').classList.remove('hidden');
+
+        if (!isAdmin && !isDept) {
+            document.getElementById('wrongAccountWarning').classList.remove('hidden');
+            checkPendingRequest(normalizeEmail(currentUser.email));
+        }
+        
+        if (typeof renderVerifiedTokens === 'function') renderVerifiedTokens();
+
+    } catch (e) {
+        console.error("Role verification failed:", e);
+        roleStep.innerHTML = originalRoleHtml;
+        alert("Role verification encountered an error. Please reload.");
     }
 }
 
@@ -417,7 +446,6 @@ function setAuthMode(mode) {
     const pinContainer = document.getElementById('pinContainer');
     const newInfo = document.getElementById('newInfoContainer');
     const entryBtn = document.getElementById('facultyEntryBtn');
-    btnNew?.classList.add('hidden');
 
     if (mode === 'returning') {
         btnReturning.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
