@@ -866,7 +866,14 @@
             
             <div class="overflow-y-auto p-10 flex-grow space-y-8 scrollbox-hide">
                 <div>
-                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Question Text Content (HTML Supported)</label>
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest">Question Text Content (HTML Supported)</label>
+                        <div class="flex gap-2">
+                            <button onclick="insertImageUrl()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 transition">🔗 Image URL</button>
+                            <button onclick="document.getElementById('imageUploadInput').click()" class="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 transition">🖼️ Upload Image</button>
+                            <input type="file" id="imageUploadInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                        </div>
+                    </div>
                     <div id="editQText" contenteditable="true" class="w-full p-6 border-2 border-slate-200 rounded-3xl min-h-[150px] bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition text-lg leading-relaxed shadow-inner"></div>
                 </div>
                 
