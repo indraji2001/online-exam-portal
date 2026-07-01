@@ -1924,11 +1924,11 @@ function openEditModal(event, setName, qIndex) {
         document.getElementById('editCorrect').value = q.correct;
     }
 
-    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editModal').classList.remove('hidden-section');
 }
 
 function closeEditModal() {
-    document.getElementById('editModal').classList.add('hidden');
+    document.getElementById('editModal').classList.add('hidden-section');
     editingContext = null;
 }
 
@@ -1949,6 +1949,47 @@ function saveEditedQuestion() {
 
     closeEditModal();
     renderImageQueue();
+}
+
+function insertImageUrl() {
+    const url = prompt("Enter the URL of the image:");
+    if (url) {
+        document.getElementById('editQText').focus();
+        document.execCommand('insertImage', false, url);
+        styleInsertedImages();
+    }
+}
+
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64Image = e.target.result;
+        document.getElementById('editQText').focus();
+        document.execCommand('insertImage', false, base64Image);
+        styleInsertedImages();
+    };
+    reader.readAsDataURL(file);
+    
+    event.target.value = '';
+}
+
+function styleInsertedImages() {
+    setTimeout(() => {
+        const editor = document.getElementById('editQText');
+        const images = editor.getElementsByTagName('img');
+        for(let i=0; i<images.length; i++) {
+            if(!images[i].classList.contains('styled-img')) {
+                images[i].style.maxWidth = '100%';
+                images[i].style.borderRadius = '8px';
+                images[i].style.marginTop = '10px';
+                images[i].style.marginBottom = '10px';
+                images[i].classList.add('styled-img');
+            }
+        }
+    }, 50);
 }
 
 // ==========================================
