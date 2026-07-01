@@ -1503,9 +1503,9 @@ QUESTION POOL QUOTA:
 
 FORMATTING RULES (STRICT):
 1. VISUAL COMPLIANCE: At least 60% of questions MUST reference structures, diagrams, or data. Use the exact [INSTRUCTOR NOTE] placeholders provided below.
-2. IMAGE PLACEHOLDERS:
-   - For PDFs/Docs: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[FILE_NAME]' target='_blank' style='color:red; font-weight:bold;'>[FILE_NAME]</a> | Page: XX | Fig: XX | Description: '...']<br><br>
-   - For Web Content: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[URL]' target='_blank' style='color:blue; font-weight:bold;'>[DOMAIN]</a> | Quote: '...' | Description: '...']<br><br>
+2. IMAGE PLACEHOLDERS (CRITICAL: Because AI often miscalculates PDF page numbers, you MUST provide a unique text quote and the nearest section heading so the instructor can Ctrl+F it):
+   - For PDFs/Docs: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[FILE_NAME]' target='_blank' style='color:red; font-weight:bold;'>[FILE_NAME]</a> | Section: '[NEAREST HEADING]' | Quote: '[5-6 unique words adjacent to the figure]' | Description: '...']<br><br>
+   - For Web Content: <br><br>[INSTRUCTOR NOTE - INSERT IMAGE: <a href='[URL]' target='_blank' style='color:blue; font-weight:bold;'>[DOMAIN]</a> | Quote: '[5-6 unique words adjacent to the figure]' | Description: '...']<br><br>
 3. JSON INTEGRITY: Use only \n for internal line breaks. Never use physical line breaks inside a string value.
 4. MATCHING FORMAT: The 'text' must have List I and List II. The 'options' must be 4 sequence strings (e.g. "A. I-A, II-B").
 
