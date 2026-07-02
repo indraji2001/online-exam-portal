@@ -2198,6 +2198,11 @@ async function publishExam() {
 
         localStorage.removeItem('exam_draft');
         showTab('publish');
+
+        // Reveal the neon live link card
+        const resultCard = document.getElementById('publishResult');
+        if (resultCard) resultCard.classList.remove('hidden-section');
+
         alert(`✅ Exam Published Successfully!`);
     } catch (err) {
         console.error('Publish error:', err);
@@ -2220,7 +2225,22 @@ async function saveExamToDrive(data, folderId, fileName, mimeType, isBlob = fals
     });
     return await response.json();
 }
-function copyStudentUrl() { navigator.clipboard.writeText(document.getElementById('studentUrl').textContent); alert('Copied!'); }
+function copyStudentUrl() {
+    const url = document.getElementById('studentUrl').textContent.trim();
+    if (!url || url === 'Generating link...') return;
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('copyLinkBtn');
+        if (btn) {
+            const original = btn.innerHTML;
+            btn.innerHTML = '✅ Copied!';
+            btn.style.background = 'linear-gradient(135deg, #00ff88 0%, #00c9a7 100%)';
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.style.background = '';
+            }, 2000);
+        }
+    });
+}
 
 // ==========================================
 // STUDENT EXAM MODE
