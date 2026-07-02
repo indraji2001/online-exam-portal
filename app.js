@@ -2197,6 +2197,7 @@ async function publishExam() {
         document.getElementById('pubAttempts').textContent = cfg.attempts;
 
         localStorage.removeItem('exam_draft');
+        showTab('publish');
         alert(`✅ Exam Published Successfully!`);
     } catch (err) {
         console.error('Publish error:', err);
