@@ -653,7 +653,7 @@
 
                     <div class="space-y-4">
                         <div class="flex flex-col gap-2">
-                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Archive File Name (.xlsx)</label>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Archive File Name (.html)</label>
                             <input type="text" id="archiveFileName" class="w-full p-4 border border-slate-200 rounded-2xl font-bold bg-white outline-none focus:border-blue-500 transition">
                         </div>
                         <div class="grid grid-cols-2 gap-4">
@@ -685,13 +685,39 @@
                         <span class="hidden group-hover:inline animate-pulse">→</span>
                     </button>
                     
-                    <div id="publishResult" class="hidden-section slide-in-up mt-8">
-                        <div class="bg-emerald-50 border-2 border-emerald-100 p-8 rounded-[2rem]">
-                            <h4 class="text-emerald-800 font-black mb-4 uppercase tracking-widest text-sm">✓ Exam Live - Share Link with Students:</h4>
-                            <div class="flex gap-2">
-                                <div id="studentUrl" class="flex-1 bg-white p-4 border rounded-2xl font-mono text-xs text-blue-800 overflow-x-auto whitespace-nowrap scrollbox-hide shadow-inner">Generating Link...</div>
-                                <button onclick="copyStudentUrl()" class="bg-emerald-600 text-white px-6 rounded-2xl font-bold hover:bg-emerald-700 shadow-lg transition">Copy</button>
+                    <!-- NEON LIVE LINK BOX -->
+                    <div id="publishResult" class="hidden-section mt-10" style="position:relative;">
+                        <!-- Animated neon glow layers -->
+                        <div class="neon-glow-ring" aria-hidden="true"></div>
+                        <div class="neon-glow-ring neon-glow-ring-2" aria-hidden="true"></div>
+
+                        <div class="neon-link-card">
+                            <!-- Header -->
+                            <div class="flex items-center gap-3 mb-6">
+                                <div class="neon-pulse-dot"></div>
+                                <span class="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Exam Live</span>
+                                <div class="neon-badge">ACTIVE</div>
                             </div>
+
+                            <p class="text-white/60 text-xs font-semibold mb-2 uppercase tracking-widest">Student Exam Link</p>
+
+                            <!-- Link Display -->
+                            <div class="neon-url-box">
+                                <div id="studentUrl" class="flex-1 font-mono text-xs text-cyan-300 overflow-x-auto whitespace-nowrap scrollbox-hide pr-2">Generating link...</div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex gap-3 mt-5">
+                                <button onclick="copyStudentUrl()" id="copyLinkBtn" class="neon-copy-btn flex-1">
+                                    <span class="copy-icon">📋</span> Copy Link
+                                </button>
+                                <button onclick="window.open(document.getElementById('studentUrl').textContent, '_blank')" class="neon-open-btn">
+                                    <span>🔗</span> Open
+                                </button>
+                            </div>
+
+                            <!-- QR hint -->
+                            <p class="text-white/30 text-[10px] text-center mt-5 font-medium">Share this link with your students to begin the exam</p>
                         </div>
                     </div>
                 </div>
