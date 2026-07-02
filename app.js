@@ -1350,7 +1350,7 @@ function updateFileNamePreview() {
     const code = getValue('genCourse', 'Code') || 'Code';
     const topic = getValue('genTopic', 'Topic').replace(/\s+/g, '_') || 'Topic';
     const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
-    const qsName = `QS_${instructor}_${sem}_${code}_${topic}_${date}.xlsx`;
+    const qsName = `QS_${instructor}_${sem}_${code}_${topic}_${date}.html`;
     const preview = $('fileNamePreview');
     if (preview) preview.textContent = `Question Set: ${qsName}`;
     setValue('archiveFileName', qsName);
@@ -2109,17 +2109,76 @@ async function publishExam() {
                 }
             }
 
-            const ws = XLSX.utils.json_to_sheet(Object.entries(generatedSets).flatMap(([setName, questions]) =>
-                questions.map(q => ({
-                    Set: setName, Number: q.number, Type: q.type, Text: q.text,
-                    Option_A: q.options[0], Option_B: q.options[1], Option_C: q.options[2], Option_D: q.options[3],
-                    Correct: Array.isArray(q.correct) ? q.correct.join(',') : q.correct,
-                    Marks: q.marks, Negative: q.negative, Explanation: q.explanation
-                }))
-            ));
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-            const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            await saveExamToDrive(new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), questionBanksFolderId, document.getElementById('archiveFileName').value || 'Question_Bank.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', true);
+            let htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Bank - ${cfg.course}</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .metadata { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
+        .metadata strong { color: #2c3e50; }
+        .set-container { margin-top: 40px; page-break-before: always; }
+        .set-container:first-of-type { page-break-before: auto; }
+        .set-title { background: #3498db; color: white; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px; }
+        .question { margin-bottom: 30px; background: #fff; border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); page-break-inside: avoid; }
+        .question-header { font-weight: bold; margin-bottom: 15px; color: #2980b9; display: flex; justify-content: space-between; }
+        .question-text { margin-bottom: 15px; font-size: 16px; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .option { padding: 10px; background: #f1f2f6; border-radius: 4px; border: 1px solid #dcdde1; }
+        .correct-opt { background: #d4edda; border-color: #c3e6cb; color: #155724; font-weight: bold; }
+        .explanation { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 6px; font-size: 14px; color: #856404; }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        @media print {
+            body { padding: 0; background: #fff; max-width: 100%; }
+            .question { box-shadow: none; border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Question Bank Archive</h1>
+    <div class="metadata">
+        <div><strong>Instructor:</strong> ${cfg.instructor}</div>
+        <div><strong>Course:</strong> ${cfg.course}</div>
+        <div><strong>Topic:</strong> ${cfg.topic}</div>
+        <div><strong>Standard:</strong> ${cfg.standard}</div>
+        <div><strong>Date:</strong> ${new Date().toLocaleDateString()}</div>
+        <div><strong>Total Sets:</strong> ${cfg.sets}</div>
+    </div>`;
+
+            Object.entries(generatedSets).forEach(([setName, questions]) => {
+                htmlContent += `\n    <div class="set-container">\n        <h2 class="set-title">Set ${setName}</h2>`;
+                questions.forEach(q => {
+                    htmlContent += `\n        <div class="question">
+            <div class="question-header">
+                <span>Q${q.number}. (${(q.type || 'single').toUpperCase()})</span>
+                <span>Marks: +${q.marks} / -${q.negative}</span>
+            </div>
+            <div class="question-text">${q.text}</div>
+            <div class="options">`;
+                    const correctAnswers = Array.isArray(q.correct) ? q.correct : [q.correct];
+                    q.options.forEach((opt, idx) => {
+                        const isCorrect = correctAnswers.includes(idx);
+                        htmlContent += `\n                <div class="option ${isCorrect ? 'correct-opt' : ''}">${String.fromCharCode(65 + idx)}. ${opt}</div>`;
+                    });
+                    htmlContent += `\n            </div>`;
+                    if (q.explanation) {
+                        htmlContent += `\n            <div class="explanation"><strong>Explanation:</strong><br>${q.explanation}</div>`;
+                    }
+                    htmlContent += `\n        </div>`;
+                });
+                htmlContent += `\n    </div>`;
+            });
+            htmlContent += `\n</body>\n</html>`;
+
+            let archiveName = document.getElementById('archiveFileName').value || 'Question_Bank.html';
+            if (archiveName.endsWith('.xlsx')) archiveName = archiveName.replace('.xlsx', '.html');
+            if (!archiveName.endsWith('.html')) archiveName += '.html';
+
+            const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+            await saveExamToDrive(htmlBlob, questionBanksFolderId, archiveName, 'text/html', true);
 
             const baseUrl = location.href.split('?')[0];
             const studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}&fileId=${jsonFileId}`;
