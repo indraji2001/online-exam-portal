@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // INITIALIZATION
 // ==========================================
 
@@ -2048,7 +2048,7 @@ async function publishExam() {
     if (Object.keys(generatedSets).length === 0) { alert('No questions to publish. Please generate or import questions first.'); showTab('ai-bridge'); return; }
 
     const cfg = {
-        instructor: instructor, course: course,
+        instructor, course,
         semester: document.getElementById('genSemester').value,
         topic: document.getElementById('genTopic').value,
         standard: document.getElementById('genStandard').value,
@@ -2064,149 +2064,93 @@ async function publishExam() {
 
     currentExam = { id: 'EXAM_' + Date.now(), config: cfg, sets: generatedSets, studentAttempts: {}, createdAt: new Date().toISOString() };
 
-    try {
-        if (driveFolderId && gapi.client) {
-            const instructorFolderId = await getOrCreateInstructorFolder(instructor);
+    const baseUrl = location.href.split('?')[0];
+    let studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}`;
+    let driveError = null;
+
+    // Drive path — wrapped entirely so failures never block the UI update
+    if (driveFolderId && gapi.client) {
+        try {
+            await getOrCreateInstructorFolder(instructor);
+
             const questionBanksFolderId = await getInstructorSubfolder('03_Question_Banks');
-            const examConfigsFolderId = await getInstructorSubfolder('07_Exam_Configurations');
-            const resultsFolderId = await getInstructorSubfolder('05_Results_Archives');
+            const examConfigsFolderId   = await getInstructorSubfolder('07_Exam_Configurations');
+            const resultsFolderId       = await getInstructorSubfolder('05_Results_Archives');
 
-            const sheetName = `Mark_${instructor}_${cfg.semester}_${course}_${cfg.topic}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '')}`;
-            const sheet = await gapi.client.sheets.spreadsheets.create({
-                resource: { properties: { title: sheetName } }
-            });
-            currentExam.config.resultsSheetId = sheet.result.spreadsheetId;
+            // 1. Results sheet
+            try {
+                const sheetName = `Mark_${instructor}_${cfg.semester}_${course}_${cfg.topic}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '')}`;
+                const sheet = await gapi.client.sheets.spreadsheets.create({ resource: { properties: { title: sheetName } } });
+                currentExam.config.resultsSheetId = sheet.result.spreadsheetId;
+                if (resultsFolderId) await gapi.client.drive.files.update({ fileId: currentExam.config.resultsSheetId, addParents: resultsFolderId, fields: 'id, parents' });
+                await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: currentExam.config.resultsSheetId, range: 'Sheet1!A1:I1', valueInputOption: 'USER_ENTERED', resource: { values: [['Timestamp','Email','Name','ID','Attempt','Set Assigned','Final Score','Questions Answered','Total Questions']] } });
+                await gapi.client.drive.permissions.create({ fileId: currentExam.config.resultsSheetId, resource: { type: 'anyone', role: 'writer' } });
+            } catch (e) { console.warn('Results sheet (non-fatal):', e); }
 
-            await gapi.client.drive.files.update({
-                fileId: currentExam.config.resultsSheetId,
-                addParents: resultsFolderId,
-                fields: 'id, parents'
-            });
-
-            await gapi.client.sheets.spreadsheets.values.update({
-                spreadsheetId: currentExam.config.resultsSheetId,
-                range: 'Sheet1!A1:I1',
-                valueInputOption: 'USER_ENTERED',
-                resource: { values: [['Timestamp', 'Email', 'Name', 'ID', 'Attempt', 'Set Assigned', 'Final Score', 'Questions Answered', 'Total Questions']] }
-            });
-
-            await gapi.client.drive.permissions.create({
-                fileId: currentExam.config.resultsSheetId,
-                resource: { type: 'anyone', role: 'writer' }
-            });
-
-            const savedJsonReq = await saveExamToDrive(currentExam, examConfigsFolderId, `Exam_${course}_${currentExam.id.slice(-6)}.json`, 'application/json');
-            const jsonFileId = savedJsonReq.id;
-
-            if (jsonFileId) {
+            // 2. Save exam JSON config
+            if (examConfigsFolderId) {
                 try {
-                    await gapi.client.drive.permissions.create({
-                        fileId: jsonFileId,
-                        resource: { type: 'anyone', role: 'reader' }
-                    });
-                } catch (e) {
-                    console.log("Could not auto-share JSON.", e);
-                }
+                    const savedJson = await saveExamToDrive(currentExam, examConfigsFolderId, `Exam_${course}_${currentExam.id.slice(-6)}.json`, 'application/json');
+                    const jsonFileId = savedJson && savedJson.id;
+                    if (jsonFileId) {
+                        try { await gapi.client.drive.permissions.create({ fileId: jsonFileId, resource: { type: 'anyone', role: 'reader' } }); } catch(e){}
+                        studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}&fileId=${jsonFileId}`;
+                    }
+                } catch (e) { console.warn('JSON config save (non-fatal):', e); }
             }
 
-            let htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Question Bank - ${cfg.course}</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }
-        h1 { text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-        .metadata { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
-        .metadata strong { color: #2c3e50; }
-        .set-container { margin-top: 40px; page-break-before: always; }
-        .set-container:first-of-type { page-break-before: auto; }
-        .set-title { background: #3498db; color: white; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px; }
-        .question { margin-bottom: 30px; background: #fff; border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); page-break-inside: avoid; }
-        .question-header { font-weight: bold; margin-bottom: 15px; color: #2980b9; display: flex; justify-content: space-between; }
-        .question-text { margin-bottom: 15px; font-size: 16px; }
-        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .option { padding: 10px; background: #f1f2f6; border-radius: 4px; border: 1px solid #dcdde1; }
-        .correct-opt { background: #d4edda; border-color: #c3e6cb; color: #155724; font-weight: bold; }
-        .explanation { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 6px; font-size: 14px; color: #856404; }
-        img { max-width: 100%; height: auto; border-radius: 4px; }
-        @media print {
-            body { padding: 0; background: #fff; max-width: 100%; }
-            .question { box-shadow: none; border: 1px solid #ccc; }
-        }
-    </style>
-</head>
-<body>
-    <h1>Question Bank Archive</h1>
-    <div class="metadata">
-        <div><strong>Instructor:</strong> ${cfg.instructor}</div>
-        <div><strong>Course:</strong> ${cfg.course}</div>
-        <div><strong>Topic:</strong> ${cfg.topic}</div>
-        <div><strong>Standard:</strong> ${cfg.standard}</div>
-        <div><strong>Date:</strong> ${new Date().toLocaleDateString()}</div>
-        <div><strong>Total Sets:</strong> ${cfg.sets}</div>
-    </div>`;
-
-            Object.entries(generatedSets).forEach(([setName, questions]) => {
-                htmlContent += `\n    <div class="set-container">\n        <h2 class="set-title">Set ${setName}</h2>`;
-                questions.forEach(q => {
-                    htmlContent += `\n        <div class="question">
-            <div class="question-header">
-                <span>Q${q.number}. (${(q.type || 'single').toUpperCase()})</span>
-                <span>Marks: +${q.marks} / -${q.negative}</span>
-            </div>
-            <div class="question-text">${q.text}</div>
-            <div class="options">`;
-                    const correctAnswers = Array.isArray(q.correct) ? q.correct : [q.correct];
-                    q.options.forEach((opt, idx) => {
-                        const isCorrect = correctAnswers.includes(idx);
-                        htmlContent += `\n                <div class="option ${isCorrect ? 'correct-opt' : ''}">${String.fromCharCode(65 + idx)}. ${opt}</div>`;
+            // 3. HTML question bank archive
+            if (questionBanksFolderId) {
+                try {
+                    let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QB - ${cfg.course}</title><style>body{font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px}.set-title{background:#3498db;color:#fff;padding:10px;border-radius:6px;margin:30px 0 15px}.question{border:1px solid #e0e0e0;padding:20px;border-radius:8px;margin-bottom:20px;page-break-inside:avoid}.correct-opt{background:#d4edda;font-weight:bold}.option{padding:8px;border-radius:4px;border:1px solid #ddd;margin:4px 0}.explanation{background:#fff3cd;padding:12px;border-radius:6px;margin-top:10px}@media print{.question{border:1px solid #ccc}}</style></head><body><h1 style="text-align:center">Question Bank: ${cfg.course}</h1><p><b>Instructor:</b> ${cfg.instructor} | <b>Topic:</b> ${cfg.topic} | <b>Date:</b> ${new Date().toLocaleDateString()}</p>`;
+                    Object.entries(generatedSets).forEach(([set, qs]) => {
+                        html += `<div class="set-container"><h2 class="set-title">Set ${set}</h2>`;
+                        qs.forEach(q => {
+                            const corr = Array.isArray(q.correct) ? q.correct : [q.correct];
+                            html += `<div class="question"><b>Q${q.number}. [${(q.type||'single').toUpperCase()}] +${q.marks}/-${q.negative}</b><p>${q.text}</p>`;
+                            q.options.forEach((opt, i) => { html += `<div class="option ${corr.includes(i)?'correct-opt':''}">${String.fromCharCode(65+i)}. ${opt}</div>`; });
+                            if (q.explanation) html += `<div class="explanation"><b>Explanation:</b> ${q.explanation}</div>`;
+                            html += `</div>`;
+                        });
+                        html += `</div>`;
                     });
-                    htmlContent += `\n            </div>`;
-                    if (q.explanation) {
-                        htmlContent += `\n            <div class="explanation"><strong>Explanation:</strong><br>${q.explanation}</div>`;
-                    }
-                    htmlContent += `\n        </div>`;
-                });
-                htmlContent += `\n    </div>`;
-            });
-            htmlContent += `\n</body>\n</html>`;
+                    html += `</body></html>`;
+                    let archiveName = (document.getElementById('archiveFileName').value || 'Question_Bank').replace(/\.[^.]+$/, '') + '.html';
+                    await saveExamToDrive(new Blob([html], { type: 'text/html' }), questionBanksFolderId, archiveName, 'text/html', true);
+                } catch (e) { console.warn('HTML archive (non-fatal):', e); }
+            }
 
-            let archiveName = document.getElementById('archiveFileName').value || 'Question_Bank.html';
-            if (archiveName.endsWith('.xlsx')) archiveName = archiveName.replace('.xlsx', '.html');
-            if (!archiveName.endsWith('.html')) archiveName += '.html';
-
-            const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-            await saveExamToDrive(htmlBlob, questionBanksFolderId, archiveName, 'text/html', true);
-
-            const baseUrl = location.href.split('?')[0];
-            const studentUrl = `${baseUrl}?mode=student&exam=${currentExam.id}&fileId=${jsonFileId}`;
-            document.getElementById('studentUrl').textContent = studentUrl;
-        } else {
-            localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam));
-            const baseUrl = location.href.split('?')[0];
-            document.getElementById('studentUrl').textContent = `${baseUrl}?mode=student&exam=${currentExam.id}`;
+        } catch (e) {
+            driveError = e.message || String(e);
+            console.error('Drive publish error:', e);
         }
+    } else {
+        // LocalStorage fallback
+        try { localStorage.setItem('exam_' + currentExam.id, JSON.stringify(currentExam)); } catch(e) {}
+    }
 
-        addToLibrary(currentExam);
-        document.getElementById('pubInstructor').textContent = cfg.instructor;
-        document.getElementById('pubCourse').textContent = cfg.course;
-        document.getElementById('pubStandard').textContent = cfg.standard;
-        document.getElementById('pubSets').textContent = cfg.sets + ' Sets';
-        document.getElementById('pubAttempts').textContent = cfg.attempts;
+    // ── UI ALWAYS UPDATES ──────────────────────────────────────────────────
+    addToLibrary(currentExam);
+    document.getElementById('pubInstructor').textContent = cfg.instructor;
+    document.getElementById('pubCourse').textContent = cfg.course;
+    document.getElementById('pubStandard').textContent = cfg.standard;
+    document.getElementById('pubSets').textContent = cfg.sets + ' Sets';
+    document.getElementById('pubAttempts').textContent = cfg.attempts + ' Attms';
+    document.getElementById('studentUrl').textContent = studentUrl;
+    localStorage.removeItem('exam_draft');
 
-        localStorage.removeItem('exam_draft');
-        showTab('publish');
+    showTab('publish');
 
-        // Reveal the neon live link card
-        const resultCard = document.getElementById('publishResult');
-        if (resultCard) resultCard.classList.remove('hidden-section');
+    const resultCard = document.getElementById('publishResult');
+    if (resultCard) {
+        resultCard.classList.remove('hidden-section');
+        setTimeout(() => resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+    }
 
-        alert(`✅ Exam Published Successfully!`);
-    } catch (err) {
-        console.error('Publish error:', err);
-        alert('Error: ' + err.message);
+    if (driveError) {
+        alert(`\u26a0\ufe0f Published locally. Drive had an issue:\n${driveError}\n\nYour student link is shown below.`);
+    } else {
+        alert('\u2705 Exam Published Successfully!');
     }
 }
 
