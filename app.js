@@ -174,6 +174,14 @@ function requestDriveAccess() {
 }
 
 async function handleAuthSuccess() {
+    const params = new URLSearchParams(location.search);
+    if (params.get('mode') === 'student') {
+        document.getElementById('authContainer')?.classList.add('hidden');
+        document.getElementById('identityModal')?.classList.add('hidden-section');
+        document.getElementById('accountBar')?.classList.add('hidden');
+        return;
+    }
+
     // 1. Hide the entry modal and show base UI
     document.getElementById('authContainer').classList.add('hidden');
     document.getElementById('mainPortal').classList.add('hidden'); // Keep portal hidden until role is verified
