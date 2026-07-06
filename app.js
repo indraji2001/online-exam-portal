@@ -2282,6 +2282,9 @@ async function checkStudentMode() {
     }
 }
 
+let examTimerInterval = null;
+let examTimeRemaining = 0;
+
 function startExam() {
     const name = document.getElementById('sName').value.trim();
     const sid = document.getElementById('sId').value.trim();
@@ -2297,6 +2300,9 @@ function startExam() {
         answers: {}, marked: new Set(), visited: new Set([0]), currentIdx: 0
     };
 
+    // Reset security counters for this attempt
+    tabSwitchCount = 0;
+
     document.getElementById('examStateMessage').classList.add('hidden-section');
     document.getElementById('examInterface').classList.remove('hidden-section');
     document.getElementById('totalQNum').textContent = studentSession.questions.length;
@@ -2304,7 +2310,46 @@ function startExam() {
     document.getElementById('studentNameDisplay').textContent = studentSession.name;
     document.getElementById('studentIdDisplay').textContent = studentSession.id;
 
+    if (currentExam.config && currentExam.config.duration) {
+        startExamTimer(currentExam.config.duration);
+    } else {
+        startExamTimer(60); // Default to 60 minutes
+    }
+
     loadQuestion(0);
+}
+
+function startExamTimer(durationMinutes) {
+    if (examTimerInterval) clearInterval(examTimerInterval);
+    examTimeRemaining = durationMinutes * 60;
+    updateTimerDisplay();
+
+    examTimerInterval = setInterval(() => {
+        examTimeRemaining--;
+        if (examTimeRemaining <= 0) {
+            clearInterval(examTimerInterval);
+            examTimeRemaining = 0;
+            updateTimerDisplay();
+            alert("Time's up! Submitting your exam automatically.");
+            finalSubmit();
+        } else {
+            updateTimerDisplay();
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const display = document.getElementById('examTimerDisplay');
+    if (!display) return;
+    const h = Math.floor(examTimeRemaining / 3600).toString().padStart(2, '0');
+    const m = Math.floor((examTimeRemaining % 3600) / 60).toString().padStart(2, '0');
+    const s = (examTimeRemaining % 60).toString().padStart(2, '0');
+    
+    if (examTimeRemaining >= 3600) {
+       display.textContent = `${h}:${m}:${s}`;
+    } else {
+       display.textContent = `00:${m}:${s}`;
+    }
 }
 
 function loadQuestion(index) {
@@ -2373,6 +2418,7 @@ function closeSubmitModal() { document.getElementById('submitModal').classList.a
 
 function finalSubmit() {
     closeSubmitModal();
+    if (examTimerInterval) clearInterval(examTimerInterval);
     let score = 0;
     studentSession.questions.forEach((q, i) => {
         const answer = studentSession.answers[i];
@@ -2464,7 +2510,49 @@ function renderLibraryUI() {
 // Security
 document.addEventListener('contextmenu', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
 document.addEventListener('copy', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
-window.addEventListener('blur', () => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) alert('Security Alert!'); });
+
+// Tab-switch / window-blur security system
+let tabSwitchCount = 0;
+const MAX_TAB_SWITCHES = 4; // 1 free warning + 3 strikes before auto-submit
+
+window.addEventListener('blur', () => {
+    if (document.getElementById('examInterface').classList.contains('hidden-section')) return;
+
+    tabSwitchCount++;
+
+    if (tabSwitchCount === 1) {
+        // First offense — plain warning, no strike count shown
+        alert(
+            '⚠️  SECURITY ALERT!\n\n' +
+            'You have switched away from the exam window.\n\n' +
+            'This activity is being monitored. Please return to the exam immediately.'
+        );
+
+    } else {
+        const chancesLeft = MAX_TAB_SWITCHES - tabSwitchCount;
+
+        if (chancesLeft <= 0) {
+            // Out of chances — force submit
+            alert(
+                '🚨  EXAM TERMINATED!\n\n' +
+                'You have exceeded the maximum number of allowed tab switches.\n' +
+                'Your exam is being submitted now with your current answers.'
+            );
+            finalSubmit();
+        } else {
+            // Strike warning with countdown
+            const strikeNum = tabSwitchCount - 1; // strike index (1, 2, 3)
+            alert(
+                '🚨  SECURITY BREACH DETECTED!\n\n' +
+                `Strike ${strikeNum} of 3 — WARNING: ${chancesLeft} CHANCE${chancesLeft === 1 ? '' : 'S'} LEFT\n\n` +
+                'You are switching tabs/windows during the exam.\n' +
+                (chancesLeft === 1
+                    ? '⛔  FINAL WARNING! Next violation will immediately submit and waste your attempt.'
+                    : '⛔  Further violations will result in forced submission and your attempt being wasted.')
+            );
+        }
+    }
+});
 
 // ==========================================
 // ADMIN SETTINGS & REGISTRY (v4.9)
