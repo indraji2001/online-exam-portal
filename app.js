@@ -1,4 +1,4 @@
-﻿// ==========================================
+// ==========================================
 // INITIALIZATION
 // ==========================================
 
@@ -10,8 +10,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initSupabase();
     initGoogleApi();
-    checkEnvironment();
-    checkStudentMode();
+    
+    // In student mode, do NOT check faculty environment or require Google sign-in on load
+    const params = new URLSearchParams(location.search);
+    if (params.get('mode') === 'student') {
+        checkStudentMode();
+    } else {
+        checkEnvironment();
+    }
+    
     updateSourceDisplay();
     loadDraft();
     initLibrary();
@@ -46,6 +53,9 @@ function initGoogleApi() {
 }
 
 function checkExistingToken() {
+    const params = new URLSearchParams(location.search);
+    if (params.get('mode') === 'student') return; // Skip checking token in student mode
+    
     const token = safeStorage.get('google_access_token');
     const expiry = safeStorage.get('google_token_expiry');
     if (token && expiry && Date.now() < parseInt(expiry)) {
@@ -62,6 +72,9 @@ function checkExistingToken() {
 }
 
 function checkEnvironment() {
+    const params = new URLSearchParams(location.search);
+    if (params.get('mode') === 'student') return; // Skip environment check for student mode
+    
     const token = safeStorage.get('google_access_token');
     const expiry = safeStorage.get('google_token_expiry');
     const user = safeStorage.get('google_user');
@@ -2195,6 +2208,7 @@ async function checkStudentMode() {
     if (params.get('mode') === 'student') {
         document.getElementById('mainPortal').classList.add('hidden-section');
         document.getElementById('studentView').classList.remove('hidden-section');
+        document.getElementById('accountBar')?.classList.add('hidden');
 
         const fileId = params.get('fileId');
         if (fileId) {
@@ -2339,7 +2353,28 @@ function finalSubmit() {
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             resource: { values: [rowData] }
+        }).catch(err => {
+            console.error('Failed to submit results to Google Sheet:', err);
         });
+    }
+
+    // Save student attempt to local storage as fallback
+    try {
+        const attempts = JSON.parse(localStorage.getItem('student_exam_attempts') || '[]');
+        attempts.push({
+            examId: currentExam.id,
+            course: currentExam.config ? currentExam.config.course : 'Unknown',
+            topic: currentExam.config ? currentExam.config.topic : 'Unknown',
+            timestamp: new Date().toISOString(),
+            name: studentSession.name,
+            id: studentSession.id,
+            email: studentSession.email,
+            score: score,
+            answers: studentSession.answers
+        });
+        localStorage.setItem('student_exam_attempts', JSON.stringify(attempts));
+    } catch (e) {
+        console.warn('Failed to save attempt to localStorage:', e);
     }
 
     document.getElementById('studentView').classList.add('hidden-section');
