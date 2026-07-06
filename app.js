@@ -305,6 +305,23 @@ async function getAuthorizedRole(email) {
     return { role: 'student', record: null };
 }
 
+function saveGasUrl() {
+    const url = document.getElementById('gasWebAppUrl').value.trim();
+    if (url && !url.startsWith('https://script.google.com/')) {
+        alert('Invalid URL. Must start with https://script.google.com/');
+        return;
+    }
+    localStorage.setItem('gas_web_app_url', url);
+    alert('Web App URL saved successfully!');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const savedGasUrl = localStorage.getItem('gas_web_app_url');
+    if (savedGasUrl && document.getElementById('gasWebAppUrl')) {
+        document.getElementById('gasWebAppUrl').value = savedGasUrl;
+    }
+});
+
 async function verifyCurrentUserRole(forceRefresh = false) {
     if (!currentUser || !currentUser.email) {
         currentAuthorization = { role: 'student', record: null, checkedAt: Date.now() };
@@ -2747,17 +2764,24 @@ function finalSubmit() {
         else score -= (q.negative || 1);
     });
 
-    if (currentExam.config && currentExam.config.resultsSheetId && typeof gapi !== 'undefined' && gapi.client && gapi.client.sheets) {
+    const gasUrl = localStorage.getItem('gas_web_app_url');
+    if (currentExam.config && currentExam.config.resultsSheetId && gasUrl) {
         const rowData = [new Date().toLocaleString(), studentSession.email, studentSession.name, studentSession.id, 1, studentSession.set, score, Object.keys(studentSession.answers).length, studentSession.questions.length];
-        gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId: currentExam.config.resultsSheetId,
-            range: 'Sheet1!A:I',
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
-            resource: { values: [rowData] }
+        
+        // Send to Google Apps Script Web App (bypasses OAuth requirement for students)
+        fetch(gasUrl, {
+            method: 'POST',
+            mode: 'no-cors', // Important to avoid CORS preflight issues with Google Scripts
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                sheetId: currentExam.config.resultsSheetId,
+                rowData: rowData
+            })
         }).catch(err => {
-            console.error('Failed to submit results to Google Sheet:', err);
+            console.error('Failed to submit results to Google Sheet via Web App:', err);
         });
+    } else if (currentExam.config && currentExam.config.resultsSheetId && (!gasUrl || gasUrl === '')) {
+        console.warn('Cannot submit to Google Sheets: Google Apps Script Web App URL is missing in Settings.');
     }
 
     // Save student attempt to local storage as fallback
