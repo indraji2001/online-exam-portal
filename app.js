@@ -2284,8 +2284,12 @@ async function checkStudentMode() {
 
 let examTimerInterval = null;
 let examTimeRemaining = 0;
+let examSecurityActive = false;
+let isSubmitting = false;
 
 function startExam() {
+    isSubmitting = false;
+    isHandlingBreach = false;
     const name = document.getElementById('sName').value.trim();
     const sid = document.getElementById('sId').value.trim();
     if (!name || !sid) { alert("Please enter both Name and ID"); return; }
@@ -2302,7 +2306,17 @@ function startExam() {
 
     // Reset security counters for this attempt
     tabSwitchCount = 0;
+    examSecurityActive = true;
+    if (!studentSession.securityLog) studentSession.securityLog = [];
 
+    // Force fullscreen
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.warn('Fullscreen request failed:', err);
+        });
+    }
+
+    document.getElementById('securityBanner').classList.add('hidden-section');
     document.getElementById('examStateMessage').classList.add('hidden-section');
     document.getElementById('examInterface').classList.remove('hidden-section');
     document.getElementById('totalQNum').textContent = studentSession.questions.length;
@@ -2330,8 +2344,15 @@ function startExamTimer(durationMinutes) {
             clearInterval(examTimerInterval);
             examTimeRemaining = 0;
             updateTimerDisplay();
-            alert("Time's up! Submitting your exam automatically.");
-            finalSubmit();
+            
+            // Disable security BEFORE the native alert pops up, otherwise the alert itself triggers a "blur" strike!
+            examSecurityActive = false; 
+            isSubmitting = true;
+
+            setTimeout(() => {
+                try { alert("Time's up! Submitting your exam automatically."); } catch(e) {}
+                finalSubmit();
+            }, 50);
         } else {
             updateTimerDisplay();
         }
@@ -2417,8 +2438,17 @@ function showSubmitConfirmation() { document.getElementById('submitModal').class
 function closeSubmitModal() { document.getElementById('submitModal').classList.add('hidden'); }
 
 function finalSubmit() {
+    if (isSubmitting) return;
+    isSubmitting = true;
     closeSubmitModal();
+    examSecurityActive = false;
     if (examTimerInterval) clearInterval(examTimerInterval);
+    
+    // Exit fullscreen if active
+    if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(err => console.warn(err));
+    }
+
     let score = 0;
     studentSession.questions.forEach((q, i) => {
         const answer = studentSession.answers[i];
@@ -2427,7 +2457,7 @@ function finalSubmit() {
         else score -= (q.negative || 1);
     });
 
-    if (currentExam.config && currentExam.config.resultsSheetId && gapi.client.sheets) {
+    if (currentExam.config && currentExam.config.resultsSheetId && typeof gapi !== 'undefined' && gapi.client && gapi.client.sheets) {
         const rowData = [new Date().toLocaleString(), studentSession.email, studentSession.name, studentSession.id, 1, studentSession.set, score, Object.keys(studentSession.answers).length, studentSession.questions.length];
         gapi.client.sheets.spreadsheets.values.append({
             spreadsheetId: currentExam.config.resultsSheetId,
@@ -2507,50 +2537,143 @@ function renderLibraryUI() {
     `).join('');
 }
 
-// Security
-document.addEventListener('contextmenu', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
-document.addEventListener('copy', e => { if (!document.getElementById('examInterface').classList.contains('hidden-section')) e.preventDefault(); });
+// ==========================================
+// STRICT EXAM SECURITY LOCKDOWN
+// ==========================================
 
-// Tab-switch / window-blur security system
 let tabSwitchCount = 0;
-const MAX_TAB_SWITCHES = 4; // 1 free warning + 3 strikes before auto-submit
+const MAX_TAB_SWITCHES = 4;
+let isHandlingBreach = false;
 
-window.addEventListener('blur', () => {
-    if (document.getElementById('examInterface').classList.contains('hidden-section')) return;
+function handleSecurityBreach(reason) {
+    if (!examSecurityActive) return;
+    if (isHandlingBreach) return;
+
+    isHandlingBreach = true;
 
     tabSwitchCount++;
+    
+    // Log violation
+    studentSession.securityLog = studentSession.securityLog || [];
+    studentSession.securityLog.push({ timestamp: new Date().toISOString(), reason: reason });
 
-    if (tabSwitchCount === 1) {
-        // First offense — plain warning, no strike count shown
-        alert(
-            '⚠️  SECURITY ALERT!\n\n' +
-            'You have switched away from the exam window.\n\n' +
-            'This activity is being monitored. Please return to the exam immediately.'
-        );
+    // Attempt to re-enter fullscreen
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
 
-    } else {
-        const chancesLeft = MAX_TAB_SWITCHES - tabSwitchCount;
+    const banner = document.getElementById('securityBanner');
+    const reasonText = document.getElementById('securityBannerReason');
+    const chancesText = document.getElementById('securityChancesLeft');
 
-        if (chancesLeft <= 0) {
-            // Out of chances — force submit
-            alert(
-                '🚨  EXAM TERMINATED!\n\n' +
-                'You have exceeded the maximum number of allowed tab switches.\n' +
-                'Your exam is being submitted now with your current answers.'
-            );
-            finalSubmit();
-        } else {
-            // Strike warning with countdown
-            const strikeNum = tabSwitchCount - 1; // strike index (1, 2, 3)
-            alert(
-                '🚨  SECURITY BREACH DETECTED!\n\n' +
-                `Strike ${strikeNum} of 3 — WARNING: ${chancesLeft} CHANCE${chancesLeft === 1 ? '' : 'S'} LEFT\n\n` +
-                'You are switching tabs/windows during the exam.\n' +
-                (chancesLeft === 1
-                    ? '⛔  FINAL WARNING! Next violation will immediately submit and waste your attempt.'
-                    : '⛔  Further violations will result in forced submission and your attempt being wasted.')
-            );
+    let chancesLeft = MAX_TAB_SWITCHES - tabSwitchCount;
+    if (chancesLeft < 0) chancesLeft = 0;
+
+    if (banner) banner.classList.remove('hidden-section');
+    if (reasonText) reasonText.textContent = tabSwitchCount === 1 ? `Warning: ${reason}` : (chancesLeft <= 0 ? `Final Violation: ${reason}` : `Strike ${tabSwitchCount - 1}: ${reason}`);
+    if (chancesText) chancesText.textContent = tabSwitchCount === 1 ? '3' : chancesLeft.toString();
+
+    // Allow DOM to paint the red banner before blocking the thread with an alert
+    setTimeout(() => {
+        try {
+            if (tabSwitchCount === 1) {
+                alert(
+                    '⚠️  SECURITY ALERT!\n\n' +
+                    `Reason: ${reason}\n\n` +
+                    'This activity is strictly prohibited and has been logged. Please return to the exam immediately.'
+                );
+            } else if (chancesLeft <= 0) {
+                alert(
+                    '🚨  EXAM TERMINATED!\n\n' +
+                    'You have exceeded the maximum number of allowed security violations.\n' +
+                    'Your exam is being submitted now with your current answers.'
+                );
+                finalSubmit();
+            } else {
+                alert(
+                    '🚨  SECURITY BREACH DETECTED!\n\n' +
+                    `Strike ${tabSwitchCount - 1} of 3 — WARNING: ${chancesLeft} CHANCE${chancesLeft === 1 ? '' : 'S'} LEFT\n\n` +
+                    `Reason: ${reason}\n\n` +
+                    (chancesLeft === 1
+                        ? '⛔  FINAL WARNING! Next violation will immediately submit and waste your attempt.'
+                        : '⛔  Further violations will result in forced submission.')
+                );
+            }
+        } catch(e) {
+            console.warn('Alert blocked by environment. Forcing submit if chances exhausted.');
+            if (chancesLeft <= 0) finalSubmit();
+        } finally {
+            // Release the lock after a short delay to drop queued synchronous events
+            setTimeout(() => { isHandlingBreach = false; }, 100);
         }
+    }, 50);
+}
+
+// 1. Focus / Visibility Tripwires
+window.addEventListener('blur', () => { handleSecurityBreach('Lost Window Focus (Alt+Tab or clicked elsewhere)'); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) handleSecurityBreach('Tab Hidden or Minimized'); });
+
+// 2. Fullscreen Tripwire
+document.addEventListener('fullscreenchange', () => {
+    if (examSecurityActive && !document.fullscreenElement) {
+        handleSecurityBreach('Exited Fullscreen Mode');
+    }
+});
+
+// 3. Keyboard & Interaction Lockdown
+document.addEventListener('contextmenu', e => { e.preventDefault(); }); // Global block to prevent pre-exam Inspect Element
+document.addEventListener('copy', e => { if (examSecurityActive) e.preventDefault(); });
+document.addEventListener('cut', e => { if (examSecurityActive) e.preventDefault(); });
+document.addEventListener('paste', e => { if (examSecurityActive) e.preventDefault(); });
+document.addEventListener('dragstart', e => { if (examSecurityActive) e.preventDefault(); });
+
+// Global click listener to force re-entry into fullscreen if user exited it (e.g., via alert)
+document.addEventListener('click', () => {
+    if (examSecurityActive && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+});
+
+document.addEventListener('keydown', e => {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+    const key = e.key.toLowerCase();
+
+    // ALWAYS block DevTools to prevent console injection before exam starts
+    if (e.key === 'F12' || (cmdOrCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))) {
+        e.preventDefault();
+        if (examSecurityActive) handleSecurityBreach('Attempted to open Developer Tools');
+        return;
+    }
+
+    if (!examSecurityActive) return;
+
+    // Block F5
+    if (e.key === 'F5') { e.preventDefault(); handleSecurityBreach('Attempted to refresh the page'); }
+    
+    // Block PrintScreen (Clear clipboard hack by copying empty space)
+    if (e.key === 'PrintScreen') { 
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText('').catch(() => {});
+        }
+        handleSecurityBreach('Attempted to take a screenshot'); 
+    }
+
+    // Block Cmd/Ctrl Shortcuts
+    if (cmdOrCtrl) {
+        const blockedKeys = ['c', 'v', 'x', 'a', 's', 'p', 'f', 'g', 'h', 'u', 't', 'n', 'w', 'r'];
+        if (blockedKeys.includes(key)) {
+            e.preventDefault();
+        }
+    }
+});
+
+// Guard against page refresh/close
+window.addEventListener('beforeunload', (e) => {
+    if (examSecurityActive && !isSubmitting) {
+        e.preventDefault();
+        e.returnValue = 'You are currently in an active exam. Refreshing or leaving will cause you to lose your progress and waste an attempt.';
+        return e.returnValue;
     }
 });
 
