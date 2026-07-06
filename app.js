@@ -2697,11 +2697,12 @@ function finalSubmit() {
             baseName = `QS_${cfg.instructor}_${cfg.semester}_${cfg.course}_${cfg.topic}_${dateStr}`;
         }
         
-        a.download = `${baseName}_${studentSession.name}.xls`;
+        const safeStudentName = studentSession.name.replace(/[\\/:*?"<>|]/g, '_').trim();
+        a.download = `${baseName}_${safeStudentName}.xls`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 2000); // FIX: Delay revocation to prevent silent download failures
     } catch (e) {
         console.error("Failed to generate Student Excel Sheet:", e);
     }
