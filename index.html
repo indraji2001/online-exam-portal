@@ -501,6 +501,34 @@
 
         <!-- Tab 5: Import -->
         <section id="content-import" class="max-w-5xl mx-auto hidden-section">
+
+            <!-- ── HTML Checkpoint Import (Phase 2) ─────────────────────────── -->
+            <div class="glass p-8 rounded-3xl border border-white shadow-xl mb-8">
+                <div class="flex flex-col md:flex-row md:items-center gap-6">
+                    <div class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-orange-100">
+                        📂
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-black text-slate-900 mb-1">Import HTML Checkpoint</h3>
+                        <p class="text-sm text-slate-500 font-medium">Restore a previous session from a saved <code class="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-xs">.html</code> checkpoint file. All fields and questions will be auto-loaded and you'll be sent directly to Publish.</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 items-center flex-shrink-0">
+                        <!-- Hidden real file input -->
+                        <input type="file" id="checkpointFileInput" accept=".html" class="hidden" onchange="importHtmlCheckpoint(this.files)">
+                        <button onclick="document.getElementById('checkpointFileInput').click()"
+                                class="pearl-btn pearl-btn-blue px-8 py-3 rounded-2xl text-white font-bold whitespace-nowrap shadow-lg shadow-blue-100 hover:scale-105 transition-transform">
+                            📂 Choose Checkpoint File
+                        </button>
+                    </div>
+                </div>
+                <!-- Status bar (hidden until a file is chosen) -->
+                <div id="checkpointStatus" class="hidden-section mt-5 flex items-center gap-3 bg-slate-50 border border-slate-200 p-4 rounded-2xl text-sm font-semibold text-slate-700">
+                    <span id="checkpointStatusIcon" class="text-xl">⏳</span>
+                    <span id="checkpointStatusText">Processing...</span>
+                </div>
+            </div>
+            <!-- ───────────────────────────────────────────────────────────────── -->
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Data Entry -->
                 <div class="glass p-8 rounded-3xl border border-white shadow-xl flex flex-col h-[700px]">
@@ -1217,6 +1245,6 @@
         </div>
     </div>
     
-    <script src="app.js?v=4.9.16"></script>
+    <script src="app.js?v=4.9.17"></script>
 </body>
 </html>
