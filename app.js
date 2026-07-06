@@ -2350,7 +2350,29 @@ function startExamTimer(durationMinutes) {
             isSubmitting = true;
 
             setTimeout(() => {
-                try { alert("Time's up! Submitting your exam automatically."); } catch(e) {}
+                const modal = document.getElementById('securityModal');
+                const icon = document.getElementById('securityModalIcon');
+                const title = document.getElementById('securityModalTitle');
+                const message = document.getElementById('securityModalMessage');
+                const warning = document.getElementById('securityModalWarning');
+                const btn = document.getElementById('securityModalBtn');
+
+                if (modal) {
+                    icon.textContent = '⏱️';
+                    title.textContent = "TIME'S UP!";
+                    title.className = "text-3xl font-black text-blue-700 mb-2 uppercase tracking-tight";
+                    modal.querySelector('.bg-white').className = "bg-white rounded-[2rem] p-10 max-w-lg w-full shadow-2xl border-4 border-blue-500 transition-all";
+                    btn.className = "w-full px-10 py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-black text-lg text-white transition-all shadow-xl shadow-blue-900/20";
+                    
+                    message.textContent = "Your time is up! Your exam has been submitted automatically.";
+                    warning.classList.add('hidden-section');
+                    btn.textContent = 'View Results';
+                    btn.onclick = () => {
+                        modal.classList.add('hidden-section');
+                    };
+                    modal.classList.remove('hidden-section');
+                }
+                
                 finalSubmit();
             }, 50);
         } else {
@@ -2491,6 +2513,10 @@ function finalSubmit() {
 
     document.getElementById('studentView').classList.add('hidden-section');
     document.getElementById('resultView').classList.remove('hidden-section');
+    
+    // Fix: Ensure global overlays are disabled so they don't block the results screen
+    const enforcer = document.getElementById('fullscreenEnforcer');
+    if (enforcer) enforcer.classList.add('hidden-section');
     document.getElementById('finalBestScore').textContent = score;
 }
 
@@ -2545,12 +2571,17 @@ let tabSwitchCount = 0;
 const MAX_TAB_SWITCHES = 4;
 let isHandlingBreach = false;
 
+function dismissSecurityModal() {
+    const modal = document.getElementById('securityModal');
+    if (modal) modal.classList.add('hidden-section');
+    isHandlingBreach = false; // RELEASE THE LOCK
+}
+
 function handleSecurityBreach(reason) {
     if (!examSecurityActive) return;
     if (isHandlingBreach) return;
 
     isHandlingBreach = true;
-
     tabSwitchCount++;
     
     // Log violation
@@ -2573,35 +2604,55 @@ function handleSecurityBreach(reason) {
     if (reasonText) reasonText.textContent = tabSwitchCount === 1 ? `Warning: ${reason}` : (chancesLeft <= 0 ? `Final Violation: ${reason}` : `Strike ${tabSwitchCount - 1}: ${reason}`);
     if (chancesText) chancesText.textContent = tabSwitchCount === 1 ? '3' : chancesLeft.toString();
 
-    // Allow DOM to paint the red banner before blocking the thread with an alert
+    // Allow DOM to paint the red banner before blocking the thread with the modal
     setTimeout(() => {
-        try {
-            if (tabSwitchCount === 1) {
-                alert(
-                    '⚠️  SECURITY ALERT!\n\n' +
-                    `Reason: ${reason}\n\n` +
-                    'This activity is strictly prohibited and has been logged. Please return to the exam immediately.'
-                );
-            } else if (chancesLeft <= 0) {
-                alert(
-                    '🚨  EXAM TERMINATED!\n\n' +
-                    'You have exceeded the maximum number of allowed security violations.\n' +
-                    'Your exam is being submitted now with your current answers.'
-                );
-                finalSubmit();
-            } else {
-                alert(
-                    '🚨  SECURITY BREACH DETECTED!\n\n' +
-                    `Strike ${tabSwitchCount - 1} of 3 — WARNING: ${chancesLeft} CHANCE${chancesLeft === 1 ? '' : 'S'} LEFT\n\n` +
-                    `Reason: ${reason}\n\n` +
-                    (chancesLeft === 1
-                        ? '⛔  FINAL WARNING! Next violation will immediately submit and waste your attempt.'
-                        : '⛔  Further violations will result in forced submission.')
-                );
-            }
-        } catch(e) {
-            console.warn('Alert blocked by environment. Forcing submit if chances exhausted.');
-            if (chancesLeft <= 0) finalSubmit();
+        const modal = document.getElementById('securityModal');
+        const icon = document.getElementById('securityModalIcon');
+        const title = document.getElementById('securityModalTitle');
+        const message = document.getElementById('securityModalMessage');
+        const warning = document.getElementById('securityModalWarning');
+        const btn = document.getElementById('securityModalBtn');
+
+        if (!modal) return;
+
+        // Reset styling to RED (in case it was changed to blue by the timer)
+        modal.querySelector('.bg-white').className = "bg-white rounded-[2rem] p-10 max-w-lg w-full shadow-2xl border-4 border-red-500 transition-all";
+        title.className = "text-3xl font-black text-red-700 mb-2 uppercase tracking-tight";
+        btn.className = "w-full px-10 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-black text-lg text-white transition-all shadow-xl shadow-red-900/20";
+
+        if (tabSwitchCount === 1) {
+            icon.textContent = '⚠️';
+            title.textContent = 'SECURITY ALERT';
+            message.textContent = `Reason: ${reason}\n\nThis activity is strictly prohibited and has been logged. Please return to the exam immediately.`;
+            warning.classList.add('hidden-section');
+            btn.textContent = 'I Understand';
+            btn.onclick = dismissSecurityModal;
+        } else if (chancesLeft <= 0) {
+            icon.textContent = '🚨';
+            title.textContent = 'EXAM TERMINATED';
+            message.textContent = 'You have exceeded the maximum number of allowed security violations.\nYour exam is being submitted now with your current answers.';
+            warning.classList.add('hidden-section');
+            btn.textContent = 'View Results';
+            btn.onclick = () => {
+                modal.classList.add('hidden-section');
+                isHandlingBreach = false;
+            };
+            finalSubmit(); // Terminate instantly
+        } else {
+            icon.textContent = '🚨';
+            title.textContent = 'SECURITY BREACH DETECTED';
+            message.textContent = `Strike ${tabSwitchCount - 1} of 3\n\nReason: ${reason}`;
+            warning.classList.remove('hidden-section');
+            warning.textContent = chancesLeft === 1 
+                ? '⛔ FINAL WARNING! Next violation will immediately submit and waste your attempt.'
+                : `WARNING: ${chancesLeft} CHANCE${chancesLeft === 1 ? '' : 'S'} LEFT. Further violations will result in forced submission.`;
+            btn.textContent = 'I Understand';
+            btn.onclick = dismissSecurityModal;
+        }
+
+        modal.classList.remove('hidden-section');
+    }, 50);
+}inalSubmit();
         } finally {
             // Release the lock after a short delay to drop queued synchronous events
             setTimeout(() => { isHandlingBreach = false; }, 100);
@@ -2616,9 +2667,20 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) handl
 // 2. Fullscreen Tripwire
 document.addEventListener('fullscreenchange', () => {
     if (examSecurityActive && !document.fullscreenElement) {
+        const enforcer = document.getElementById('fullscreenEnforcer');
+        if (enforcer) enforcer.classList.remove('hidden-section');
         handleSecurityBreach('Exited Fullscreen Mode');
     }
 });
+
+function enforceFullscreenClick() {
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().then(() => {
+            const enforcer = document.getElementById('fullscreenEnforcer');
+            if (enforcer) enforcer.classList.add('hidden-section');
+        }).catch(() => {});
+    }
+}
 
 // 3. Keyboard & Interaction Lockdown
 document.addEventListener('contextmenu', e => { e.preventDefault(); }); // Global block to prevent pre-exam Inspect Element
@@ -2627,12 +2689,7 @@ document.addEventListener('cut', e => { if (examSecurityActive) e.preventDefault
 document.addEventListener('paste', e => { if (examSecurityActive) e.preventDefault(); });
 document.addEventListener('dragstart', e => { if (examSecurityActive) e.preventDefault(); });
 
-// Global click listener to force re-entry into fullscreen if user exited it (e.g., via alert)
-document.addEventListener('click', () => {
-    if (examSecurityActive && !document.fullscreenElement && document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {});
-    }
-});
+// (Global click listener removed in favor of the hard overlay)
 
 document.addEventListener('keydown', e => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
