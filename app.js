@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('identityModal')?.classList.add('hidden-section');
         document.getElementById('accountBar')?.classList.add('hidden');
         document.getElementById('mainPortal')?.classList.add('hidden');
-        
+
+        initSupabase(); // needed for result submission
         checkStudentMode();
         initLibrary();
         return; // ← EXIT EARLY: do not load Google API at all
@@ -2231,16 +2232,17 @@ async function checkStudentMode() {
         const fileId = params.get('fileId');
         if (fileId) {
             try {
-                let retries = 0;
-                while ((typeof gapi === 'undefined' || !gapi.client || !gapi.client.drive) && retries < 15) {
-                    await new Promise(r => setTimeout(r, 500));
-                    retries++;
+                // Use a direct REST fetch with the public API key — no OAuth/gapi needed
+                const driveUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${GOOGLE_API_KEY}`;
+                const response = await fetch(driveUrl);
+                if (response.ok) {
+                    currentExam = await response.json();
+                } else {
+                    console.error('Failed to fetch exam file:', response.status, await response.text());
                 }
-                if (gapi && gapi.client && gapi.client.drive) {
-                    const response = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' });
-                    currentExam = response.result;
-                }
-            } catch (e) { }
+            } catch (e) {
+                console.error('Exam fetch error:', e);
+            }
         } else if (params.get('exam')) {
             const examData = localStorage.getItem('exam_' + params.get('exam'));
             if (examData) currentExam = JSON.parse(examData);
