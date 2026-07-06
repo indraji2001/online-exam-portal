@@ -764,7 +764,15 @@
                                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Admin Authorization</label>
                                 <input type="text" id="setAdminPass" value="Managed in authorized_emails" disabled class="w-full p-4 border-2 rounded-xl font-bold bg-white outline-none text-slate-400 transition">
                             </div>
-                            <button onclick="updateAdminSecurity()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition">Manage Authorization</button>
+                            <button onclick="updateAdminSecurity()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition mb-6">Manage Authorization</button>
+                            
+                            <!-- ── Web App URL Setting ── -->
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Google Apps Script Web App URL</label>
+                                <input type="text" id="gasWebAppUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full p-4 border-2 rounded-xl font-mono text-xs bg-white outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition">
+                                <p class="text-[9px] text-slate-400 mt-2 font-medium">Required for anonymous student submissions to Google Sheets.</p>
+                            </div>
+                            <button onclick="saveGasUrl()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition">Save Web App URL</button>
                         </div>
                     </div>
                 </div>
@@ -1245,6 +1253,6 @@
         </div>
     </div>
     
-    <script src="app.js?v=4.9.17"></script>
+    <script src="app.js?v=4.9.18"></script>
 </body>
 </html>
