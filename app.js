@@ -2153,8 +2153,24 @@ async function publishExam() {
             }
 
         } catch (e) {
-            driveError = e.message || String(e);
             console.error('Drive publish error:', e);
+            if (e && typeof e === 'object') {
+                if (e.message) {
+                    driveError = e.message;
+                } else if (e.result && e.result.error && e.result.error.message) {
+                    driveError = e.result.error.message;
+                } else if (e.error && e.error.message) {
+                    driveError = e.error.message;
+                } else {
+                    try {
+                        driveError = JSON.stringify(e);
+                    } catch (_) {
+                        driveError = String(e);
+                    }
+                }
+            } else {
+                driveError = String(e);
+            }
         }
     } else {
         // LocalStorage fallback
