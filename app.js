@@ -2290,29 +2290,7 @@ async function publishExam() {
                 } catch (e) { console.warn('JSON config save (non-fatal):', e); }
             }
 
-            // 3. HTML question bank archive
-            if (questionBanksFolderId) {
-                try {
-                    let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QB - ${cfg.course}</title><style>body{font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px}.set-title{background:#3498db;color:#fff;padding:10px;border-radius:6px;margin:30px 0 15px}.question{border:1px solid #e0e0e0;padding:20px;border-radius:8px;margin-bottom:20px;page-break-inside:avoid}.correct-opt{background:#d4edda;font-weight:bold}.option{padding:8px;border-radius:4px;border:1px solid #ddd;margin:4px 0}.explanation{background:#fff3cd;padding:12px;border-radius:6px;margin-top:10px}@media print{.question{border:1px solid #ccc}}</style></head><body><h1 style="text-align:center">Question Bank: ${cfg.course}</h1><p><b>Instructor:</b> ${cfg.instructor} | <b>Topic:</b> ${cfg.topic} | <b>Date:</b> ${new Date().toLocaleDateString()}</p>`;
-                    Object.entries(generatedSets).forEach(([set, qs]) => {
-                        html += `<div class="set-container"><h2 class="set-title">Set ${set}</h2>`;
-                        qs.forEach(q => {
-                            const corr = Array.isArray(q.correct) ? q.correct : [q.correct];
-                            html += `<div class="question"><b>Q${q.number}. [${(q.type||'single').toUpperCase()}] +${q.marks}/-${q.negative}</b><p>${q.text}</p>`;
-                            q.options.forEach((opt, i) => { 
-                                const optId = (q.optionIds && q.optionIds[i]) ? `[${q.optionIds[i]}] ` : '';
-                                html += `<div class="option ${corr.includes(i)?'correct-opt':''}">${String.fromCharCode(65+i)}. ${optId}${opt}</div>`; 
-                            });
-                            if (q.explanation) html += `<div class="explanation"><b>Explanation:</b> ${q.explanation}</div>`;
-                            html += `</div>`;
-                        });
-                        html += `</div>`;
-                    });
-                    html += `</body></html>`;
-                    let archiveName = (document.getElementById('archiveFileName').value || 'Question_Bank').replace(/\.[^.]+$/, '') + '.html';
-                    await saveExamToDrive(new Blob([html], { type: 'text/html' }), questionBanksFolderId, archiveName, 'text/html', true);
-                } catch (e) { console.warn('HTML archive (non-fatal):', e); }
-            }
+            // 3. HTML Checkpoint generation was moved to lockAndContinue() to prevent duplicates.
 
         } catch (e) {
             console.error('Drive publish error:', e);
@@ -2715,11 +2693,11 @@ function finalSubmit() {
         let baseName = "Exam";
         if (currentExam && currentExam.config) {
             const cfg = currentExam.config;
-            const dateStr = new Date().toLocaleDateString('en-GB').replace(/\\//g, '');
-            baseName = \`QS_\${cfg.instructor}_\${cfg.semester}_\${cfg.course}_\${cfg.topic}_\${dateStr}\`;
+            const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+            baseName = `QS_${cfg.instructor}_${cfg.semester}_${cfg.course}_${cfg.topic}_${dateStr}`;
         }
         
-        a.download = \`\${baseName}_\${studentSession.name}.xls\`;
+        a.download = `${baseName}_${studentSession.name}.xls`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
