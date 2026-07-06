@@ -3,6 +3,24 @@
 // ==========================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Detect student mode FIRST, before anything else
+    const params = new URLSearchParams(location.search);
+    const isStudentMode = params.get('mode') === 'student';
+
+    if (isStudentMode) {
+        // STUDENT MODE: Skip ALL Google Auth — students only need Name + ID
+        // Hide all faculty/admin UI elements immediately, before any async load
+        document.getElementById('authContainer')?.classList.add('hidden');
+        document.getElementById('identityModal')?.classList.add('hidden-section');
+        document.getElementById('accountBar')?.classList.add('hidden');
+        document.getElementById('mainPortal')?.classList.add('hidden');
+        
+        checkStudentMode();
+        initLibrary();
+        return; // ← EXIT EARLY: do not load Google API at all
+    }
+
+    // FACULTY/ADMIN MODE ONLY below this line
     const now = new Date();
     const later = new Date(now.getTime() + 72 * 60 * 60 * 1000);
     document.getElementById('linkStartTime').value = now.toISOString().slice(0, 16);
@@ -10,15 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initSupabase();
     initGoogleApi();
-    
-    // In student mode, do NOT check faculty environment or require Google sign-in on load
-    const params = new URLSearchParams(location.search);
-    if (params.get('mode') === 'student') {
-        checkStudentMode();
-    } else {
-        checkEnvironment();
-    }
-    
+    checkEnvironment();
     updateSourceDisplay();
     loadDraft();
     initLibrary();
