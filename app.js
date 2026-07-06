@@ -1841,6 +1841,19 @@ function importToSets() {
         alert(`SUCCESS! Copied and Shuffled ${parsedQuestions.length} questions into Sets.`);
     }
 
+    // --- NEW: Generate 4-digit Short Option IDs ---
+    Object.keys(generatedSets).forEach(s => {
+        generatedSets[s].forEach(q => {
+            if (q.options && Array.isArray(q.options)) {
+                q.optionIds = [];
+                while (q.optionIds.length < q.options.length) {
+                    let id = Math.floor(1000 + Math.random() * 9000);
+                    if (!q.optionIds.includes(id)) q.optionIds.push(id);
+                }
+            }
+        });
+    });
+
     showTab('images');
 }
 
@@ -2071,6 +2084,152 @@ async function loadLibrary() {
     }
 }
 
+// ==========================================
+// LOCK & CONTINUE — CHECKPOINT GENERATION
+// ==========================================
+
+async function lockAndContinue() {
+    if (!requireRole(['admin', 'faculty'])) return;
+
+    // Guard: must have questions
+    if (Object.keys(generatedSets).length === 0) {
+        alert('No questions found. Please generate or import questions before locking.');
+        return;
+    }
+
+    const instructor = document.getElementById('genInstructor').value.trim();
+    const course     = document.getElementById('genCourse').value.trim();
+    if (!instructor) { alert('Please enter the Instructor name in the Generate tab first.'); showTab('generate'); return; }
+    if (!course)     { alert('Please enter the Course Code in the Generate tab first.');     showTab('generate'); return; }
+
+    // Collect config from the Generate tab
+    const cfg = {
+        instructor,
+        course,
+        semester:   document.getElementById('genSemester').value,
+        topic:      document.getElementById('genTopic').value,
+        standard:   document.getElementById('genStandard').value,
+        sets:       parseInt(document.getElementById('genSets').value),
+        attempts:   parseInt(document.getElementById('genAttempts').value),
+        difficulty: document.getElementById('genDifficulty').value,
+        duration:   parseInt(document.getElementById('genDuration').value)
+    };
+
+    // Build the filename (same format as the preview)
+    const dateStr    = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+    const safeName   = (name) => name.replace(/\s+/g, '_');
+    const archiveName = `QS_${safeName(cfg.instructor)}_${cfg.semester}_${cfg.course}_${safeName(cfg.topic)}_${dateStr}.html`;
+
+    // ── Build HTML Checkpoint ────────────────────────────────────────────────
+    const checkpointPayload = JSON.stringify({ cfg, sets: generatedSets });
+
+    let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>QB Checkpoint - ${cfg.course}</title>
+  <style>
+    body{font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px}
+    .set-title{background:#3498db;color:#fff;padding:10px;border-radius:6px;margin:30px 0 15px}
+    .question{border:1px solid #e0e0e0;padding:20px;border-radius:8px;margin-bottom:20px;page-break-inside:avoid}
+    .correct-opt{background:#d4edda;font-weight:bold}
+    .option{padding:8px;border-radius:4px;border:1px solid #ddd;margin:4px 0}
+    .explanation{background:#fff3cd;padding:12px;border-radius:6px;margin-top:10px}
+    @media print{.question{border:1px solid #ccc}}
+  </style>
+</head>
+<body>
+  <!-- CHECKPOINT PAYLOAD — DO NOT EDIT -->
+  <script id="exam-checkpoint-data" type="application/json">${checkpointPayload}<\/script>
+
+  <h1 style="text-align:center">Question Bank Checkpoint: ${cfg.course}</h1>
+  <p><b>Instructor:</b> ${cfg.instructor} | <b>Topic:</b> ${cfg.topic} | <b>Standard:</b> ${cfg.standard} | <b>Semester:</b> ${cfg.semester} | <b>Sets:</b> ${cfg.sets} | <b>Attempts:</b> ${cfg.attempts} | <b>Date:</b> ${new Date().toLocaleDateString()}</p>`;
+
+    Object.entries(generatedSets).forEach(([set, qs]) => {
+        html += `<div class="set-container"><h2 class="set-title">Set ${set}</h2>`;
+        qs.forEach(q => {
+            const corr = Array.isArray(q.correct) ? q.correct : [q.correct];
+            html += `<div class="question"><b>Q${q.number}. [${(q.type || 'single').toUpperCase()}] +${q.marks}/-${q.negative}</b><p>${q.text}</p>`;
+            q.options.forEach((opt, i) => {
+                const optId = (q.optionIds && q.optionIds[i]) ? `[${q.optionIds[i]}] ` : '';
+                html += `<div class="option ${corr.includes(i) ? 'correct-opt' : ''}">${String.fromCharCode(65 + i)}. ${optId}${opt}</div>`;
+            });
+            if (q.explanation) html += `<div class="explanation"><b>Explanation:</b> ${q.explanation}</div>`;
+            html += `</div>`;
+        });
+        html += `</div>`;
+    });
+    html += `</body></html>`;
+
+    const htmlBlob = new Blob([html], { type: 'text/html' });
+
+    // ── Save to Drive (with duplicate prevention) ────────────────────────────
+    if (driveFolderId && gapi && gapi.client) {
+        try {
+            await getOrCreateInstructorFolder(cfg.instructor);
+            const questionBanksFolderId = await getInstructorSubfolder('03_Question_Banks');
+
+            if (questionBanksFolderId) {
+                const token = gapi.client.getToken().access_token;
+
+                // Check if a file with the same name already exists in this folder
+                const searchResp = await gapi.client.drive.files.list({
+                    q: `name='${archiveName}' and '${questionBanksFolderId}' in parents and trashed=false`,
+                    fields: 'files(id, name)',
+                    spaces: 'drive'
+                });
+
+                const existingFiles = searchResp.result.files;
+
+                if (existingFiles && existingFiles.length > 0) {
+                    // ── UPDATE existing file (no duplicate created) ──────────
+                    const existingFileId = existingFiles[0].id;
+                    const updateResp = await fetch(
+                        `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`,
+                        {
+                            method: 'PATCH',
+                            headers: new Headers({ 'Authorization': 'Bearer ' + token }),
+                            body: (() => {
+                                const form = new FormData();
+                                form.append('metadata', new Blob([JSON.stringify({ name: archiveName })], { type: 'application/json' }));
+                                form.append('file', htmlBlob);
+                                return form;
+                            })()
+                        }
+                    );
+                    if (!updateResp.ok) console.warn('Checkpoint update warning:', await updateResp.text());
+                    else console.log('✅ Checkpoint updated (no duplicate):', archiveName);
+                } else {
+                    // ── CREATE new file ──────────────────────────────────────
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify({ name: archiveName, parents: [questionBanksFolderId] })], { type: 'application/json' }));
+                    form.append('file', htmlBlob);
+                    const createResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+                        {
+                            method: 'POST',
+                            headers: new Headers({ 'Authorization': 'Bearer ' + token }),
+                            body: form
+                        }
+                    );
+                    if (!createResp.ok) console.warn('Checkpoint create warning:', await createResp.text());
+                    else console.log('✅ Checkpoint saved to Drive:', archiveName);
+                }
+            }
+        } catch (e) {
+            // Non-fatal: Drive save failure does not block the user
+            console.warn('Checkpoint Drive save (non-fatal):', e);
+        }
+    }
+
+    // ── Pre-fill the archiveFileName input on the Publish tab ───────────────
+    const archiveInput = document.getElementById('archiveFileName');
+    if (archiveInput) archiveInput.value = archiveName;
+
+    // ── Navigate to Publish tab ──────────────────────────────────────────────
+    showTab('publish');
+}
+
 async function publishExam() {
     if (!requireRole(['admin', 'faculty'])) return;
     const instructor = document.getElementById('genInstructor').value.trim();
@@ -2140,7 +2299,10 @@ async function publishExam() {
                         qs.forEach(q => {
                             const corr = Array.isArray(q.correct) ? q.correct : [q.correct];
                             html += `<div class="question"><b>Q${q.number}. [${(q.type||'single').toUpperCase()}] +${q.marks}/-${q.negative}</b><p>${q.text}</p>`;
-                            q.options.forEach((opt, i) => { html += `<div class="option ${corr.includes(i)?'correct-opt':''}">${String.fromCharCode(65+i)}. ${opt}</div>`; });
+                            q.options.forEach((opt, i) => { 
+                                const optId = (q.optionIds && q.optionIds[i]) ? `[${q.optionIds[i]}] ` : '';
+                                html += `<div class="option ${corr.includes(i)?'correct-opt':''}">${String.fromCharCode(65+i)}. ${optId}${opt}</div>`; 
+                            });
                             if (q.explanation) html += `<div class="explanation"><b>Explanation:</b> ${q.explanation}</div>`;
                             html += `</div>`;
                         });
@@ -2509,6 +2671,61 @@ function finalSubmit() {
         localStorage.setItem('student_exam_attempts', JSON.stringify(attempts));
     } catch (e) {
         console.warn('Failed to save attempt to localStorage:', e);
+    }
+
+    // --- NEW: Generate Student Answer Sheet (Excel) ---
+    try {
+        let htmlTable = `<table border="1" style="font-family: Arial, sans-serif; font-size: 14pt; text-align: center;">`;
+        htmlTable += `<tr><th colspan="8" style="font-size: 24pt; text-align: center; font-weight: bold; padding: 10px;">STUDENT NAME: ${studentSession.name} | ID: ${studentSession.id}</th></tr>`;
+        htmlTable += `<tr><th colspan="8" style="font-size: 18pt; text-align: center; font-weight: bold; padding: 10px;">SET: ${studentSession.set}</th></tr>`;
+        htmlTable += `<tr style="background-color: #f2f2f2;">
+            <th>Number</th><th>Type</th><th>Option_A</th><th>Option_B</th><th>Option_C</th><th>Option_D</th><th>Correct</th><th>Student_Answer</th>
+        </tr>`;
+
+        studentSession.questions.forEach((q, i) => {
+            const answerIdx = studentSession.answers[i];
+            const type = (q.type || 'single').toUpperCase();
+            const optA = (q.optionIds && q.optionIds[0]) ? q.optionIds[0] : '';
+            const optB = (q.optionIds && q.optionIds[1]) ? q.optionIds[1] : '';
+            const optC = (q.optionIds && q.optionIds[2]) ? q.optionIds[2] : '';
+            const optD = (q.optionIds && q.optionIds[3]) ? q.optionIds[3] : '';
+            
+            const correctOptIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+            const correctOpt = (q.optionIds && q.optionIds[correctOptIdx]) ? q.optionIds[correctOptIdx] : '';
+            const studentOpt = (answerIdx !== undefined && q.optionIds && q.optionIds[answerIdx]) ? q.optionIds[answerIdx] : 'Unanswered';
+            
+            htmlTable += `<tr>
+                <td>${q.number}</td>
+                <td>${type}</td>
+                <td>${optA}</td>
+                <td>${optB}</td>
+                <td>${optC}</td>
+                <td>${optD}</td>
+                <td style="background-color: #d4edda;">${correctOpt}</td>
+                <td style="background-color: ${answerIdx === correctOptIdx ? '#d4edda' : '#f8d7da'};">${studentOpt}</td>
+            </tr>`;
+        });
+        htmlTable += `</table>`;
+
+        const blob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        let baseName = "Exam";
+        if (currentExam && currentExam.config) {
+            const cfg = currentExam.config;
+            const dateStr = new Date().toLocaleDateString('en-GB').replace(/\\//g, '');
+            baseName = \`QS_\${cfg.instructor}_\${cfg.semester}_\${cfg.course}_\${cfg.topic}_\${dateStr}\`;
+        }
+        
+        a.download = \`\${baseName}_\${studentSession.name}.xls\`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error("Failed to generate Student Excel Sheet:", e);
     }
 
     document.getElementById('studentView').classList.add('hidden-section');
