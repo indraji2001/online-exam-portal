@@ -2652,12 +2652,6 @@ function handleSecurityBreach(reason) {
 
         modal.classList.remove('hidden-section');
     }, 50);
-}inalSubmit();
-        } finally {
-            // Release the lock after a short delay to drop queued synchronous events
-            setTimeout(() => { isHandlingBreach = false; }, 100);
-        }
-    }, 50);
 }
 
 // 1. Focus / Visibility Tripwires
