@@ -449,7 +449,16 @@ async function selectRole(role) {
             return;
         }
         document.getElementById('roleSelectionStep').classList.add('hidden-section');
-        document.getElementById('adminDriveStep').classList.remove('hidden-section');
+        
+        const isDeptAccount = normalizeEmail(currentUser.email) === DEPARTMENTAL_ACCOUNT || normalizeEmail(currentUser.email) === 'chemistrydept@maldacollege.ac.in';
+        
+        if (isDeptAccount) {
+            // Auto-bypass the "Storage Target" step and force departmental drive for the departmental account
+            confirmAdminEntry('departmental');
+        } else {
+            // Show the prompt for normal admins
+            document.getElementById('adminDriveStep').classList.remove('hidden-section');
+        }
     } else {
         if (verifiedRole !== 'faculty' && !(verifiedRole === 'admin' && ADMINS_CAN_ACT_AS_FACULTY)) {
             denyPrivilegedAccess('This Google account is not authorized for faculty access. You may only access student exam links.');
@@ -715,32 +724,42 @@ async function initializeFacultyPortal(faculty) {
         nameStep.innerHTML = loadingHtml;
     }
 
-    // 1. Initial Drive Prep (Master Folder)
-    await prepareDriveAndConfig();
-    
-    // 2. Identify the Master 'Instructors' Folder
-    await setupInstructorsFolderOnly();
+    try {
+        // 1. Initial Drive Prep (Master Folder)
+        await prepareDriveAndConfig();
+        
+        // 2. Identify the Master 'Instructors' Folder
+        await setupInstructorsFolderOnly();
 
-    // 3. SECURE ISOLATION: Re-scope the root to the Instructor's specific vault
-    const facultyFolderId = await getOrCreateInstructorFolder(facultyName);
-    
-    // THE MASTER LOCK: Redirect all future drive operations to this subfolder
-    driveFolderId = facultyFolderId; 
-    console.log("FACULTY LOCKED: Root re-scoped to Private Vault ID:", driveFolderId);
+        // 3. SECURE ISOLATION: Re-scope the root to the Instructor's specific vault
+        const facultyFolderId = await getOrCreateInstructorFolder(facultyName);
+        
+        // THE MASTER LOCK: Redirect all future drive operations to this subfolder
+        driveFolderId = facultyFolderId; 
+        console.log("FACULTY LOCKED: Root re-scoped to Private Vault ID:", driveFolderId);
 
-    // Finalize UI
-    document.getElementById('identityModal').classList.add('hidden-section');
-    document.getElementById('mainPortal').classList.remove('hidden');
-    
-    // Visual Confirmation Badge
-    const badge = document.createElement('div');
+        // Finalize UI
+        document.getElementById('identityModal').classList.add('hidden-section');
+        document.getElementById('mainPortal').classList.remove('hidden');
+        
+        // Visual Confirmation Badge
+        const badge = document.createElement('div');
+
     badge.className = "flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 shadow-sm ml-4";
     badge.innerHTML = `<span class="text-[10px] font-black uppercase tracking-widest">📂 Vault: ${faculty.name}</span>`;
     badge.textContent = `Vault: ${facultyName}`;
     document.getElementById('accountBar').insertBefore(badge, document.getElementById('accountBar').firstChild);
     
     // Refresh library from the new isolated root
-    loadLibrary();
+    await loadLibrary();
+    
+    } catch (err) {
+        console.error("Failed to initialize private vault:", err);
+        const errorMsg = err.result && err.result.error ? err.result.error.message : (err.message || err.toString());
+        alert("Error initializing private vault: " + errorMsg + "\n\nThis usually means Google Drive permissions were not granted. Please click 'Change Account', sign in again, and ensure you check the boxes to grant Google Drive access.");
+        document.getElementById('identityModal').classList.add('hidden-section');
+        showAuthModal();
+    }
 }
 
 async function setupInstructorsFolderOnly() {
