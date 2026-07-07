@@ -2414,7 +2414,8 @@ async function publishExam() {
         duration: parseInt(document.getElementById('genDuration').value),
         markCorrect: parseFloat(document.getElementById('markCorrect').value),
         markNegative: parseFloat(document.getElementById('markNegative').value),
-        resultsSheetId: null
+        resultsSheetId: null,
+        submissionsFolderId: null
     };
 
     currentExam = { id: 'EXAM_' + Date.now(), config: cfg, sets: generatedSets, studentAttempts: {}, createdAt: new Date().toISOString() };
@@ -2431,6 +2432,12 @@ async function publishExam() {
             const questionBanksFolderId = await getInstructorSubfolder('03_Question_Banks');
             const examConfigsFolderId   = await getInstructorSubfolder('07_Exam_Configurations');
             const resultsFolderId       = await getInstructorSubfolder('05_Results_Archives');
+            
+            // Look up Student_Submissions folder
+            try {
+                const submissionsFolderId = await getInstructorSubfolder('06_Student_Submissions');
+                currentExam.config.submissionsFolderId = submissionsFolderId;
+            } catch (e) { console.warn('Submissions folder lookup (non-fatal):', e); }
 
             // 1. Results sheet
             try {
@@ -2783,48 +2790,21 @@ function finalSubmit() {
         else score -= (q.negative || 1);
     });
 
-    const gasUrl = localStorage.getItem('gas_web_app_url');
-    if (currentExam.config && currentExam.config.resultsSheetId && gasUrl) {
-        const rowData = [new Date().toLocaleString(), studentSession.email, studentSession.name, studentSession.id, 1, studentSession.set, score, Object.keys(studentSession.answers).length, studentSession.questions.length];
-        
-        // Send to Google Apps Script Web App (bypasses OAuth requirement for students)
-        fetch(gasUrl, {
-            method: 'POST',
-            mode: 'no-cors', // Important to avoid CORS preflight issues with Google Scripts
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-                sheetId: currentExam.config.resultsSheetId,
-                rowData: rowData
-            })
-        }).catch(err => {
-            console.error('Failed to submit results to Google Sheet via Web App:', err);
-        });
-    } else if (currentExam.config && currentExam.config.resultsSheetId && (!gasUrl || gasUrl === '')) {
-        console.warn('Cannot submit to Google Sheets: Google Apps Script Web App URL is missing in Settings.');
+    const safeStudentName = studentSession.name.replace(/[\\/:*?"<>|]/g, '_').trim();
+    
+    let finalFileName = `${safeStudentName}.xls`;
+    if (currentExam && currentExam.config) {
+        const cfg = currentExam.config;
+        const cleanSem = cfg.semester ? cfg.semester.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').trim() : 'Sem';
+        const cleanCourse = cfg.course ? cfg.course.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').trim() : 'Course';
+        const cleanTopic = cfg.topic ? cfg.topic.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').trim() : 'Topic';
+        finalFileName = `${cleanSem}_${cleanCourse}_${cleanTopic}_${safeStudentName}.xls`;
     }
-
-    // Save student attempt to local storage as fallback
+    
+    // --- 1. Generate Student Answer Sheet (Excel HTML format) ---
+    let htmlTable = "";
     try {
-        const attempts = JSON.parse(localStorage.getItem('student_exam_attempts') || '[]');
-        attempts.push({
-            examId: currentExam.id,
-            course: currentExam.config ? currentExam.config.course : 'Unknown',
-            topic: currentExam.config ? currentExam.config.topic : 'Unknown',
-            timestamp: new Date().toISOString(),
-            name: studentSession.name,
-            id: studentSession.id,
-            email: studentSession.email,
-            score: score,
-            answers: studentSession.answers
-        });
-        localStorage.setItem('student_exam_attempts', JSON.stringify(attempts));
-    } catch (e) {
-        console.warn('Failed to save attempt to localStorage:', e);
-    }
-
-    // --- NEW: Generate Student Answer Sheet (Excel) ---
-    try {
-        let htmlTable = `<table border="1" style="font-family: Arial, sans-serif; font-size: 14pt; text-align: center;">`;
+        htmlTable = `<table border="1" style="font-family: Arial, sans-serif; font-size: 14pt; text-align: center;">`;
         htmlTable += `<tr><th colspan="8" style="font-size: 24pt; text-align: center; font-weight: bold; padding: 10px;">STUDENT NAME: ${studentSession.name} | ID: ${studentSession.id}</th></tr>`;
         htmlTable += `<tr><th colspan="8" style="font-size: 18pt; text-align: center; font-weight: bold; padding: 10px;">SET: ${studentSession.set}</th></tr>`;
         htmlTable += `<tr style="background-color: #f2f2f2;">
@@ -2856,26 +2836,58 @@ function finalSubmit() {
         });
         htmlTable += `</table>`;
 
-        const blob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        let baseName = "Exam";
-        if (currentExam && currentExam.config) {
-            const cfg = currentExam.config;
-            const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
-            baseName = `QS_${cfg.instructor}_${cfg.semester}_${cfg.course}_${cfg.topic}_${dateStr}`;
-        }
-        
-        const safeStudentName = studentSession.name.replace(/[\\/:*?"<>|]/g, '_').trim();
-        a.download = `${baseName}_${safeStudentName}.xls`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 2000); // FIX: Delay revocation to prevent silent download failures
+        // Local Download code removed as per user request
     } catch (e) {
         console.error("Failed to generate Student Excel Sheet:", e);
+    }
+
+    // --- 2. Submit to Central Sheet & Instructor's Drive via Apps Script Web App ---
+    const gasUrl = localStorage.getItem('gas_web_app_url');
+    if (currentExam.config && currentExam.config.resultsSheetId && gasUrl) {
+        const rowData = [new Date().toLocaleString(), studentSession.email, studentSession.name, studentSession.id, 1, studentSession.set, score, Object.keys(studentSession.answers).length, studentSession.questions.length];
+        
+        const payload = {
+            sheetId: currentExam.config.resultsSheetId,
+            rowData: rowData
+        };
+
+        // If the submissions folder ID is set, send the file contents to be saved there
+        if (currentExam.config.submissionsFolderId) {
+            payload.submissionsFolderId = currentExam.config.submissionsFolderId;
+            payload.fileName = finalFileName;
+            payload.fileContent = htmlTable;
+        }
+
+        // Send to Google Apps Script Web App (bypasses OAuth requirement for students)
+        fetch(gasUrl, {
+            method: 'POST',
+            mode: 'no-cors', // Important to avoid CORS preflight issues with Google Scripts
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+        }).catch(err => {
+            console.error('Failed to submit results to Google Sheet/Drive via Web App:', err);
+        });
+    } else if (currentExam.config && currentExam.config.resultsSheetId && (!gasUrl || gasUrl === '')) {
+        console.warn('Cannot submit to Google Sheets: Google Apps Script Web App URL is missing in Settings.');
+    }
+
+    // Save student attempt to local storage as fallback
+    try {
+        const attempts = JSON.parse(localStorage.getItem('student_exam_attempts') || '[]');
+        attempts.push({
+            examId: currentExam.id,
+            course: currentExam.config ? currentExam.config.course : 'Unknown',
+            topic: currentExam.config ? currentExam.config.topic : 'Unknown',
+            timestamp: new Date().toISOString(),
+            name: studentSession.name,
+            id: studentSession.id,
+            email: studentSession.email,
+            score: score,
+            answers: studentSession.answers
+        });
+        localStorage.setItem('student_exam_attempts', JSON.stringify(attempts));
+    } catch (e) {
+        console.warn('Failed to save attempt to localStorage:', e);
     }
 
     document.getElementById('studentView').classList.add('hidden-section');
