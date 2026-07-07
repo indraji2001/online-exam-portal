@@ -305,20 +305,27 @@ async function getAuthorizedRole(email) {
     return { role: 'student', record: null };
 }
 
-function saveGasUrl() {
+// --- Google Apps Script Settings ---
+function saveGasSettings() {
     const url = document.getElementById('gasWebAppUrl').value.trim();
+    const email = document.getElementById('gasServiceEmail').value.trim();
     if (url && !url.startsWith('https://script.google.com/')) {
         alert('Invalid URL. Must start with https://script.google.com/');
         return;
     }
     localStorage.setItem('gas_web_app_url', url);
-    alert('Web App URL saved successfully!');
+    localStorage.setItem('gas_service_email', email);
+    alert('Web App Settings saved successfully!');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const savedGasUrl = localStorage.getItem('gas_web_app_url');
+    const savedGasEmail = localStorage.getItem('gas_service_email');
     if (savedGasUrl && document.getElementById('gasWebAppUrl')) {
         document.getElementById('gasWebAppUrl').value = savedGasUrl;
+    }
+    if (savedGasEmail && document.getElementById('gasServiceEmail')) {
+        document.getElementById('gasServiceEmail').value = savedGasEmail;
     }
 });
 
@@ -1303,7 +1310,11 @@ async function getInstructorSubfolder(subfolderName) {
         q: `name='${subfolderName}' and '${currentInstructorFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, spaces: 'drive'
     });
     if (response.result.files.length > 0) return response.result.files[0].id;
-    return null;
+    // Folder not found — create it automatically
+    const created = await gapi.client.drive.files.create({
+        resource: { name: subfolderName, mimeType: 'application/vnd.google-apps.folder', parents: [currentInstructorFolderId] }, fields: 'id'
+    });
+    return created.result.id;
 }
 
 function showDriveFolder() {
@@ -2437,6 +2448,18 @@ async function publishExam() {
             try {
                 const submissionsFolderId = await getInstructorSubfolder('06_Student_Submissions');
                 currentExam.config.submissionsFolderId = submissionsFolderId;
+                
+                // --- Centralized Apps Script Auto-Share ---
+                const centralEmail = localStorage.getItem('gas_service_email');
+                if (centralEmail) {
+                    try {
+                        await gapi.client.drive.permissions.create({
+                            fileId: submissionsFolderId,
+                            resource: { type: 'user', role: 'writer', emailAddress: centralEmail },
+                            sendNotificationEmail: false
+                        });
+                    } catch(e) { console.warn('Failed to auto-share submissions folder:', e); }
+                }
             } catch (e) { console.warn('Submissions folder lookup (non-fatal):', e); }
 
             // 1. Results sheet
@@ -2446,7 +2469,15 @@ async function publishExam() {
                 currentExam.config.resultsSheetId = sheet.result.spreadsheetId;
                 if (resultsFolderId) await gapi.client.drive.files.update({ fileId: currentExam.config.resultsSheetId, addParents: resultsFolderId, fields: 'id, parents' });
                 await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: currentExam.config.resultsSheetId, range: 'Sheet1!A1:I1', valueInputOption: 'USER_ENTERED', resource: { values: [['Timestamp','Email','Name','ID','Attempt','Set Assigned','Final Score','Questions Answered','Total Questions']] } });
-                await gapi.client.drive.permissions.create({ fileId: currentExam.config.resultsSheetId, resource: { type: 'anyone', role: 'writer' } });
+                
+                const centralEmail = localStorage.getItem('gas_service_email');
+                if (centralEmail) {
+                    // Give explicit access to the centralized service email
+                    await gapi.client.drive.permissions.create({ fileId: currentExam.config.resultsSheetId, resource: { type: 'user', role: 'writer', emailAddress: centralEmail }, sendNotificationEmail: false });
+                } else {
+                    // Fallback to public writable if no central email is defined
+                    await gapi.client.drive.permissions.create({ fileId: currentExam.config.resultsSheetId, resource: { type: 'anyone', role: 'writer' } });
+                }
             } catch (e) { console.warn('Results sheet (non-fatal):', e); }
 
             // 2. Save exam JSON config
@@ -2848,15 +2879,12 @@ function finalSubmit() {
         
         const payload = {
             sheetId: currentExam.config.resultsSheetId,
-            rowData: rowData
+            rowData: rowData,
+            submissionsFolderId: currentExam.config.submissionsFolderId || null,
+            instructorFolderName: (currentExam.config && currentExam.config.instructor) ? currentExam.config.instructor : null,
+            fileName: finalFileName,
+            fileContent: htmlTable
         };
-
-        // If the submissions folder ID is set, send the file contents to be saved there
-        if (currentExam.config.submissionsFolderId) {
-            payload.submissionsFolderId = currentExam.config.submissionsFolderId;
-            payload.fileName = finalFileName;
-            payload.fileContent = htmlTable;
-        }
 
         // Send to Google Apps Script Web App (bypasses OAuth requirement for students)
         fetch(gasUrl, {
