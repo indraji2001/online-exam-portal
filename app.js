@@ -2832,15 +2832,12 @@ function finalSubmit() {
         finalFileName = `${cleanSem}_${cleanCourse}_${cleanTopic}_${safeStudentName}.xls`;
     }
     
-    // --- 1. Generate Student Answer Sheet (Excel HTML format) ---
-    let htmlTable = "";
+    // --- 1. Generate Student Answer Sheet Data (2D Array for Google Sheets) ---
+    let sheetData = [];
     try {
-        htmlTable = `<table border="1" style="font-family: Arial, sans-serif; font-size: 14pt; text-align: center;">`;
-        htmlTable += `<tr><th colspan="8" style="font-size: 24pt; text-align: center; font-weight: bold; padding: 10px;">STUDENT NAME: ${studentSession.name} | ID: ${studentSession.id}</th></tr>`;
-        htmlTable += `<tr><th colspan="8" style="font-size: 18pt; text-align: center; font-weight: bold; padding: 10px;">SET: ${studentSession.set}</th></tr>`;
-        htmlTable += `<tr style="background-color: #f2f2f2;">
-            <th>Number</th><th>Type</th><th>Option_A</th><th>Option_B</th><th>Option_C</th><th>Option_D</th><th>Correct</th><th>Student_Answer</th>
-        </tr>`;
+        sheetData.push([`STUDENT NAME: ${studentSession.name} | ID: ${studentSession.id}`, '', '', '', '', '', '', '', '']);
+        sheetData.push([`SET: ${studentSession.set}`, '', '', '', '', '', '', '', '']);
+        sheetData.push(['Number', 'Type', 'Option_A', 'Option_B', 'Option_C', 'Option_D', 'Correct', 'Student_Answer', 'Status']);
 
         studentSession.questions.forEach((q, i) => {
             const answerIdx = studentSession.answers[i];
@@ -2853,23 +2850,12 @@ function finalSubmit() {
             const correctOptIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
             const correctOpt = (q.optionIds && q.optionIds[correctOptIdx]) ? q.optionIds[correctOptIdx] : '';
             const studentOpt = (answerIdx !== undefined && q.optionIds && q.optionIds[answerIdx]) ? q.optionIds[answerIdx] : 'Unanswered';
+            const status = (answerIdx === correctOptIdx) ? 'CORRECT' : 'INCORRECT';
             
-            htmlTable += `<tr>
-                <td>${q.number}</td>
-                <td>${type}</td>
-                <td>${optA}</td>
-                <td>${optB}</td>
-                <td>${optC}</td>
-                <td>${optD}</td>
-                <td style="background-color: #d4edda;">${correctOpt}</td>
-                <td style="background-color: ${answerIdx === correctOptIdx ? '#d4edda' : '#f8d7da'};">${studentOpt}</td>
-            </tr>`;
+            sheetData.push([q.number, type, optA, optB, optC, optD, correctOpt, studentOpt, status]);
         });
-        htmlTable += `</table>`;
-
-        // Local Download code removed as per user request
     } catch (e) {
-        console.error("Failed to generate Student Excel Sheet:", e);
+        console.error("Failed to generate Student Sheet Data:", e);
     }
 
     // --- 2. Submit to Central Sheet & Instructor's Drive via Apps Script Web App ---
@@ -2883,7 +2869,7 @@ function finalSubmit() {
             submissionsFolderId: currentExam.config.submissionsFolderId || null,
             instructorFolderName: (currentExam.config && currentExam.config.instructor) ? currentExam.config.instructor : null,
             fileName: finalFileName,
-            fileContent: htmlTable
+            sheetData: sheetData
         };
 
         // Send to Google Apps Script Web App (bypasses OAuth requirement for students)
