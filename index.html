@@ -772,7 +772,13 @@
                                 <input type="text" id="gasWebAppUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full p-4 border-2 rounded-xl font-mono text-xs bg-white outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition">
                                 <p class="text-[9px] text-slate-400 mt-2 font-medium">Required for anonymous student submissions to Google Sheets.</p>
                             </div>
-                            <button onclick="saveGasUrl()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition">Save Web App URL</button>
+                            <!-- ── Central Service Email Setting ── -->
+                            <div class="mt-4">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Apps Script Service Email</label>
+                                <input type="email" id="gasServiceEmail" placeholder="e.g. admin@maldacollege.ac.in" class="w-full p-4 border-2 rounded-xl font-mono text-xs bg-white outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition">
+                                <p class="text-[9px] text-slate-400 mt-2 font-medium">Auto-shares instructor folders with this central routing email.</p>
+                            </div>
+                            <button onclick="saveGasSettings()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition mt-4">Save Web App Settings</button>
                         </div>
                     </div>
                 </div>
