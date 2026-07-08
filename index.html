@@ -206,6 +206,7 @@
             <button id="tab-library" onclick="showTab('library')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">7. Library</button>
             <button id="tab-question-bank" onclick="showTab('question-bank')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">8. Q-Bank</button>
             <button id="tab-publish" onclick="showTab('publish')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">9. Publish</button>
+            <button id="tab-analytics" onclick="showTab('analytics')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">10. Analytics</button>
             <button id="tab-settings" onclick="showTab('settings')" class="flex-1 py-4 px-4 font-semibold bg-rose-50 text-rose-600 rounded-xl hidden transition hover:bg-rose-100">⚙️ Settings</button>
         </nav>
 
@@ -939,6 +940,164 @@
                     </div>
                 </div>
             </div>
+        </section>
+
+        <!-- Tab 10: Analytics Dashboard (Phase 3) -->
+        <section id="content-analytics" class="max-w-5xl mx-auto hidden-section">
+
+            <!-- Header -->
+            <div class="glass p-8 rounded-[3rem] border border-white shadow-xl mb-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h3 class="text-3xl font-extrabold text-slate-900 flex items-center gap-3 mb-1">
+                            📊 Exam Analytics
+                        </h3>
+                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Performance insights for your published exams</p>
+                    </div>
+                    <div class="flex gap-3 items-center flex-wrap">
+                        <button onclick="refreshAnalytics()" id="analyticsRefreshBtn" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                            <span id="analyticsRefreshIcon">🔄</span> Refresh
+                        </button>
+                        <button onclick="exportAnalyticsCSV()" class="px-5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition">
+                            📥 Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Exam Selector -->
+                <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                    <div class="flex-1 relative">
+                        <select id="analyticsExamSelector" onchange="onAnalyticsExamChange()" class="w-full p-3 pl-5 border-2 rounded-2xl font-medium bg-slate-50 outline-none focus:border-blue-500 transition text-sm appearance-none">
+                            <option value="">— Select an Exam —</option>
+                        </select>
+                        <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▼</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+                        <span id="analyticsLiveIndicator" class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
+                        <span id="analyticsLiveLabel">Not live</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DB Status Banner -->
+            <div id="analyticsDbStatus" class="hidden-section mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold"></div>
+
+            <!-- Empty / Loading state -->
+            <div id="analyticsEmptyState" class="text-center py-16 text-slate-400">
+                <div class="text-5xl mb-4">📊</div>
+                <p class="font-bold text-lg mb-2 text-slate-500">No exam selected</p>
+                <p class="text-sm">Select an exam from the dropdown above to view its analytics.</p>
+            </div>
+
+            <!-- Dashboard (hidden until exam is selected) -->
+            <div id="analyticsDashboard" class="hidden-section space-y-6">
+
+                <!-- Stat Cards Row -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-value" id="statSubmissions">—</div>
+                        <div class="analytics-stat-label">Submissions</div>
+                    </div>
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-value text-blue-600" id="statAvgScore">—</div>
+                        <div class="analytics-stat-label">Avg Score</div>
+                    </div>
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-value text-emerald-600" id="statHighScore">—</div>
+                        <div class="analytics-stat-label">Highest</div>
+                    </div>
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-value text-rose-600" id="statLowScore">—</div>
+                        <div class="analytics-stat-label">Lowest</div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1: Score Distribution + Completion Donut -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Score Distribution Bar Chart -->
+                    <div class="md:col-span-2 bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
+                        <h4 class="text-sm font-black text-slate-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <span class="text-base">📊</span> Score Distribution
+                        </h4>
+                        <div id="scoreDistChart" class="h-48 flex items-end gap-2 px-1"></div>
+                        <div id="scoreDistLabels" class="flex justify-between mt-2 text-[10px] text-slate-400 font-bold px-1"></div>
+                    </div>
+
+                    <!-- Completion Donut -->
+                    <div class="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+                        <h4 class="text-sm font-black text-slate-700 uppercase tracking-widest mb-4 w-full flex items-center gap-2">
+                            <span class="text-base">🍩</span> Pass Rate
+                        </h4>
+                        <div class="relative flex items-center justify-center" style="width:130px;height:130px;">
+                            <svg id="completionDonut" viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f1f5f9" stroke-width="3.5"/>
+                                <circle id="donutArc" cx="18" cy="18" r="15.9" fill="none" stroke="#3b82f6" stroke-width="3.5"
+                                        stroke-dasharray="0 100" stroke-linecap="round"/>
+                            </svg>
+                            <div class="absolute text-center">
+                                <div id="donutPct" class="text-xl font-black text-slate-800">—</div>
+                                <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pass ≥50%</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 mt-4 text-xs font-bold text-slate-500">
+                            <span><span class="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>Pass</span>
+                            <span><span class="inline-block w-2 h-2 rounded-full bg-slate-200 mr-1"></span>Fail</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submissions Over Time Line Chart -->
+                <div class="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
+                    <h4 class="text-sm font-black text-slate-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+                        <span class="text-base">📈</span> Submissions Over Time
+                    </h4>
+                    <div id="timelineChart" class="h-36 flex items-end gap-1 px-1 relative overflow-hidden"></div>
+                    <div id="timelineLabels" class="flex justify-between mt-2 text-[10px] text-slate-400 font-bold px-1"></div>
+                </div>
+
+                <!-- Per-Question Accuracy + Top 5 Hardest -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- Per-Question Accuracy (horizontal bars) -->
+                    <div class="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
+                        <h4 class="text-sm font-black text-slate-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <span class="text-base">🎯</span> Per-Question Accuracy
+                        </h4>
+                        <div id="perQuestionChart" class="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbox-hide"></div>
+                    </div>
+
+                    <!-- Top 5 Hardest Questions -->
+                    <div class="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
+                        <h4 class="text-sm font-black text-slate-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <span class="text-base">🔥</span> Hardest Questions
+                        </h4>
+                        <ol id="hardestList" class="space-y-3"></ol>
+                    </div>
+                </div>
+
+                <!-- Raw Submissions Table -->
+                <div class="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
+                    <h4 class="text-sm font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span class="text-base">📋</span> All Submissions
+                    </h4>
+                    <div class="overflow-x-auto scrollbox-hide">
+                        <table class="w-full text-sm" id="submissionsTable">
+                            <thead>
+                                <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                    <th class="text-left pb-3 pr-4">Student</th>
+                                    <th class="text-left pb-3 pr-4">Email</th>
+                                    <th class="text-center pb-3 pr-4">Score</th>
+                                    <th class="text-center pb-3 pr-4">%</th>
+                                    <th class="text-left pb-3">Submitted</th>
+                                </tr>
+                            </thead>
+                            <tbody id="submissionsTableBody" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <p id="submissionsTableEmpty" class="text-center text-slate-400 text-sm py-6 hidden-section">No submissions yet.</p>
+                </div>
+
+            </div><!-- /analyticsDashboard -->
         </section>
 
         <!-- Tab 9: Settings (Admin Only) -->
