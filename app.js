@@ -1328,9 +1328,9 @@ function showDriveFolder() {
 
 function showTab(tabName) {
     if (tabName === 'settings' && !requireRole('admin')) return;
-    if (['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish'].includes(tabName) && !requireRole(['admin', 'faculty'])) return;
-    const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'publish', 'settings'];
-    const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'publish': '8. Publish', 'settings': '⚙️ Settings' };
+    if (['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'question-bank', 'publish'].includes(tabName) && !requireRole(['admin', 'faculty'])) return;
+    const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'question-bank', 'publish', 'settings'];
+    const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'question-bank': '8. Q-Bank', 'publish': '9. Publish', 'settings': '⚙️ Settings' };
     tabs.forEach(t => {
         document.getElementById(`content-${t}`).classList.add('hidden-section');
         const btn = document.getElementById(`tab-${t}`);
@@ -1356,6 +1356,7 @@ function showTab(tabName) {
         loadLibrary();
         loadSharedFacultyLibrary();
     }
+    if (tabName === 'question-bank') loadQuestionBank();
     if (tabName === 'images') renderImageQueue();
     if (tabName === 'settings') renderAdminSettings();
 }
@@ -1969,7 +1970,10 @@ function renderImageQueue() {
                 '<span>Q' + q.number + '</span>' +
                 '<span class="text-xs bg-blue-200 text-blue-900 px-2 py-0.5 rounded uppercase tracking-wider">' + qTypeStr + '</span>' +
                 '</div>' +
-                '<div class="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">✏️ Click anywhere to edit</div>' +
+                '<div class="flex items-center gap-2">' +
+                '<button onclick="event.stopPropagation(); openSaveToBankModal(\'' + setName + '\', ' + idx + ')" class="text-xs px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-bold border border-emerald-200 transition" title="Save this question to your Question Bank">🏦 Save to Bank</button>' +
+                '<div class="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">✏️ Click to edit</div>' +
+                '</div>' +
                 '</div>' +
                 '<div class="mb-5 text-gray-900 leading-relaxed" style="font-size: ' + qBaseSize + 'px; font-weight: ' + qWeightStr + ';">' + q.text + '</div>' +
                 '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-800 mb-4" style="font-size: ' + optBaseSize + 'px;">' +
@@ -3946,3 +3950,634 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+
+// ==========================================
+// PHASE 2: QUESTION BANK
+// Backed by Supabase `question_bank` table.
+//
+// Required SQL (run once in Supabase SQL Editor):
+//   CREATE TABLE question_bank (
+//     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//     owner_email    TEXT NOT NULL,
+//     question_text  TEXT NOT NULL,
+//     type           TEXT,
+//     options        JSONB,
+//     correct_answer TEXT,
+//     explanation    TEXT,
+//     difficulty     TEXT,
+//     course         TEXT,
+//     topic          TEXT,
+//     tags           TEXT[],
+//     is_shared      BOOLEAN DEFAULT false,
+//     created_at     TIMESTAMPTZ DEFAULT now()
+//   );
+//   ALTER TABLE question_bank ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY "Faculty can read own or shared questions"
+//     ON question_bank FOR SELECT
+//     USING (is_shared = true OR owner_email = current_setting('request.jwt.claims', true)::json->>'email');
+//   CREATE POLICY "Faculty can insert questions"
+//     ON question_bank FOR INSERT WITH CHECK (true);
+//   CREATE POLICY "Owner can update questions"
+//     ON question_bank FOR UPDATE
+//     USING (owner_email = current_setting('request.jwt.claims', true)::json->>'email');
+//   CREATE POLICY "Owner can delete questions"
+//     ON question_bank FOR DELETE
+//     USING (owner_email = current_setting('request.jwt.claims', true)::json->>'email');
+// NOTE: Client-side requireRole() guards all QB functions.
+// ==========================================
+
+// Cache of all fetched bank questions for client-side filtering
+let questionBankCache = [];
+
+// Set of row IDs currently selected for bulk injection
+let questionBankSelection = new Set();
+
+// Temporary context for the Save-to-Bank modal
+let saveToBankContext = null; // { setName, qIndex }
+
+// ── FETCH & RENDER ────────────────────────────────────────────────────────────
+
+/**
+ * Fetches question bank questions from Supabase based on the current
+ * owner filter and renders them. Called when Tab 8 is opened.
+ */
+async function loadQuestionBank() {
+    if (!requireRole(['admin', 'faculty'])) return;
+
+    const container = document.getElementById('qbContent');
+    const statusBanner = document.getElementById('qbDbStatus');
+    const statsRow = document.getElementById('qbStats');
+    if (!container) return;
+
+    if (!supabaseClient) {
+        _qbShowBanner('error', '⚠️ Cloud database unavailable. Question Bank cannot load. Please refresh.');
+        container.innerHTML = '<p class="text-center py-12 text-slate-400 font-medium">Cloud database unavailable.</p>';
+        return;
+    }
+
+    container.innerHTML = '<p class="text-center py-12 text-slate-400 font-medium"><span class="inline-block animate-spin mr-2">🔄</span>Loading your question bank...</p>';
+    if (statusBanner) statusBanner.classList.add('hidden-section');
+    if (statsRow) statsRow.classList.add('hidden-section');
+
+    try {
+        const ownerFilter = document.getElementById('qbOwnerFilter')?.value || 'mine';
+        const userEmail = currentUser?.email ? normalizeEmail(currentUser.email) : null;
+
+        let query = supabaseClient
+            .from('question_bank')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        // Filter by ownership scope
+        if (ownerFilter === 'mine' && userEmail) {
+            query = query.eq('owner_email', userEmail);
+        } else if (ownerFilter === 'shared') {
+            query = query.eq('is_shared', true);
+        }
+        // 'all' = no additional filter (Supabase RLS will restrict to own+shared anyway)
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        questionBankCache = data || [];
+        questionBankSelection.clear();
+        _qbUpdateBulkBar();
+        _qbUpdateStats(questionBankCache);
+
+        if (statsRow && questionBankCache.length > 0) statsRow.classList.remove('hidden-section');
+
+        renderQuestionBank(questionBankCache);
+
+        if (questionBankCache.length === 0) {
+            _qbShowBanner('info', '✨ Your question bank is empty. Click "🏦 Save to Bank" on any question in the Images tab to add your first question.');
+        }
+
+    } catch (err) {
+        console.error('Question Bank load error:', err);
+        questionBankCache = [];
+        const msg = (err && err.message) ? err.message : String(err);
+        const tableMissing = /could not find|does not exist|relation/i.test(msg);
+        _qbShowBanner('error', tableMissing
+            ? '❗ The <code>question_bank</code> table does not exist yet. Please run the SQL setup in the Phase 2 comment in app.js.'
+            : '⚠️ Could not load question bank: ' + escapeHtml(msg));
+        container.innerHTML = '<p class="text-center py-12 text-slate-400 font-medium">Unable to load question bank.</p>';
+    }
+}
+
+/**
+ * Renders a list of bank question rows.
+ * @param {Array} questions - array of question_bank rows
+ */
+function renderQuestionBank(questions) {
+    const container = document.getElementById('qbContent');
+    if (!container) return;
+
+    if (!questions || questions.length === 0) {
+        container.innerHTML = '<p class="text-center py-12 text-slate-400 font-medium">No questions match the current filter.</p>';
+        return;
+    }
+
+    const userEmail = currentUser?.email ? normalizeEmail(currentUser.email) : null;
+
+    container.innerHTML = questions.map(q => {
+        const isOwner = userEmail && normalizeEmail(q.owner_email) === userEmail;
+        const canDelete = isOwner || userRole === 'admin';
+        const canEdit = isOwner || userRole === 'admin';
+
+        const diffColor = q.difficulty === 'Hard'
+            ? 'bg-rose-100 text-rose-700 border-rose-200'
+            : q.difficulty === 'Easy'
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                : 'bg-amber-100 text-amber-700 border-amber-200';
+
+        const tags = Array.isArray(q.tags) ? q.tags : (q.tags ? [q.tags] : []);
+        const tagHtml = tags.length > 0
+            ? tags.map(t => `<span class="qb-tag">${escapeHtml(t)}</span>`).join('')
+            : '<span class="text-[10px] text-slate-300 italic">No tags</span>';
+
+        const truncatedText = (() => {
+            const plain = q.question_text.replace(/<[^>]+>/g, '').trim();
+            return plain.length > 180 ? plain.slice(0, 180) + '…' : plain;
+        })();
+
+        const isSelected = questionBankSelection.has(q.id);
+        const checkClass = isSelected
+            ? 'border-blue-500 bg-blue-500'
+            : 'border-slate-300 bg-white';
+
+        const date = q.created_at
+            ? new Date(q.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—';
+
+        return `
+            <div class="qb-row ${isSelected ? 'qb-row-selected' : ''}" data-id="${q.id}"
+                 data-search="${escapeHtml((q.question_text + ' ' + (q.topic || '') + ' ' + (q.course || '') + ' ' + tags.join(' ')).toLowerCase())}">
+                <div class="flex items-start gap-4">
+                    <!-- Checkbox -->
+                    <button onclick="toggleBankSelection('${q.id}')"
+                            class="mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 ${checkClass}"
+                            id="qb-check-${q.id}" title="Select for bulk inject">
+                        ${isSelected ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
+                    </button>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <!-- Meta row -->
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${diffColor}">${escapeHtml(q.difficulty || 'Medium')}</span>
+                            <span class="text-[10px] font-black uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">${escapeHtml((q.type || 'MCQ').toUpperCase())}</span>
+                            ${q.course ? `<span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${escapeHtml(q.course)}</span>` : ''}
+                            ${q.topic ? `<span class="text-[10px] text-slate-500 font-medium">${escapeHtml(q.topic)}</span>` : ''}
+                            ${q.is_shared ? '<span class="text-[10px] font-black text-purple-600 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">🌐 Shared</span>' : ''}
+                        </div>
+
+                        <!-- Question text -->
+                        <p class="text-sm text-slate-800 font-medium leading-relaxed mb-3">${escapeHtml(truncatedText)}</p>
+
+                        <!-- Tags -->
+                        <div class="flex flex-wrap gap-1.5 mb-2">${tagHtml}</div>
+
+                        <!-- Footer -->
+                        <div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium mt-1">
+                            <span>👤 ${escapeHtml(q.owner_email || '—')}</span>
+                            <span>•</span>
+                            <span>📅 ${date}</span>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col gap-2 flex-shrink-0">
+                        <button onclick="injectSingleBankQuestion('${q.id}')"
+                                class="px-4 py-2 text-xs font-bold rounded-xl text-white pearl-btn pearl-btn-blue whitespace-nowrap"
+                                title="Use this question in the current exam draft">
+                            ⚡ Use in Exam
+                        </button>
+                        ${canEdit ? `<button onclick="openEditBankTagsModal('${q.id}')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition">✏️ Edit</button>` : ''}
+                        ${canDelete ? `<button onclick="deleteBankQuestion('${q.id}')" class="px-4 py-2 text-xs font-bold rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition">🗑 Delete</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ── FILTER ────────────────────────────────────────────────────────────────────
+
+/**
+ * Client-side filtering of the rendered question list.
+ * Reads the three filter controls and shows/hides rows.
+ */
+function filterQuestionBank() {
+    const term = (document.getElementById('qbSearchInput')?.value || '').trim().toLowerCase();
+    const difficulty = document.getElementById('qbDifficultyFilter')?.value || '';
+    const rows = document.querySelectorAll('#qbContent .qb-row');
+
+    rows.forEach(row => {
+        const haystack = row.getAttribute('data-search') || '';
+        const id = row.getAttribute('data-id');
+        const q = questionBankCache.find(q => q.id === id);
+        const diffMatch = !difficulty || (q && q.difficulty === difficulty);
+        const textMatch = !term || haystack.includes(term);
+        row.style.display = (diffMatch && textMatch) ? '' : 'none';
+    });
+}
+
+// ── SAVE TO BANK MODAL ────────────────────────────────────────────────────────
+
+/**
+ * Opens the Save-to-Bank modal for a specific question in the Images tab.
+ * @param {string} setName - set key (e.g. 'A')
+ * @param {number} qIndex  - question index within that set
+ */
+function openSaveToBankModal(setName, qIndex) {
+    if (!requireRole(['admin', 'faculty'])) return;
+    saveToBankContext = { setName, qIndex };
+
+    const q = generatedSets[setName]?.[qIndex];
+    if (!q) { alert('Question not found.'); return; }
+
+    // Pre-fill preview
+    const preview = document.getElementById('stbPreviewText');
+    if (preview) preview.innerHTML = q.text || '(No question text)';
+
+    // Pre-fill course/topic from the Generate tab if available
+    const course = document.getElementById('genCourse')?.value || '';
+    const topic = document.getElementById('genTopic')?.value || '';
+    const el = id => document.getElementById(id);
+    if (el('stbCourse')) el('stbCourse').value = course;
+    if (el('stbTopic')) el('stbTopic').value = topic;
+    if (el('stbTags')) el('stbTags').value = '';
+    if (el('stbDifficulty')) el('stbDifficulty').value = q.difficulty || 'Medium';
+    if (el('stbIsShared')) el('stbIsShared').checked = false;
+
+    document.getElementById('saveToBankModal').classList.remove('hidden-section');
+}
+
+function closeSaveToBankModal() {
+    document.getElementById('saveToBankModal').classList.add('hidden-section');
+    saveToBankContext = null;
+}
+
+/**
+ * Called when the user clicks "Save to Bank" inside the modal.
+ * Validates, builds the row, inserts into Supabase.
+ */
+async function confirmSaveToBank() {
+    if (!requireRole(['admin', 'faculty'])) return;
+    if (!saveToBankContext) return;
+
+    const { setName, qIndex } = saveToBankContext;
+    const q = generatedSets[setName]?.[qIndex];
+    if (!q) { alert('Question data lost. Please close and retry.'); return; }
+
+    if (!supabaseClient || !currentUser) {
+        alert('Cloud database unavailable. Please refresh and try again.');
+        return;
+    }
+
+    const el = id => document.getElementById(id);
+    const btn = el('stbSaveBtn');
+    if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+
+    const tagsRaw = (el('stbTags')?.value || '').trim();
+    const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+    // Build correct_answer as a human-readable string
+    let correctAnswer = '';
+    if (Array.isArray(q.correct)) {
+        correctAnswer = q.correct.map(i => String.fromCharCode(65 + i)).join(', ');
+    } else if (typeof q.correct === 'number') {
+        correctAnswer = String.fromCharCode(65 + q.correct);
+    } else if (typeof q.correct === 'object' && q.correct !== null) {
+        correctAnswer = JSON.stringify(q.correct);
+    }
+
+    const row = {
+        owner_email: normalizeEmail(currentUser.email),
+        question_text: q.text || '',
+        type: q.type || 'single',
+        options: q.options || [],
+        correct_answer: correctAnswer,
+        explanation: q.explanation || '',
+        difficulty: el('stbDifficulty')?.value || 'Medium',
+        course: (el('stbCourse')?.value || '').trim(),
+        topic: (el('stbTopic')?.value || '').trim(),
+        tags: tags,
+        is_shared: el('stbIsShared')?.checked || false
+    };
+
+    try {
+        const { error } = await supabaseClient.from('question_bank').insert([row]);
+        if (error) throw error;
+
+        closeSaveToBankModal();
+        alert('✅ Question saved to your bank!');
+    } catch (err) {
+        console.error('Save to bank error:', err);
+        alert('Failed to save: ' + ((err && err.message) ? err.message : String(err)));
+    } finally {
+        if (btn) { btn.textContent = 'Save to Bank'; btn.disabled = false; }
+    }
+}
+
+// ── INJECT INTO EXAM ──────────────────────────────────────────────────────────
+
+/**
+ * Injects a single banked question into the first set of the current exam draft.
+ * @param {string} id - question_bank row UUID
+ */
+function injectSingleBankQuestion(id) {
+    if (!requireRole(['admin', 'faculty'])) return;
+    const q = questionBankCache.find(q => q.id === id);
+    if (!q) { alert('Question not found in cache. Please refresh.'); return; }
+    _injectBankQuestions([q]);
+}
+
+/**
+ * Injects all selected (checked) questions into the current exam draft.
+ */
+function injectSelectedBankQuestions() {
+    if (!requireRole(['admin', 'faculty'])) return;
+    if (questionBankSelection.size === 0) {
+        alert('No questions selected. Check the boxes on the left to select questions.');
+        return;
+    }
+    const selected = questionBankCache.filter(q => questionBankSelection.has(q.id));
+    _injectBankQuestions(selected);
+    clearBankSelection();
+}
+
+/**
+ * Core injection logic. Converts bank questions to the exam question format
+ * and appends them to the first available set in generatedSets.
+ * @param {Array} bankQuestions - array of question_bank rows
+ */
+function _injectBankQuestions(bankQuestions) {
+    if (!bankQuestions || bankQuestions.length === 0) return;
+
+    const setKeys = Object.keys(generatedSets);
+    let targetSet;
+
+    if (setKeys.length === 0) {
+        // No sets exist yet — create set "A"
+        generatedSets['A'] = [];
+        targetSet = 'A';
+    } else {
+        // Inject into the first set
+        targetSet = setKeys[0];
+    }
+
+    bankQuestions.forEach(bq => {
+        // Determine the next question number
+        const allQNums = Object.values(generatedSets).flat().map(q => q.number || 0);
+        const nextNum = allQNums.length > 0 ? Math.max(...allQNums) + 1 : 1;
+
+        // Parse correct answer back into numeric index or array
+        let correct = 0;
+        const caStr = bq.correct_answer || '';
+        if (caStr.includes(',')) {
+            // Multiple correct — e.g. "A, C"
+            correct = caStr.split(',').map(s => s.trim().charCodeAt(0) - 65).filter(n => !isNaN(n));
+        } else if (/^[A-D]$/.test(caStr.trim())) {
+            correct = caStr.trim().charCodeAt(0) - 65;
+        }
+
+        const examQuestion = {
+            number: nextNum,
+            text: bq.question_text || '',
+            type: bq.type || 'single',
+            options: Array.isArray(bq.options) ? bq.options : [],
+            correct: correct,
+            explanation: bq.explanation || '',
+            difficulty: bq.difficulty || 'Medium',
+            marks: 4,
+            negative: 1
+        };
+
+        // Assign unique option IDs
+        if (examQuestion.options.length > 0) {
+            examQuestion.optionIds = [];
+            while (examQuestion.optionIds.length < examQuestion.options.length) {
+                const oid = Math.floor(1000 + Math.random() * 9000);
+                if (!examQuestion.optionIds.includes(oid)) examQuestion.optionIds.push(oid);
+            }
+        }
+
+        generatedSets[targetSet].push(examQuestion);
+    });
+
+    // Navigate to Images tab for review
+    if (typeof renderImageQueue === 'function') renderImageQueue();
+    showTab('images');
+    alert(`✅ Injected ${bankQuestions.length} question(s) into Set ${targetSet}. Review them in the Images tab.`);
+}
+
+// ── SELECTION (BULK) ──────────────────────────────────────────────────────────
+
+/**
+ * Toggles the selection state of a bank question row.
+ * @param {string} id - question_bank row UUID
+ */
+function toggleBankSelection(id) {
+    if (questionBankSelection.has(id)) {
+        questionBankSelection.delete(id);
+    } else {
+        questionBankSelection.add(id);
+    }
+
+    // Update the checkbox visual for this row
+    const btn = document.getElementById(`qb-check-${id}`);
+    const row = document.querySelector(`.qb-row[data-id="${id}"]`);
+    const isNowSelected = questionBankSelection.has(id);
+
+    if (btn) {
+        btn.className = `mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 ${isNowSelected ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white'}`;
+        btn.innerHTML = isNowSelected
+            ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+            : '';
+    }
+    if (row) {
+        if (isNowSelected) row.classList.add('qb-row-selected');
+        else row.classList.remove('qb-row-selected');
+    }
+
+    _qbUpdateBulkBar();
+}
+
+/**
+ * Clears all selection checkmarks.
+ */
+function clearBankSelection() {
+    questionBankSelection.forEach(id => {
+        const btn = document.getElementById(`qb-check-${id}`);
+        const row = document.querySelector(`.qb-row[data-id="${id}"]`);
+        if (btn) {
+            btn.className = 'mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 border-slate-300 bg-white';
+            btn.innerHTML = '';
+        }
+        if (row) row.classList.remove('qb-row-selected');
+    });
+    questionBankSelection.clear();
+    _qbUpdateBulkBar();
+}
+
+function _qbUpdateBulkBar() {
+    const bar = document.getElementById('qbBulkBar');
+    const counter = document.getElementById('qbBulkCount');
+    if (!bar) return;
+    const count = questionBankSelection.size;
+    if (count > 0) {
+        bar.classList.remove('hidden-section');
+        if (counter) counter.textContent = `${count} selected`;
+    } else {
+        bar.classList.add('hidden-section');
+    }
+}
+
+// ── EDIT TAGS MODAL ───────────────────────────────────────────────────────────
+
+/**
+ * Opens the edit-tags modal pre-filled for the given bank question.
+ * @param {string} id - question_bank row UUID
+ */
+function openEditBankTagsModal(id) {
+    if (!requireRole(['admin', 'faculty'])) return;
+    const q = questionBankCache.find(q => q.id === id);
+    if (!q) { alert('Question not found.'); return; }
+
+    document.getElementById('ebtId').value = id;
+    document.getElementById('ebtDifficulty').value = q.difficulty || 'Medium';
+    document.getElementById('ebtTags').value = Array.isArray(q.tags) ? q.tags.join(', ') : (q.tags || '');
+    document.getElementById('ebtTopic').value = q.topic || '';
+    document.getElementById('editBankTagsModal').classList.remove('hidden-section');
+}
+
+function closeEditBankTagsModal() {
+    document.getElementById('editBankTagsModal').classList.add('hidden-section');
+}
+
+/**
+ * Saves the edited difficulty/tags/topic back to Supabase.
+ */
+async function confirmEditBankTags() {
+    if (!requireRole(['admin', 'faculty'])) return;
+    if (!supabaseClient) { alert('Cloud database unavailable.'); return; }
+
+    const id = document.getElementById('ebtId')?.value;
+    if (!id) return;
+
+    const tagsRaw = (document.getElementById('ebtTags')?.value || '').trim();
+    const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+    const updates = {
+        difficulty: document.getElementById('ebtDifficulty')?.value || 'Medium',
+        tags: tags,
+        topic: (document.getElementById('ebtTopic')?.value || '').trim()
+    };
+
+    try {
+        const { error } = await supabaseClient.from('question_bank').update(updates).eq('id', id);
+        if (error) throw error;
+
+        // Update local cache
+        const idx = questionBankCache.findIndex(q => q.id === id);
+        if (idx !== -1) { questionBankCache[idx] = { ...questionBankCache[idx], ...updates }; }
+
+        closeEditBankTagsModal();
+        renderQuestionBank(_applyQbFilters(questionBankCache));
+        _qbUpdateStats(questionBankCache);
+    } catch (err) {
+        console.error('Edit bank question error:', err);
+        alert('Failed to update: ' + ((err && err.message) ? err.message : String(err)));
+    }
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+
+/**
+ * Deletes a bank question (owner or admin only).
+ * @param {string} id - question_bank row UUID
+ */
+async function deleteBankQuestion(id) {
+    if (!requireRole(['admin', 'faculty'])) return;
+
+    const q = questionBankCache.find(q => q.id === id);
+    const isOwner = q && currentUser && normalizeEmail(q.owner_email) === normalizeEmail(currentUser.email);
+    if (!isOwner && userRole !== 'admin') {
+        alert('You can only delete questions you saved yourself.');
+        return;
+    }
+
+    if (!confirm('Delete this question from your bank? This cannot be undone.')) return;
+    if (!supabaseClient) { alert('Cloud database unavailable.'); return; }
+
+    try {
+        const { error } = await supabaseClient.from('question_bank').delete().eq('id', id);
+        if (error) throw error;
+
+        questionBankCache = questionBankCache.filter(q => q.id !== id);
+        questionBankSelection.delete(id);
+        _qbUpdateBulkBar();
+        _qbUpdateStats(questionBankCache);
+        renderQuestionBank(_applyQbFilters(questionBankCache));
+
+        if (questionBankCache.length === 0) {
+            _qbShowBanner('info', '✨ Your question bank is now empty. Save questions from the Images tab to get started.');
+        }
+    } catch (err) {
+        console.error('Delete bank question error:', err);
+        alert('Failed to delete: ' + ((err && err.message) ? err.message : String(err)));
+    }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+
+/**
+ * Applies the current UI filter controls to a given array of questions.
+ * Used after local edits/deletes so we don't re-fetch unnecessarily.
+ * @param {Array} questions
+ * @returns {Array}
+ */
+function _applyQbFilters(questions) {
+    const term = (document.getElementById('qbSearchInput')?.value || '').trim().toLowerCase();
+    const difficulty = document.getElementById('qbDifficultyFilter')?.value || '';
+    return questions.filter(q => {
+        const haystack = (q.question_text + ' ' + (q.topic || '') + ' ' + (q.course || '') + ' ' + (Array.isArray(q.tags) ? q.tags.join(' ') : '')).toLowerCase();
+        const diffMatch = !difficulty || q.difficulty === difficulty;
+        const textMatch = !term || haystack.includes(term);
+        return diffMatch && textMatch;
+    });
+}
+
+/**
+ * Updates the stats row counters.
+ * @param {Array} questions - full unfiltered cache
+ */
+function _qbUpdateStats(questions) {
+    const statsRow = document.getElementById('qbStats');
+    const el = id => document.getElementById(id);
+    if (!el('qbStatTotal')) return;
+    el('qbStatTotal').textContent = questions.length;
+    el('qbStatEasy').textContent = questions.filter(q => q.difficulty === 'Easy').length;
+    el('qbStatMedium').textContent = questions.filter(q => q.difficulty === 'Medium').length;
+    el('qbStatHard').textContent = questions.filter(q => q.difficulty === 'Hard').length;
+    if (statsRow && questions.length > 0) statsRow.classList.remove('hidden-section');
+}
+
+/**
+ * Shows/hides the Question Bank status banner with a given style and message.
+ * @param {'info'|'error'|'success'} type
+ * @param {string} message - may contain HTML
+ */
+function _qbShowBanner(type, message) {
+    const banner = document.getElementById('qbDbStatus');
+    if (!banner) return;
+    const styles = {
+        info: 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100',
+        error: 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200',
+        success: 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200'
+    };
+    banner.className = styles[type] || styles.info;
+    banner.innerHTML = message;
+    banner.classList.remove('hidden-section');
+}
