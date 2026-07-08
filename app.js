@@ -2476,7 +2476,7 @@ async function publishExam() {
                 const sheet = await gapi.client.sheets.spreadsheets.create({ resource: { properties: { title: sheetName } } });
                 currentExam.config.resultsSheetId = sheet.result.spreadsheetId;
                 if (resultsFolderId) await gapi.client.drive.files.update({ fileId: currentExam.config.resultsSheetId, addParents: resultsFolderId, fields: 'id, parents' });
-                await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: currentExam.config.resultsSheetId, range: 'Sheet1!A1:I1', valueInputOption: 'USER_ENTERED', resource: { values: [['Timestamp','Email','Name','ID','Attempt','Set Assigned','Final Score','Questions Answered','Total Questions']] } });
+                await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: currentExam.config.resultsSheetId, range: 'Sheet1!A1:I1', valueInputOption: 'USER_ENTERED', resource: { values: [['Timestamp','Full Marks','Name','ID','Attempt','Set Assigned','Final Score','Questions Answered','Total Questions']] } });
                 
                 const centralEmail = localStorage.getItem('gas_service_email');
                 if (centralEmail) {
@@ -2836,7 +2836,9 @@ function finalSubmit() {
     }
 
     let score = 0;
+    let maxScore = 0;
     studentSession.questions.forEach((q, i) => {
+        maxScore += (q.marks || 4);
         const answer = studentSession.answers[i];
         if (answer === undefined) return;
         if (answer === q.correct) score += (q.marks || 4);
@@ -2883,7 +2885,7 @@ function finalSubmit() {
     // --- 2. Submit to Central Sheet & Instructor's Drive via Apps Script Web App ---
     const gasUrl = localStorage.getItem('gas_web_app_url');
     if (currentExam.config && currentExam.config.resultsSheetId && gasUrl) {
-        const rowData = [new Date().toLocaleString(), studentSession.email, studentSession.name, studentSession.id, 1, studentSession.set, score, Object.keys(studentSession.answers).length, studentSession.questions.length];
+        const rowData = [new Date().toLocaleString(), maxScore, studentSession.name, studentSession.id, 1, studentSession.set, score, Object.keys(studentSession.answers).length, studentSession.questions.length];
         
         const payload = {
             sheetId: currentExam.config.resultsSheetId,
@@ -4611,9 +4613,9 @@ function _qbShowBanner(type, message) {
 //     published_at  TIMESTAMPTZ DEFAULT now()
 //   );
 //   ALTER TABLE analytics_exams ENABLE ROW LEVEL SECURITY;
-//   CREATE POLICY "Faculty can read own exams" ON analytics_exams FOR SELECT
-//     USING (owner_email = current_setting('request.jwt.claims', true)::json->>'email');
+//   CREATE POLICY "Anyone can read exams" ON analytics_exams FOR SELECT USING (true);
 //   CREATE POLICY "Anyone can insert" ON analytics_exams FOR INSERT WITH CHECK (true);
+//   CREATE POLICY "Anyone can delete" ON analytics_exams FOR DELETE USING (true);
 //
 //   -- Table: student results
 //   CREATE TABLE IF NOT EXISTS exam_results (
@@ -4631,16 +4633,8 @@ function _qbShowBanner(type, message) {
 //   );
 //   ALTER TABLE exam_results ENABLE ROW LEVEL SECURITY;
 //   CREATE POLICY "Anyone can insert results" ON exam_results FOR INSERT WITH CHECK (true);
-//   CREATE POLICY "Faculty can read results for their exams" ON exam_results FOR SELECT
-//     USING (
-//       EXISTS (
-//         SELECT 1 FROM analytics_exams ae
-//         WHERE ae.local_exam_id = exam_results.local_exam_id
-//         AND ae.owner_email = current_setting('request.jwt.claims', true)::json->>'email'
-//       )
-//     );
-//   -- Admin override: admins can see everything
-//   CREATE POLICY "Admins can read all results" ON exam_results FOR SELECT USING (true);
+//   CREATE POLICY "Anyone can read results" ON exam_results FOR SELECT USING (true);
+//   CREATE POLICY "Anyone can delete results" ON exam_results FOR DELETE USING (true);
 //
 // NOTE: The student portal calls _analyticsSubmitResult() which uses the Supabase
 //       anon key (no auth required) so no Google token is needed for student submits.
@@ -4767,8 +4761,13 @@ async function _analyticsLoadExamList() {
             .select('*')
             .order('published_at', { ascending: false });
 
-        // Faculty see only their own; admin sees all (RLS handles this server-side;
-        // but we also show a label for each for convenience)
+        // If not admin, filter client-side to only show their own exams.
+        // We do this here because Supabase uses the anon key and RLS policies 
+        // might block everything if not configured for anon access.
+        if (currentUser?.role !== 'admin' && userEmail) {
+            query = query.eq('owner_email', userEmail);
+        }
+
         const { data, error } = await query;
         if (error) throw error;
 
