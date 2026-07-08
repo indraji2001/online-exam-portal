@@ -1328,9 +1328,9 @@ function showDriveFolder() {
 
 function showTab(tabName) {
     if (tabName === 'settings' && !requireRole('admin')) return;
-    if (['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'question-bank', 'publish'].includes(tabName) && !requireRole(['admin', 'faculty'])) return;
-    const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'question-bank', 'publish', 'settings'];
-    const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'question-bank': '8. Q-Bank', 'publish': '9. Publish', 'settings': '⚙️ Settings' };
+    if (['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'question-bank', 'publish', 'analytics'].includes(tabName) && !requireRole(['admin', 'faculty'])) return;
+    const tabs = ['sources', 'extract', 'generate', 'ai-bridge', 'import', 'images', 'library', 'question-bank', 'publish', 'analytics', 'settings'];
+    const tabLabels = { 'sources': '1. Sources', 'extract': '2. Extract', 'generate': '3. Generate', 'ai-bridge': '4. AI Bridge', 'import': '5. Import', 'images': '6. Images', 'library': '7. Library', 'question-bank': '8. Q-Bank', 'publish': '9. Publish', 'analytics': '10. Analytics', 'settings': '⚙️ Settings' };
     tabs.forEach(t => {
         document.getElementById(`content-${t}`).classList.add('hidden-section');
         const btn = document.getElementById(`tab-${t}`);
@@ -1357,6 +1357,7 @@ function showTab(tabName) {
         loadSharedFacultyLibrary();
     }
     if (tabName === 'question-bank') loadQuestionBank();
+    if (tabName === 'analytics') loadAnalyticsTab();
     if (tabName === 'images') renderImageQueue();
     if (tabName === 'settings') renderAdminSettings();
 }
@@ -2538,6 +2539,10 @@ async function publishExam() {
     }
 
     addToLibrary(currentExam);
+
+    // Phase 3: persist exam record to Supabase for analytics (non-blocking)
+    _analyticsRegisterPublishedExam(currentExam, cfg).catch(e => console.warn('Analytics exam register (non-fatal):', e));
+
     document.getElementById('pubInstructor').textContent = cfg.instructor;
     document.getElementById('pubCourse').textContent = cfg.course;
     document.getElementById('pubStandard').textContent = cfg.standard;
@@ -2920,6 +2925,9 @@ function finalSubmit() {
     } catch (e) {
         console.warn('Failed to save attempt to localStorage:', e);
     }
+
+    // Phase 3: persist result to Supabase exam_results for analytics (non-blocking)
+    _analyticsSubmitResult(score, studentSession).catch(e => console.warn('Analytics result submit (non-fatal):', e));
 
     document.getElementById('studentView').classList.add('hidden-section');
     document.getElementById('resultView').classList.remove('hidden-section');
@@ -4580,4 +4588,625 @@ function _qbShowBanner(type, message) {
     banner.className = styles[type] || styles.info;
     banner.innerHTML = message;
     banner.classList.remove('hidden-section');
+}
+
+
+// ==========================================
+// PHASE 3: EXAM ANALYTICS DASHBOARD
+// Backed by Supabase `exam_results` table.
+//
+// Required SQL (run once in Supabase SQL Editor):
+//
+//   -- Table: published exams registry (lightweight, for analytics linking)
+//   CREATE TABLE IF NOT EXISTS analytics_exams (
+//     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//     local_exam_id TEXT NOT NULL UNIQUE,   -- currentExam.id (e.g. EXAM_1720...)
+//     owner_email   TEXT NOT NULL,
+//     instructor    TEXT,
+//     course        TEXT,
+//     topic         TEXT,
+//     semester      TEXT,
+//     question_count INT,
+//     max_score     NUMERIC,
+//     published_at  TIMESTAMPTZ DEFAULT now()
+//   );
+//   ALTER TABLE analytics_exams ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY "Faculty can read own exams" ON analytics_exams FOR SELECT
+//     USING (owner_email = current_setting('request.jwt.claims', true)::json->>'email');
+//   CREATE POLICY "Anyone can insert" ON analytics_exams FOR INSERT WITH CHECK (true);
+//
+//   -- Table: student results
+//   CREATE TABLE IF NOT EXISTS exam_results (
+//     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//     local_exam_id TEXT NOT NULL,           -- references analytics_exams.local_exam_id
+//     student_name  TEXT,
+//     student_email TEXT,
+//     student_id    TEXT,
+//     score         NUMERIC,
+//     max_score     NUMERIC,
+//     pct           NUMERIC,
+//     answers       JSONB,
+//     question_accuracy JSONB,              -- {qNumber: true/false}
+//     submitted_at  TIMESTAMPTZ DEFAULT now()
+//   );
+//   ALTER TABLE exam_results ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY "Anyone can insert results" ON exam_results FOR INSERT WITH CHECK (true);
+//   CREATE POLICY "Faculty can read results for their exams" ON exam_results FOR SELECT
+//     USING (
+//       EXISTS (
+//         SELECT 1 FROM analytics_exams ae
+//         WHERE ae.local_exam_id = exam_results.local_exam_id
+//         AND ae.owner_email = current_setting('request.jwt.claims', true)::json->>'email'
+//       )
+//     );
+//   -- Admin override: admins can see everything
+//   CREATE POLICY "Admins can read all results" ON exam_results FOR SELECT USING (true);
+//
+// NOTE: The student portal calls _analyticsSubmitResult() which uses the Supabase
+//       anon key (no auth required) so no Google token is needed for student submits.
+// ==========================================
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let analyticsExamList     = [];   // List of exams from analytics_exams
+let analyticsResults      = [];   // Raw exam_results rows for the selected exam
+let analyticsSelectedId   = null; // local_exam_id of selected exam
+let analyticsLiveTimer    = null; // Interval for live refresh
+
+// ── REGISTRATION (called from publishExam) ────────────────────────────────────
+
+/**
+ * Called non-blocking after publishExam() to persist the exam metadata to
+ * analytics_exams so the faculty can later query results against it.
+ * @param {Object} exam - currentExam object
+ * @param {Object} cfg  - exam config object
+ */
+async function _analyticsRegisterPublishedExam(exam, cfg) {
+    if (!supabaseClient) return;
+
+    const allQs = Object.values(exam.sets || {}).flat();
+    const questionCount = allQs.length;
+    const maxScore = allQs.reduce((sum, q) => sum + (q.marks || 4), 0);
+
+    const row = {
+        local_exam_id:  exam.id,
+        owner_email:    normalizeEmail(currentUser?.email || 'unknown'),
+        instructor:     cfg.instructor || '',
+        course:         cfg.course || '',
+        topic:          cfg.topic || '',
+        semester:       cfg.semester || '',
+        question_count: questionCount,
+        max_score:      maxScore
+    };
+
+    // Upsert: if same local_exam_id published again (re-publish) just update
+    const { error } = await supabaseClient
+        .from('analytics_exams')
+        .upsert([row], { onConflict: 'local_exam_id' });
+
+    if (error) throw error;
+    console.log('✅ Analytics exam registered:', exam.id);
+}
+
+/**
+ * Called non-blocking from finalSubmit() to persist the student's result to
+ * exam_results. Uses anonymous Supabase access (no Google token needed).
+ * @param {number} score          - calculated score
+ * @param {Object} session        - studentSession object
+ */
+async function _analyticsSubmitResult(score, session) {
+    if (!supabaseClient || !currentExam) return;
+
+    const allQs = session.questions || [];
+    const maxScore = allQs.reduce((sum, q) => sum + (q.marks || 4), 0);
+    const pct = maxScore > 0 ? Math.round((score / maxScore) * 100 * 10) / 10 : 0;
+
+    // Build per-question accuracy map: { qNumber: true/false }
+    const questionAccuracy = {};
+    allQs.forEach((q, i) => {
+        const answer = session.answers[i];
+        if (answer === undefined) {
+            questionAccuracy[q.number] = null; // unanswered
+        } else {
+            questionAccuracy[q.number] = answer === q.correct;
+        }
+    });
+
+    const row = {
+        local_exam_id:    currentExam.id,
+        student_name:     session.name || 'Unknown',
+        student_email:    session.email || '',
+        student_id:       session.id || '',
+        score:            score,
+        max_score:        maxScore,
+        pct:              pct,
+        answers:          session.answers || {},
+        question_accuracy: questionAccuracy
+    };
+
+    const { error } = await supabaseClient.from('exam_results').insert([row]);
+    if (error) throw error;
+    console.log('✅ Analytics result submitted for exam:', currentExam.id);
+}
+
+// ── LOAD TAB ──────────────────────────────────────────────────────────────────
+
+/**
+ * Entry point when the Analytics tab is activated.
+ * Fetches the list of exams and populates the selector.
+ */
+async function loadAnalyticsTab() {
+    if (!requireRole(['admin', 'faculty'])) return;
+
+    if (!supabaseClient) {
+        _analyticsShowBanner('error', '⚠️ Cloud database unavailable. Analytics cannot load.');
+        return;
+    }
+
+    // Populate exam selector
+    await _analyticsLoadExamList();
+
+    // If an exam was already selected (e.g. tab re-opened), reload data
+    const sel = document.getElementById('analyticsExamSelector');
+    if (sel && sel.value) {
+        analyticsSelectedId = sel.value;
+        await _analyticsFetchAndRender(analyticsSelectedId);
+    } else {
+        _analyticsShowEmptyState('No exam selected. Choose one from the dropdown above.');
+    }
+}
+
+/**
+ * Fetches exams from analytics_exams belonging to the current faculty (or all for admin).
+ */
+async function _analyticsLoadExamList() {
+    try {
+        const userEmail = currentUser?.email ? normalizeEmail(currentUser.email) : null;
+
+        let query = supabaseClient
+            .from('analytics_exams')
+            .select('*')
+            .order('published_at', { ascending: false });
+
+        // Faculty see only their own; admin sees all (RLS handles this server-side;
+        // but we also show a label for each for convenience)
+        const { data, error } = await query;
+        if (error) throw error;
+
+        analyticsExamList = data || [];
+
+        const sel = document.getElementById('analyticsExamSelector');
+        if (!sel) return;
+
+        // Keep current selection if any
+        const prevVal = sel.value;
+
+        sel.innerHTML = '<option value="">— Select an Exam —</option>' +
+            analyticsExamList.map(ex => {
+                const date = ex.published_at
+                    ? new Date(ex.published_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '';
+                const label = `${ex.course || 'Unknown'} — ${ex.topic || 'No Topic'} (${date})`;
+                return `<option value="${ex.local_exam_id}">${label}</option>`;
+            }).join('');
+
+        if (prevVal) sel.value = prevVal; // restore selection
+
+        if (analyticsExamList.length === 0) {
+            _analyticsShowBanner('info', '✨ No exams found yet. Publish an exam first — analytics data will appear here automatically.');
+        }
+
+    } catch (err) {
+        const msg = (err && err.message) ? err.message : String(err);
+        const tableMissing = /could not find|does not exist|relation/i.test(msg);
+        _analyticsShowBanner('error', tableMissing
+            ? '❗ The <code>analytics_exams</code> table does not exist yet. Please run the Phase 3 SQL in the comment at the top of the analytics section in app.js.'
+            : '⚠️ Could not load exam list: ' + escapeHtml(msg));
+    }
+}
+
+/**
+ * Called when the faculty changes the exam dropdown selection.
+ */
+async function onAnalyticsExamChange() {
+    const sel = document.getElementById('analyticsExamSelector');
+    const examId = sel ? sel.value : '';
+
+    // Stop any existing live timer
+    if (analyticsLiveTimer) { clearInterval(analyticsLiveTimer); analyticsLiveTimer = null; }
+    _analyticsSetLiveIndicator(false);
+
+    if (!examId) {
+        analyticsSelectedId = null;
+        _analyticsShowEmptyState('No exam selected. Choose one from the dropdown above.');
+        return;
+    }
+
+    analyticsSelectedId = examId;
+    await _analyticsFetchAndRender(examId);
+
+    // Start live refresh every 30 seconds while this exam is "live" (recent publish)
+    const examRow = analyticsExamList.find(e => e.local_exam_id === examId);
+    if (examRow) {
+        const publishedAt = new Date(examRow.published_at || 0);
+        const ageHours = (Date.now() - publishedAt.getTime()) / 3600000;
+        if (ageHours < 48) {
+            _analyticsSetLiveIndicator(true);
+            analyticsLiveTimer = setInterval(() => {
+                if (analyticsSelectedId === examId) {
+                    _analyticsFetchAndRender(examId);
+                } else {
+                    clearInterval(analyticsLiveTimer);
+                    analyticsLiveTimer = null;
+                }
+            }, 30000);
+        }
+    }
+}
+
+/**
+ * Manual refresh button handler.
+ */
+async function refreshAnalytics() {
+    if (!analyticsSelectedId) {
+        await _analyticsLoadExamList();
+        return;
+    }
+    const btn = document.getElementById('analyticsRefreshIcon');
+    if (btn) btn.textContent = '⏳';
+    await _analyticsFetchAndRender(analyticsSelectedId);
+    if (btn) btn.textContent = '🔄';
+}
+
+// ── FETCH & COMPUTE ───────────────────────────────────────────────────────────
+
+/**
+ * Fetches results for a given local_exam_id and renders the full dashboard.
+ * @param {string} localExamId
+ */
+async function _analyticsFetchAndRender(localExamId) {
+    if (!supabaseClient) return;
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('exam_results')
+            .select('*')
+            .eq('local_exam_id', localExamId)
+            .order('submitted_at', { ascending: true });
+
+        if (error) throw error;
+
+        analyticsResults = data || [];
+
+        if (analyticsResults.length === 0) {
+            _analyticsShowEmptyState('No submissions yet for this exam. Share the student link and check back soon.');
+            return;
+        }
+
+        _analyticsHideBanner();
+        _analyticsShowDashboard();
+        _analyticsComputeAndRender();
+
+    } catch (err) {
+        const msg = (err && err.message) ? err.message : String(err);
+        const tableMissing = /could not find|does not exist|relation/i.test(msg);
+        _analyticsShowBanner('error', tableMissing
+            ? '❗ The <code>exam_results</code> table does not exist yet. Please run the Phase 3 SQL.'
+            : '⚠️ Could not load results: ' + escapeHtml(msg));
+        _analyticsShowEmptyState('');
+    }
+}
+
+/**
+ * Computes all metrics from analyticsResults and renders the full dashboard.
+ */
+function _analyticsComputeAndRender() {
+    const results = analyticsResults;
+    if (!results.length) return;
+
+    const examRow = analyticsExamList.find(e => e.local_exam_id === analyticsSelectedId);
+    const maxScore = examRow ? (examRow.max_score || 0) : (results[0].max_score || 0);
+
+    const scores = results.map(r => Number(r.score) || 0);
+    const pcts   = results.map(r => Number(r.pct) || 0);
+
+    const avg  = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const high = Math.max(...scores);
+    const low  = Math.min(...scores);
+    const passCount = pcts.filter(p => p >= 50).length;
+    const passRate  = Math.round((passCount / results.length) * 100);
+
+    // ── Stat cards
+    _setText('statSubmissions', results.length);
+    _setText('statAvgScore', avg.toFixed(1) + (maxScore ? ' / ' + maxScore : ''));
+    _setText('statHighScore', high + (maxScore ? ' / ' + maxScore : ''));
+    _setText('statLowScore',  low  + (maxScore ? ' / ' + maxScore : ''));
+
+    // ── Pass rate donut
+    const arc = document.getElementById('donutArc');
+    const pctLabel = document.getElementById('donutPct');
+    if (arc) arc.setAttribute('stroke-dasharray', `${passRate} ${100 - passRate}`);
+    if (pctLabel) pctLabel.textContent = passRate + '%';
+
+    // ── Score Distribution (bar chart, 5 buckets: 0–20, 20–40, 40–60, 60–80, 80–100)
+    _analyticsRenderScoreDistribution(pcts, maxScore);
+
+    // ── Submissions Over Time (timeline bar chart)
+    _analyticsRenderTimeline(results);
+
+    // ── Per-Question Accuracy
+    _analyticsRenderPerQuestion(results);
+
+    // ── Submissions Table
+    _analyticsRenderTable(results, maxScore);
+}
+
+// ── CHART RENDERERS ───────────────────────────────────────────────────────────
+
+function _analyticsRenderScoreDistribution(pcts, maxScore) {
+    const buckets = [0, 0, 0, 0, 0]; // 0-20, 20-40, 40-60, 60-80, 80-100
+    pcts.forEach(p => {
+        const idx = Math.min(Math.floor(p / 20), 4);
+        buckets[idx]++;
+    });
+    const maxBucket = Math.max(...buckets, 1);
+    const bucketLabels = ['0–20%', '20–40%', '40–60%', '60–80%', '80–100%'];
+    const bucketColors = ['#fb7185', '#fbbf24', '#a3e635', '#34d399', '#60a5fa'];
+
+    const chartEl = document.getElementById('scoreDistChart');
+    const labelsEl = document.getElementById('scoreDistLabels');
+    if (!chartEl) return;
+
+    chartEl.innerHTML = buckets.map((count, i) => {
+        const pctH = Math.round((count / maxBucket) * 100);
+        return `
+            <div class="flex-1 flex flex-col items-center gap-1 group">
+                <div class="text-[10px] font-black text-slate-600 opacity-0 group-hover:opacity-100 transition">${count}</div>
+                <div class="w-full rounded-t-lg transition-all duration-700"
+                     style="height:${pctH}%;background:${bucketColors[i]};min-height:4px;max-height:100%"
+                     title="${bucketLabels[i]}: ${count} student(s)"></div>
+            </div>
+        `;
+    }).join('');
+
+    if (labelsEl) {
+        labelsEl.innerHTML = bucketLabels.map(l => `<span>${l}</span>`).join('');
+    }
+}
+
+function _analyticsRenderTimeline(results) {
+    // Group by date (submitted_at day)
+    const byDay = {};
+    results.forEach(r => {
+        const day = r.submitted_at
+            ? new Date(r.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+            : 'Unknown';
+        byDay[day] = (byDay[day] || 0) + 1;
+    });
+
+    const days   = Object.keys(byDay);
+    const counts = Object.values(byDay);
+    const maxC   = Math.max(...counts, 1);
+
+    const chartEl  = document.getElementById('timelineChart');
+    const labelsEl = document.getElementById('timelineLabels');
+    if (!chartEl) return;
+
+    chartEl.innerHTML = counts.map((c, i) => {
+        const pctH = Math.round((c / maxC) * 100);
+        return `
+            <div class="flex-1 flex flex-col items-end justify-end group">
+                <div class="text-[9px] font-black text-slate-500 mb-0.5 opacity-0 group-hover:opacity-100 transition">${c}</div>
+                <div class="w-full rounded-t-md bg-blue-400 group-hover:bg-blue-500 transition-all duration-500"
+                     style="height:${pctH}%;min-height:3px;" title="${days[i]}: ${c}"></div>
+            </div>
+        `;
+    }).join('');
+
+    // Show only first, middle, last label to avoid clutter
+    if (labelsEl) {
+        const lbls = days.map((d, i) => {
+            const visible = (i === 0 || i === Math.floor(days.length / 2) || i === days.length - 1);
+            return visible ? `<span>${d}</span>` : `<span></span>`;
+        });
+        labelsEl.innerHTML = lbls.join('');
+    }
+}
+
+function _analyticsRenderPerQuestion(results) {
+    // Aggregate per-question accuracy
+    const qAccMap = {}; // { qNumber: { correct: N, total: N } }
+
+    results.forEach(r => {
+        const acc = r.question_accuracy || {};
+        Object.entries(acc).forEach(([qNum, isCorrect]) => {
+            if (!qAccMap[qNum]) qAccMap[qNum] = { correct: 0, total: 0 };
+            qAccMap[qNum].total++;
+            if (isCorrect === true) qAccMap[qNum].correct++;
+        });
+    });
+
+    const sorted = Object.entries(qAccMap)
+        .map(([qNum, { correct, total }]) => ({
+            qNum: parseInt(qNum),
+            pct: total > 0 ? Math.round((correct / total) * 100) : 0,
+            correct, total
+        }))
+        .sort((a, b) => a.qNum - b.qNum);
+
+    const container = document.getElementById('perQuestionChart');
+    if (!container) return;
+
+    if (sorted.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Per-question data not available for this exam.</p>';
+        return;
+    }
+
+    container.innerHTML = sorted.map(({ qNum, pct, correct, total }) => {
+        const barColor = pct >= 70 ? '#34d399' : pct >= 40 ? '#fbbf24' : '#fb7185';
+        return `
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] font-black text-slate-500 w-6 text-right shrink-0">Q${qNum}</span>
+                <div class="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-700"
+                         style="width:${pct}%;background:${barColor}"></div>
+                </div>
+                <span class="text-[10px] font-black text-slate-600 w-14 text-right shrink-0">${pct}%</span>
+            </div>
+        `;
+    }).join('');
+
+    // ── Top 5 Hardest
+    const hardest = [...sorted].sort((a, b) => a.pct - b.pct).slice(0, 5);
+    const hardestEl = document.getElementById('hardestList');
+    if (hardestEl) {
+        if (hardest.length === 0) {
+            hardestEl.innerHTML = '<li class="text-xs text-slate-400">No question data yet.</li>';
+        } else {
+            hardestEl.innerHTML = hardest.map((h, rank) => `
+                <li class="flex items-center gap-3">
+                    <span class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0
+                          ${rank === 0 ? 'bg-rose-100 text-rose-600' : rank === 1 ? 'bg-orange-100 text-orange-600' : 'bg-amber-100 text-amber-600'}">
+                        ${rank + 1}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold text-slate-700">Q${h.qNum}</div>
+                        <div class="text-[10px] text-slate-400">${h.correct}/${h.total} correct (${h.pct}%)</div>
+                    </div>
+                    <div class="text-xs font-black ${h.pct < 30 ? 'text-rose-600' : 'text-amber-600'}">${h.pct}%</div>
+                </li>
+            `).join('');
+        }
+    }
+}
+
+function _analyticsRenderTable(results, maxScore) {
+    const tbody = document.getElementById('submissionsTableBody');
+    const emptyMsg = document.getElementById('submissionsTableEmpty');
+    if (!tbody) return;
+
+    if (results.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyMsg) emptyMsg.classList.remove('hidden-section');
+        return;
+    }
+
+    if (emptyMsg) emptyMsg.classList.add('hidden-section');
+
+    // Sort newest first
+    const sorted = [...results].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+
+    tbody.innerHTML = sorted.map(r => {
+        const score = Number(r.score) || 0;
+        const pct   = Number(r.pct)   || 0;
+        const date  = r.submitted_at
+            ? new Date(r.submitted_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+            : '—';
+        const passFail = pct >= 50
+            ? '<span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Pass</span>'
+            : '<span class="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">Fail</span>';
+        return `
+            <tr class="hover:bg-slate-50/60 transition">
+                <td class="py-2 pr-4 font-medium text-slate-800">${escapeHtml(r.student_name || '—')}</td>
+                <td class="py-2 pr-4 text-slate-400 text-xs">${escapeHtml(r.student_email || '—')}</td>
+                <td class="py-2 pr-4 text-center font-black text-slate-800">${score}${maxScore ? ' / ' + maxScore : ''}</td>
+                <td class="py-2 pr-4 text-center">${passFail}</td>
+                <td class="py-2 text-xs text-slate-400">${date}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────────────────────────
+
+/**
+ * Exports the current analyticsResults to a downloadable CSV file.
+ */
+function exportAnalyticsCSV() {
+    if (!analyticsResults.length) {
+        alert('No data to export. Select an exam with submissions first.');
+        return;
+    }
+
+    const examRow = analyticsExamList.find(e => e.local_exam_id === analyticsSelectedId);
+    const header = ['Student Name', 'Email', 'Student ID', 'Score', 'Max Score', '% Score', 'Submitted At'];
+    const rows = analyticsResults.map(r => [
+        r.student_name  || '',
+        r.student_email || '',
+        r.student_id    || '',
+        r.score         ?? '',
+        r.max_score     ?? '',
+        r.pct           ?? '',
+        r.submitted_at  || ''
+    ]);
+
+    const csvContent = [header, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `analytics_${examRow ? examRow.course + '_' + examRow.topic : analyticsSelectedId}_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ── UI HELPERS ────────────────────────────────────────────────────────────────
+
+function _analyticsShowDashboard() {
+    document.getElementById('analyticsDashboard')?.classList.remove('hidden-section');
+    document.getElementById('analyticsEmptyState')?.classList.add('hidden-section');
+}
+
+function _analyticsShowEmptyState(msg) {
+    const el = document.getElementById('analyticsEmptyState');
+    if (el) {
+        el.innerHTML = `
+            <div class="text-5xl mb-4">📊</div>
+            <p class="font-bold text-lg mb-2 text-slate-500">${msg ? escapeHtml(msg) : 'No data'}</p>
+            <p class="text-sm">Use the dropdown to select an exam.</p>
+        `;
+        el.classList.remove('hidden-section');
+    }
+    document.getElementById('analyticsDashboard')?.classList.add('hidden-section');
+}
+
+function _analyticsShowBanner(type, message) {
+    const banner = document.getElementById('analyticsDbStatus');
+    if (!banner) return;
+    const styles = {
+        info:    'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100',
+        error:   'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200',
+        success: 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200'
+    };
+    banner.className = styles[type] || styles.info;
+    banner.innerHTML = message;
+    banner.classList.remove('hidden-section');
+}
+
+function _analyticsHideBanner() {
+    document.getElementById('analyticsDbStatus')?.classList.add('hidden-section');
+}
+
+function _analyticsSetLiveIndicator(isLive) {
+    const dot   = document.getElementById('analyticsLiveIndicator');
+    const label = document.getElementById('analyticsLiveLabel');
+    if (!dot || !label) return;
+    if (isLive) {
+        dot.className   = 'inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        label.textContent = 'Live — auto-refreshing';
+        label.className   = 'text-emerald-600';
+    } else {
+        dot.className   = 'inline-block w-2 h-2 rounded-full bg-slate-300';
+        label.textContent = 'Not live';
+        label.className   = 'text-slate-400';
+    }
+}
+
+function _setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
 }
