@@ -536,3 +536,49 @@ nav.flex.overflow-x-auto { background:#ffffff !important; border:1px solid #e2e8
         transform: translateY(0) scale(1);
     }
 }
+
+/* =====================================================
+   PHASE 3: ANALYTICS DASHBOARD STYLES
+   ===================================================== */
+
+.analytics-stat-card {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 1.25rem;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.analytics-stat-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08);
+}
+
+.analytics-stat-value {
+    font-size: 1.875rem;
+    font-weight: 900;
+    color: #1e293b;
+    line-height: 1.1;
+    margin-bottom: 0.35rem;
+}
+
+.analytics-stat-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+#donutArc {
+    transition: stroke-dasharray 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#submissionsTableBody tr {
+    border-bottom: 1px solid #f8fafc;
+}
+
+#submissionsTableBody tr:last-child {
+    border-bottom: none;
+}
