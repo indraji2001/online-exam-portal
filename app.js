@@ -4817,11 +4817,13 @@ async function onAnalyticsExamChange() {
 
     if (!examId) {
         analyticsSelectedId = null;
+        document.getElementById('deleteAnalyticsBtn')?.classList.add('hidden-section');
         _analyticsShowEmptyState('No exam selected. Choose one from the dropdown above.');
         return;
     }
 
     analyticsSelectedId = examId;
+    document.getElementById('deleteAnalyticsBtn')?.classList.remove('hidden-section');
     await _analyticsFetchAndRender(examId);
 
     // Start live refresh every 30 seconds while this exam is "live" (recent publish)
@@ -5152,6 +5154,60 @@ function exportAnalyticsCSV() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+/**
+ * Deletes the currently selected exam and all its results from Supabase.
+ */
+async function deleteAnalyticsExam() {
+    if (!analyticsSelectedId || !supabaseClient) return;
+
+    const examRow = analyticsExamList.find(e => e.local_exam_id === analyticsSelectedId);
+    const examName = examRow ? `${examRow.course} - ${examRow.topic}` : analyticsSelectedId;
+
+    if (!confirm(`⚠️ Are you sure you want to completely delete all analytics data and student results for "${examName}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+
+    const btn = document.getElementById('deleteAnalyticsBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+
+    try {
+        // Because exam_results references analytics_exams via local_exam_id, 
+        // we can delete from analytics_exams and cascade, OR delete from both directly.
+        // Direct delete from both to be safe without requiring foreign key cascades:
+        
+        // 1. Delete all results
+        const { error: resError } = await supabaseClient
+            .from('exam_results')
+            .delete()
+            .eq('local_exam_id', analyticsSelectedId);
+            
+        if (resError) throw resError;
+
+        // 2. Delete exam registry record
+        const { error: exError } = await supabaseClient
+            .from('analytics_exams')
+            .delete()
+            .eq('local_exam_id', analyticsSelectedId);
+
+        if (exError) throw exError;
+
+        alert('✅ Exam analytics and results successfully deleted.');
+        
+        // Refresh the list and clear selection
+        await _analyticsLoadExamList();
+        
+        const sel = document.getElementById('analyticsExamSelector');
+        if (sel) sel.value = "";
+        onAnalyticsExamChange(); // trigger UI reset
+
+    } catch (err) {
+        console.error('Failed to delete analytics:', err);
+        alert('⚠️ Error deleting exam: ' + (err.message || String(err)));
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '🗑️ Delete Exam & Results'; }
+    }
 }
 
 // ── UI HELPERS ────────────────────────────────────────────────────────────────
