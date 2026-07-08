@@ -1352,7 +1352,10 @@ function showTab(tabName) {
     if (tabName === 'settings') {
         renderVerifiedTokens(); // Render the whitelist when entering settings
     }
-    if (tabName === 'library') loadLibrary();
+    if (tabName === 'library') {
+        loadLibrary();
+        loadSharedFacultyLibrary();
+    }
     if (tabName === 'images') renderImageQueue();
     if (tabName === 'settings') renderAdminSettings();
 }
@@ -2520,6 +2523,16 @@ async function publishExam() {
     }
 
     // ── UI ALWAYS UPDATES ──────────────────────────────────────────────────
+    // Phase 1: Optionally share to Faculty Library (never blocks publish)
+    try {
+        const shareCheckbox = document.getElementById('shareToFacultyLibrary');
+        if (shareCheckbox && shareCheckbox.checked) {
+            await shareCurrentExam(cfg, generatedSets);
+        }
+    } catch (shareErr) {
+        console.warn('Shared Faculty Library publish (non-fatal):', shareErr);
+    }
+
     addToLibrary(currentExam);
     document.getElementById('pubInstructor').textContent = cfg.instructor;
     document.getElementById('pubCourse').textContent = cfg.course;
@@ -3556,5 +3569,380 @@ function renderVerifiedTokens() {
             </div>
         </div>
     `).join('');
+}
+
+// ==========================================
+// PHASE 1: SHARED FACULTY LIBRARY
+// Backed by Supabase `shared_exams` table.
+//
+// Required SQL (run once in Supabase SQL Editor):
+//   CREATE TABLE shared_exams (
+//     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//     owner_email    TEXT NOT NULL,
+//     instructor     TEXT NOT NULL,
+//     course         TEXT NOT NULL,
+//     semester       TEXT,
+//     topic          TEXT,
+//     questions      JSONB NOT NULL,
+//     question_count INT,
+//     is_shared      BOOLEAN DEFAULT true,
+//     created_at     TIMESTAMPTZ DEFAULT now()
+//   );
+//   ALTER TABLE shared_exams ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY "Anyone can read shared exams"
+//     ON shared_exams FOR SELECT USING (is_shared = true);
+//   CREATE POLICY "Anyone can insert shared exams"
+//     ON shared_exams FOR INSERT WITH CHECK (true);
+//   CREATE POLICY "Owner or admin can delete"
+//     ON shared_exams FOR DELETE
+//     USING (owner_email = current_setting('app.current_email', true)
+//            OR current_setting('app.current_role', true) = 'admin');
+// NOTE: RLS policies above are optional. The portal also guards access
+// client-side (requireRole) per PORTAL_EXPANSION.md §1 Access Control.
+// ==========================================
+
+// Cache of the most recently fetched shared exams (avoids re-query on filter).
+let sharedLibraryCache = [];
+
+/**
+ * Fetches all shared exams from the `shared_exams` table and renders them.
+ * Called automatically when the Library tab is opened (hooked in showTab).
+ * Failures surface in a non-blocking status banner — never via alert().
+ */
+async function loadSharedFacultyLibrary() {
+    if (!requireRole(['admin', 'faculty'])) return;
+    const container = document.getElementById('sharedLibraryContent');
+    const statusBanner = document.getElementById('sharedLibraryDbStatus');
+    if (!container) return;
+
+    // Guard: Supabase must be initialized
+    if (!supabaseClient) {
+        if (statusBanner) {
+            statusBanner.className = 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200';
+            statusBanner.innerHTML = '<span>⚠️</span> Cloud database unavailable. Faculty Library cannot load. Please refresh the page.';
+            statusBanner.classList.remove('hidden-section');
+        }
+        container.innerHTML = '<p class="text-center py-8 text-slate-400 col-span-full">Cloud database unavailable.</p>';
+        return;
+    }
+
+    // Loading state
+    container.innerHTML = '<p class="text-center py-8 text-slate-400 col-span-full"><span class="animate-spin inline-block mr-2">🌐</span>Loading shared exams...</p>';
+    if (statusBanner) statusBanner.classList.add('hidden-section');
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('shared_exams')
+            .select('*')
+            .eq('is_shared', true)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        sharedLibraryCache = data || [];
+        renderSharedLibrary(sharedLibraryCache);
+
+        // Success banner only if table exists but is empty
+        if (sharedLibraryCache.length === 0) {
+            if (statusBanner) {
+                statusBanner.className = 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100';
+                statusBanner.innerHTML = '<span>✨</span> No shared exams yet. Be the first faculty member to share an exam by publishing one with "Share to Faculty Library" enabled.';
+                statusBanner.classList.remove('hidden-section');
+            }
+        }
+    } catch (err) {
+        console.error('Shared Faculty Library load error:', err);
+        sharedLibraryCache = [];
+        const msg = (err && err.message) ? err.message : String(err);
+
+        // Detect the common case: table does not exist yet
+        const tableMissing = /could not find|does not exist|relation/i.test(msg);
+
+        if (statusBanner) {
+            statusBanner.className = 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200';
+            statusBanner.innerHTML = tableMissing
+                ? '<span>❗</span> The <code>shared_exams</code> table does not exist in the database yet. An admin must run the SQL in the "Phase 1 Setup" comment in app.js.'
+                : '<span>⚠️</span> Could not load shared exams: ' + msg;
+            statusBanner.classList.remove('hidden-section');
+        }
+        container.innerHTML = '<p class="text-center py-8 text-slate-400 col-span-full">Unable to load shared exams.</p>';
+    }
+}
+
+/**
+ * Renders the shared exam cards into the grid.
+ * @param {Array} exams - array of shared_exams rows
+ */
+function renderSharedLibrary(exams) {
+    const container = document.getElementById('sharedLibraryContent');
+    if (!container) return;
+
+    if (!exams || exams.length === 0) {
+        container.innerHTML = '<p class="text-center py-8 text-slate-400 col-span-full">No shared exams found.</p>';
+        return;
+    }
+
+    container.innerHTML = exams.map(exam => {
+        const questionCount = exam.question_count || (exam.questions ? (Object.values(exam.questions).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0)) : 0);
+        const setCount = (exam.questions && typeof exam.questions === 'object') ? Object.keys(exam.questions).length : 0;
+        const date = exam.created_at ? new Date(exam.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+        const isOwner = currentUser && normalizeEmail(exam.owner_email) === normalizeEmail(currentUser.email);
+        const canDelete = isOwner || userRole === 'admin';
+
+        return `
+            <div class="library-card bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-4 shared-exam-card" data-search="${(exam.course + ' ' + exam.instructor + ' ' + (exam.topic || '') + ' ' + (exam.semester || '')).toLowerCase().trim()}">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <span class="inline-block bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest mb-2">${escapeHtml(exam.course || 'Course')}</span>
+                        <h4 class="font-bold text-slate-900 text-lg leading-tight truncate">${escapeHtml(exam.topic || 'Untitled Topic')}</h4>
+                    </div>
+                    <div class="text-2xl shrink-0">📋</div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wider">
+                    ${exam.semester ? `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded-full">${escapeHtml(exam.semester)}</span>` : ''}
+                    <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full">${questionCount} Questions</span>
+                    ${setCount ? `<span class="bg-purple-50 text-purple-600 px-2 py-1 rounded-full">${setCount} Set${setCount > 1 ? 's' : ''}</span>` : ''}
+                </div>
+
+                <div class="text-xs text-slate-500 font-medium border-t border-slate-100 pt-3">
+                    <div class="flex items-center gap-1.5">
+                        <span>🧑‍🏫</span> <span class="font-bold text-slate-700">${escapeHtml(exam.instructor || 'Unknown')}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span>📅</span> <span>${date}</span>
+                    </div>
+                </div>
+
+                <!-- Expandable metadata panel (preview) -->
+                <div id="preview-${exam.id}" class="hidden-section bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 font-medium"></div>
+
+                <div class="flex gap-2 mt-auto pt-2">
+                    <button onclick="importSharedExam('${exam.id}')" class="pearl-btn pearl-btn-blue flex-1 px-4 py-2 rounded-xl text-white text-xs font-bold">📥 Import</button>
+                    <button onclick="previewSharedExam('${exam.id}')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition">👁 Preview</button>
+                    ${canDelete ? `<button onclick="deleteSharedExam('${exam.id}', '${escapeHtml(exam.owner_email || '')}')" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-xs font-bold transition" title="Remove from Library">🗑</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Live-filters the rendered shared exam cards by the search input.
+ * Uses the cached dataset — no re-query needed.
+ */
+function filterSharedLibrary() {
+    const input = document.getElementById('sharedLibrarySearch');
+    if (!input) return;
+    const term = input.value.trim().toLowerCase();
+
+    const cards = document.querySelectorAll('#sharedLibraryContent .shared-exam-card');
+    cards.forEach(card => {
+        const haystack = card.getAttribute('data-search') || '';
+        card.style.display = haystack.includes(term) ? '' : 'none';
+    });
+}
+
+/**
+ * Toggles an expandable preview panel on a shared exam card,
+ * showing its metadata and set/question breakdown.
+ * @param {string} id - shared_exams row id
+ */
+function previewSharedExam(id) {
+    const panel = document.getElementById('preview-' + id);
+    if (!panel) return;
+
+    // If already visible, collapse it
+    if (!panel.classList.contains('hidden-section')) {
+        panel.classList.add('hidden-section');
+        return;
+    }
+
+    const exam = sharedLibraryCache.find(e => e.id === id);
+    if (!exam) {
+        panel.innerHTML = '<p class="text-rose-500">Exam data not found.</p>';
+        panel.classList.remove('hidden-section');
+        return;
+    }
+
+    let breakdown = '<p>No question data available.</p>';
+    if (exam.questions && typeof exam.questions === 'object') {
+        const sets = Object.keys(exam.questions);
+        breakdown = sets.map(setName => {
+            const qs = exam.questions[setName];
+            const count = Array.isArray(qs) ? qs.length : 0;
+            // Show question type distribution if available
+            let typeBreakdown = '';
+            if (Array.isArray(qs)) {
+                const types = {};
+                qs.forEach(q => { const t = q.type || 'single'; types[t] = (types[t] || 0) + 1; });
+                typeBreakdown = Object.entries(types).map(([t, c]) => `${t}: ${c}`).join(' · ');
+            }
+            return `<div class="mb-2"><span class="font-black text-slate-700">Set ${escapeHtml(setName)}</span> — ${count} questions${typeBreakdown ? ' <span class="text-slate-400">(' + escapeHtml(typeBreakdown) + ')</span>' : ''}</div>`;
+        }).join('');
+    }
+
+    panel.innerHTML = `
+        <div class="space-y-1">
+            <div><span class="font-black text-slate-700">Course:</span> ${escapeHtml(exam.course || '—')}</div>
+            <div><span class="font-black text-slate-700">Topic:</span> ${escapeHtml(exam.topic || '—')}</div>
+            <div><span class="font-black text-slate-700">Instructor:</span> ${escapeHtml(exam.instructor || '—')}</div>
+            ${exam.semester ? `<div><span class="font-black text-slate-700">Semester:</span> ${escapeHtml(exam.semester)}</div>` : ''}
+            <div class="pt-2 border-t border-slate-200 mt-2">
+                <div class="font-black text-slate-700 mb-1">Structure:</div>
+                ${breakdown}
+            </div>
+        </div>
+    `;
+    panel.classList.remove('hidden-section');
+}
+
+/**
+ * Imports a shared exam into the current workspace.
+ * Loads its questions into `generatedSets` and pre-fills the Generate tab,
+ * then navigates to the Images tab for review.
+ * Modeled on the existing importHtmlCheckpoint() pattern.
+ * @param {string} id - shared_exams row id
+ */
+function importSharedExam(id) {
+    if (!requireRole(['admin', 'faculty'])) return;
+    const exam = sharedLibraryCache.find(e => e.id === id);
+    if (!exam || !exam.questions) {
+        alert('This shared exam has no question data to import.');
+        return;
+    }
+
+    if (!confirm(`Import "${exam.course} — ${exam.topic || 'Untitled'}" by ${exam.instructor} into your workspace?\n\nThis will replace your current question sets.`)) return;
+
+    // Load the question sets into the workspace
+    generatedSets = exam.questions;
+
+    // Pre-fill the Generate tab fields so the exam is correctly contextualized
+    const setField = (id, value) => {
+        const el = document.getElementById(id);
+        if (el && value !== undefined && value !== null) el.value = value;
+    };
+    setField('genInstructor', exam.instructor);
+    setField('genCourse', exam.course);
+    setField('genTopic', exam.topic);
+    setField('genSemester', exam.semester);
+
+    // Refresh the filename preview (guarded — function may not be ready)
+    if (typeof updateFileNamePreview === 'function') updateFileNamePreview();
+
+    // Pre-fill archive filename on the Publish tab
+    const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+    const safeName = (n) => (n || '').replace(/\s+/g, '_');
+    const archiveName = `QS_${safeName(exam.instructor)}_${exam.semester || 'Sem'}_${exam.course}_${safeName(exam.topic || 'Topic')}_${dateStr}.html`;
+    const archiveInput = document.getElementById('archiveFileName');
+    if (archiveInput) archiveInput.value = archiveName;
+
+    // Render the question preview and navigate to the Images tab for review
+    if (typeof renderImageQueue === 'function') renderImageQueue();
+    showTab('images');
+
+    // Friendly confirmation
+    const totalQ = Object.values(generatedSets).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+    alert(`✅ Imported "${exam.course} — ${exam.topic || 'Untitled'}"!\n\nLoaded ${totalQ} questions across ${Object.keys(generatedSets).length} set(s). Review them in the Images tab.`);
+}
+
+/**
+ * Removes a shared exam from the Faculty Library.
+ * Permission-gated: only the original author or an admin can delete.
+ * @param {string} id - shared_exams row id
+ * @param {string} ownerEmail - the owner_email of the exam row
+ */
+async function deleteSharedExam(id, ownerEmail) {
+    if (!requireRole(['admin', 'faculty'])) return;
+
+    const isOwner = currentUser && normalizeEmail(ownerEmail) === normalizeEmail(currentUser.email);
+    if (!isOwner && userRole !== 'admin') {
+        alert('You can only remove exams that you shared. Only the original author or an admin can delete a shared exam.');
+        return;
+    }
+
+    if (!confirm('Remove this exam from the Shared Faculty Library?\n\nThis will not affect any copies instructors have already imported.')) return;
+
+    if (!supabaseClient) {
+        alert('Cloud database unavailable. Cannot remove.');
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('shared_exams')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Update cache and re-render
+        sharedLibraryCache = sharedLibraryCache.filter(e => e.id !== id);
+        renderSharedLibrary(sharedLibraryCache);
+        filterSharedLibrary(); // re-apply any active search filter
+
+        // Show empty-state banner if library is now empty
+        if (sharedLibraryCache.length === 0) {
+            const statusBanner = document.getElementById('sharedLibraryDbStatus');
+            if (statusBanner) {
+                statusBanner.className = 'mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100';
+                statusBanner.innerHTML = '<span>✨</span> No shared exams yet. Be the first faculty member to share an exam by publishing one with "Share to Faculty Library" enabled.';
+                statusBanner.classList.remove('hidden-section');
+            }
+        }
+    } catch (err) {
+        console.error('Delete shared exam error:', err);
+        alert('Failed to remove exam: ' + ((err && err.message) ? err.message : String(err)));
+    }
+}
+
+/**
+ * Publishes the current exam to the Shared Faculty Library.
+ * Called from publishExam() when the "Share to Faculty Library" checkbox is checked.
+ * Wrapped in try/catch by the caller so a share failure never blocks publishing.
+ * @param {Object} cfg - exam configuration from publishExam()
+ * @param {Object} sets - the generatedSets object
+ */
+async function shareCurrentExam(cfg, sets) {
+    if (!requireRole(['admin', 'faculty'])) return;
+    if (!supabaseClient) {
+        console.warn('Shared Faculty Library: Supabase unavailable, exam not shared.');
+        return;
+    }
+
+    // Compute question count across all sets
+    const questionCount = Object.values(sets).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+
+    const row = {
+        owner_email: currentUser.email,
+        instructor: cfg.instructor,
+        course: cfg.course,
+        semester: cfg.semester || null,
+        topic: cfg.topic || null,
+        questions: sets,                 // stored as JSONB
+        question_count: questionCount,
+        is_shared: true
+    };
+
+    const { error } = await supabaseClient
+        .from('shared_exams')
+        .insert([row]);
+
+    if (error) throw error;
+
+    console.log('✅ Exam shared to Faculty Library:', cfg.course, '-', cfg.topic);
+}
+
+/**
+ * Minimal HTML escaper to prevent broken markup / XSS in card text.
+ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
