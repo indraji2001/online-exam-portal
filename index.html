@@ -640,7 +640,29 @@
 
         <!-- Tab 7: Library -->
         <section id="content-library" class="max-w-5xl mx-auto hidden-section">
-            <div class="glass p-10 rounded-[3rem] border border-white shadow-xl min-h-[500px]">
+
+            <!-- Panel 1: Shared Faculty Library (Phase 1) -->
+            <div class="glass p-10 rounded-[3rem] border border-white shadow-xl mb-8 min-h-[300px]">
+                <h3 class="text-3xl font-extrabold mb-2 flex items-center gap-3">
+                    <span>🌐 Shared Faculty Library</span>
+                </h3>
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">Exams published by faculty across the department</p>
+
+                <!-- DB Status Banner -->
+                <div id="sharedLibraryDbStatus" class="hidden-section mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold"></div>
+
+                <!-- Search Bar -->
+                <div class="mb-8 relative">
+                    <input type="text" id="sharedLibrarySearch" oninput="filterSharedLibrary()" placeholder="Search by course, instructor, topic, or semester..." class="w-full p-4 pl-12 border-2 rounded-2xl font-medium bg-slate-50 outline-none focus:border-blue-500 transition">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                </div>
+
+                <!-- Shared Library Grid -->
+                <div id="sharedLibraryContent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+
+            <!-- Panel 2: My Exam Archive (existing) -->
+            <div class="glass p-10 rounded-[3rem] border border-white shadow-xl min-h-[300px]">
                 <h3 class="text-3xl font-extrabold mb-10 flex items-center justify-between">
                     <span>📚 Local Exam Archive</span>
                     <button class="text-sm bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold uppercase tracking-wider">Sync with Cloud</button>
@@ -708,6 +730,13 @@
                 </div>
 
                 <div class="flex flex-col gap-4">
+                    <!-- Phase 1: Share to Faculty Library Opt-In -->
+                    <label class="flex items-center justify-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100 cursor-pointer">
+                        <input type="checkbox" id="shareToFacultyLibrary" checked class="h-5 w-5 accent-blue-600">
+                        <span class="text-sm font-bold text-blue-700">Share to Faculty Library</span>
+                        <span class="text-[10px] text-blue-400 font-medium">(Other instructors can browse &amp; import this exam)</span>
+                    </label>
+
                     <button onclick="publishExam()" class="pearl-btn pearl-btn-blue w-full py-6 rounded-3xl text-white font-extrabold text-2xl shadow-2xl flex items-center justify-center gap-4 group">
                         <span>🚀</span> PUBLISH TO CLOUD DRIVE
                         <span class="hidden group-hover:inline animate-pulse">→</span>
