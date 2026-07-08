@@ -204,7 +204,8 @@
             <button id="tab-import" onclick="showTab('import')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">5. Import</button>
             <button id="tab-images" onclick="showTab('images')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">6. Images</button>
             <button id="tab-library" onclick="showTab('library')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">7. Library</button>
-            <button id="tab-publish" onclick="showTab('publish')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">8. Publish</button>
+            <button id="tab-question-bank" onclick="showTab('question-bank')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">8. Q-Bank</button>
+            <button id="tab-publish" onclick="showTab('publish')" class="flex-1 py-4 px-4 font-semibold tab-inactive rounded-xl">9. Publish</button>
             <button id="tab-settings" onclick="showTab('settings')" class="flex-1 py-4 px-4 font-semibold bg-rose-50 text-rose-600 rounded-xl hidden transition hover:bg-rose-100">⚙️ Settings</button>
         </nav>
 
@@ -671,7 +672,166 @@
             </div>
         </section>
 
-        <!-- Tab 8: Publish -->
+        <!-- Tab 8: Question Bank (Phase 2) -->
+        <section id="content-question-bank" class="max-w-5xl mx-auto hidden-section">
+
+            <!-- Header -->
+            <div class="glass p-8 rounded-[3rem] border border-white shadow-xl mb-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h3 class="text-3xl font-extrabold text-slate-900 flex items-center gap-3 mb-1">
+                            🏦 Question Bank
+                        </h3>
+                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Your personal &amp; shared question repository</p>
+                    </div>
+                    <div class="flex gap-3 items-center flex-wrap">
+                        <!-- Bulk inject button (only visible when selections exist) -->
+                        <div id="qbBulkBar" class="hidden-section flex items-center gap-3">
+                            <span id="qbBulkCount" class="text-sm font-black text-blue-700 bg-blue-100 px-3 py-1 rounded-full">0 selected</span>
+                            <button onclick="injectSelectedBankQuestions()" class="pearl-btn pearl-btn-blue px-5 py-2 rounded-xl text-white text-xs font-bold">
+                                ⚡ Inject into Exam
+                            </button>
+                            <button onclick="clearBankSelection()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition">
+                                Clear
+                            </button>
+                        </div>
+                        <button onclick="loadQuestionBank()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Bar -->
+                <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="relative sm:col-span-2">
+                        <input type="text" id="qbSearchInput" oninput="filterQuestionBank()" placeholder="Search questions by text, topic, course, or tag..." class="w-full p-3 pl-10 border-2 rounded-2xl font-medium bg-slate-50 outline-none focus:border-blue-500 transition text-sm">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+                    </div>
+                    <select id="qbDifficultyFilter" onchange="filterQuestionBank()" class="p-3 border-2 rounded-2xl font-medium bg-slate-50 outline-none focus:border-blue-500 transition text-sm">
+                        <option value="">All Difficulties</option>
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                    <select id="qbOwnerFilter" onchange="filterQuestionBank()" class="p-3 border-2 rounded-2xl font-medium bg-slate-50 outline-none focus:border-blue-500 transition text-sm">
+                        <option value="mine">My Questions</option>
+                        <option value="shared">Shared Questions</option>
+                        <option value="all">All Questions</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- DB Status Banner -->
+            <div id="qbDbStatus" class="hidden-section mb-6 flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold"></div>
+
+            <!-- Stats Row -->
+            <div id="qbStats" class="hidden-section grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+                    <div id="qbStatTotal" class="text-3xl font-black text-blue-600">0</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Total</div>
+                </div>
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+                    <div id="qbStatEasy" class="text-3xl font-black text-emerald-600">0</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Easy</div>
+                </div>
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+                    <div id="qbStatMedium" class="text-3xl font-black text-amber-600">0</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Medium</div>
+                </div>
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+                    <div id="qbStatHard" class="text-3xl font-black text-rose-600">0</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Hard</div>
+                </div>
+            </div>
+
+            <!-- Questions List -->
+            <div id="qbContent" class="space-y-4">
+                <p class="text-center py-12 text-slate-400 font-medium">Loading your question bank...</p>
+            </div>
+        </section>
+
+        <!-- Save to Bank Modal (Phase 2) -->
+        <div id="saveToBankModal" class="hidden-section fixed inset-0 z-[500] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg p-8 modal-animate border border-slate-100">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-black text-slate-900 flex items-center gap-2">🏦 Save to Question Bank</h3>
+                    <button onclick="closeSaveToBankModal()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold transition">✕</button>
+                </div>
+
+                <!-- Question preview -->
+                <div id="stbPreviewText" class="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-700 font-medium max-h-32 overflow-y-auto leading-relaxed"></div>
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Difficulty</label>
+                            <select id="stbDifficulty" class="w-full p-3 border-2 rounded-xl font-bold outline-none focus:border-blue-500">
+                                <option value="Easy">Easy</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="Hard">Hard</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Course Code</label>
+                            <input type="text" id="stbCourse" placeholder="e.g. CHEM-301" class="w-full p-3 border-2 rounded-xl font-medium outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Topic</label>
+                        <input type="text" id="stbTopic" placeholder="e.g. Organic Mechanisms" class="w-full p-3 border-2 rounded-xl font-medium outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tags <span class="text-slate-300 font-normal normal-case">(comma-separated)</span></label>
+                        <input type="text" id="stbTags" placeholder="e.g. Chapter 3, SN2, Mechanism" class="w-full p-3 border-2 rounded-xl font-medium outline-none focus:border-blue-500">
+                    </div>
+                    <label class="flex items-center gap-3 p-3 bg-blue-50 rounded-2xl border border-blue-100 cursor-pointer">
+                        <input type="checkbox" id="stbIsShared" class="h-5 w-5 accent-blue-600">
+                        <span class="text-sm font-bold text-blue-700">Share with all faculty</span>
+                        <span class="text-[10px] text-blue-400 font-medium">(visible to department)</span>
+                    </label>
+                </div>
+
+                <div class="mt-6 flex gap-3">
+                    <button onclick="closeSaveToBankModal()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold text-slate-600 transition">Cancel</button>
+                    <button onclick="confirmSaveToBank()" id="stbSaveBtn" class="flex-1 pearl-btn pearl-btn-blue py-3 rounded-2xl text-white font-bold">Save to Bank</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Bank Question Tags Modal (Phase 2) -->
+        <div id="editBankTagsModal" class="hidden-section fixed inset-0 z-[500] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 modal-animate border border-slate-100">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-black text-slate-900">✏️ Edit Question</h3>
+                    <button onclick="closeEditBankTagsModal()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold transition">✕</button>
+                </div>
+                <input type="hidden" id="ebtId">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Difficulty</label>
+                        <select id="ebtDifficulty" class="w-full p-3 border-2 rounded-xl font-bold outline-none focus:border-blue-500">
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tags <span class="text-slate-300 font-normal normal-case">(comma-separated)</span></label>
+                        <input type="text" id="ebtTags" placeholder="e.g. Chapter 3, SN2" class="w-full p-3 border-2 rounded-xl font-medium outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Topic</label>
+                        <input type="text" id="ebtTopic" class="w-full p-3 border-2 rounded-xl font-medium outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="mt-6 flex gap-3">
+                    <button onclick="closeEditBankTagsModal()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold text-slate-600 transition">Cancel</button>
+                    <button onclick="confirmEditBankTags()" class="flex-1 pearl-btn pearl-btn-blue py-3 rounded-2xl text-white font-bold">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 9: Publish -->
         <section id="content-publish" class="max-w-4xl mx-auto hidden-section text-center">
             <div class="glass p-12 rounded-[3rem] shadow-2xl border border-white">
                 <div class="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center text-5xl mx-auto mb-10 shadow-inner">🎉</div>
@@ -732,7 +892,7 @@
                 <div class="flex flex-col gap-4">
                     <!-- Phase 1: Share to Faculty Library Opt-In -->
                     <label class="flex items-center justify-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100 cursor-pointer">
-                        <input type="checkbox" id="shareToFacultyLibrary" checked class="h-5 w-5 accent-blue-600">
+                        <input type="checkbox" id="shareToFacultyLibrary" class="h-5 w-5 accent-blue-600">
                         <span class="text-sm font-bold text-blue-700">Share to Faculty Library</span>
                         <span class="text-[10px] text-blue-400 font-medium">(Other instructors can browse &amp; import this exam)</span>
                     </label>
